@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useOnboarding } from '@/contexts/OnboardingContext';
+import { SettingsView } from './components/SettingsView';
+import { AdminDashboardView } from '@/features/admin/AdminDashboardView';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,16 +13,21 @@ import {
   Clock,
   Sparkles,
   LogOut,
-  RotateCcw,
-  CheckCircle2,
   Shield,
   Cloud,
+  Settings as SettingsIcon,
+  CheckCircle2,
+  Activity,
+  Flame,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export const ProfileView: React.FC = () => {
   const { user, signOutUser } = useAuth();
-  const { studentDetails, studyRoutine, upcomingExam, setScreen } = useOnboarding();
+  const { studentDetails, studyRoutine, upcomingExam, chapterProgressMap } = useOnboarding();
+  const [activeTab, setActiveTab] = useState<'overview' | 'settings' | 'admin'>('overview');
+
+  const isAdmin = user?.role === 'admin' || user?.email === 'devgamerz3131@gmail.com';
 
   const handleSignOut = async () => {
     try {
@@ -32,23 +39,33 @@ export const ProfileView: React.FC = () => {
     }
   };
 
+  const totalChapters = Object.keys(chapterProgressMap || {}).length || 40;
+  const completedChapters = Object.values(chapterProgressMap || {}).filter(
+    (c) => c.status === 'Completed' || c.completion
+  ).length;
+
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6 pb-12 select-none">
       {/* Profile Header */}
       <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-purple-950 via-indigo-950 to-slate-950 text-white border border-purple-500/25 shadow-2xl relative overflow-hidden">
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white font-extrabold text-2xl border border-white/20 shadow-xl">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white font-black text-2xl border border-white/20 shadow-xl">
               {(studentDetails.name || user?.displayName || 'S').charAt(0).toUpperCase()}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-extrabold text-white">
+                <h1 className="text-xl sm:text-2xl font-black text-white">
                   {studentDetails.name || user?.displayName || 'Rankify Student'}
                 </h1>
                 <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/40">
-                  Verified
+                  Verified Candidate
                 </span>
+                {isAdmin && (
+                  <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 text-[10px] font-bold border border-indigo-500/40">
+                    Administrator
+                  </span>
+                )}
               </div>
               <p className="text-xs text-purple-200 mt-0.5">{user?.email}</p>
             </div>
@@ -70,70 +87,165 @@ export const ProfileView: React.FC = () => {
         <div className="absolute -right-20 -bottom-20 w-80 h-80 rounded-full bg-purple-500/20 blur-3xl pointer-events-none" />
       </div>
 
-      {/* Academic Details Card */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <Card className="p-5 sm:p-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-slate-200/80 dark:border-white/10 shadow-xs space-y-4">
-          <CardTitle className="text-base font-bold flex items-center gap-2">
-            <Award className="w-4 h-4 text-purple-600" />
-            <span>Academic Calibration</span>
-          </CardTitle>
+      {/* Tabs Navigation */}
+      <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl border border-slate-200/60 dark:border-white/5">
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'overview'
+              ? 'bg-purple-600 text-white shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <User className="w-4 h-4" />
+          <span>Academic Profile</span>
+        </button>
 
-          <div className="space-y-3 text-xs">
-            <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-              <span className="text-muted-foreground">Education Board:</span>
-              <span className="font-bold text-foreground">{studentDetails.board}</span>
-            </div>
-            <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-              <span className="text-muted-foreground">Class Curriculum:</span>
-              <span className="font-bold text-foreground">Class {studentDetails.classNumber}</span>
-            </div>
-            <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-              <span className="text-muted-foreground">Target Percentage:</span>
-              <span className="font-bold text-purple-600 font-mono">{studentDetails.targetPercentage}%</span>
-            </div>
-            <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-              <span className="text-muted-foreground">Medium / Language:</span>
-              <span className="font-bold text-foreground">
-                {studentDetails.medium} ({studentDetails.preferredLanguage})
-              </span>
-            </div>
-          </div>
-        </Card>
+        <button
+          onClick={() => setActiveTab('settings')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'settings'
+              ? 'bg-purple-600 text-white shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <SettingsIcon className="w-4 h-4" />
+          <span>Settings</span>
+        </button>
 
-        {/* Study Routine Summary */}
-        <Card className="p-5 sm:p-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-slate-200/80 dark:border-white/10 shadow-xs space-y-4">
-          <CardTitle className="text-base font-bold flex items-center gap-2">
-            <Clock className="w-4 h-4 text-purple-600" />
-            <span>Daily Routine & Timing</span>
-          </CardTitle>
-
-          <div className="space-y-3 text-xs">
-            <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-              <span className="text-muted-foreground">Planned Study Hours:</span>
-              <span className="font-bold text-foreground">{studyRoutine.studyHoursPerDay} hrs / day</span>
-            </div>
-            <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-              <span className="text-muted-foreground">School Timings:</span>
-              <span className="font-bold text-foreground">
-                {studyRoutine.schoolTiming.start} - {studyRoutine.schoolTiming.end}
-              </span>
-            </div>
-            <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-              <span className="text-muted-foreground">Upcoming Target Exam:</span>
-              <span className="font-bold text-foreground">
-                {upcomingExam.examType} ({upcomingExam.examDate})
-              </span>
-            </div>
-            <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-              <span className="text-muted-foreground">Cloud Sync Engine:</span>
-              <span className="font-bold text-emerald-600 flex items-center gap-1">
-                <Cloud className="w-3.5 h-3.5" />
-                <span>Active & Synced</span>
-              </span>
-            </div>
-          </div>
-        </Card>
+        {isAdmin && (
+          <button
+            onClick={() => setActiveTab('admin')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'admin'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30'
+            }`}
+          >
+            <Shield className="w-4 h-4" />
+            <span>Admin Console</span>
+            <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-indigo-500/20 font-mono">
+              STAFF
+            </span>
+          </button>
+        )}
       </div>
+
+      {/* Tab Content */}
+      {activeTab === 'settings' && <SettingsView />}
+
+      {activeTab === 'admin' && isAdmin && <AdminDashboardView />}
+
+      {activeTab === 'overview' && (
+        <div className="space-y-6">
+          {/* Diagnostic Metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="p-4 rounded-2xl bg-card/60 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-1">
+              <span className="text-xs text-muted-foreground font-semibold flex items-center gap-1.5">
+                <Award className="w-4 h-4 text-purple-600" />
+                Target Score
+              </span>
+              <div className="text-2xl font-black text-purple-600 font-mono">
+                {studentDetails.targetPercentage}%
+              </div>
+              <p className="text-[10px] text-muted-foreground">CBSE Class 12 Boards</p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-card/60 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-1">
+              <span className="text-xs text-muted-foreground font-semibold flex items-center gap-1.5">
+                <BookOpen className="w-4 h-4 text-blue-600" />
+                Completed Chapters
+              </span>
+              <div className="text-2xl font-black text-foreground font-mono">
+                {completedChapters} / {totalChapters}
+              </div>
+              <p className="text-[10px] text-muted-foreground">Physics, Chem & Maths</p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-card/60 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-1">
+              <span className="text-xs text-muted-foreground font-semibold flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-emerald-600" />
+                Daily Study Routine
+              </span>
+              <div className="text-2xl font-black text-emerald-600 font-mono">
+                {studyRoutine.studyHoursPerDay || 4}h
+              </div>
+              <p className="text-[10px] text-muted-foreground">Allocated study time</p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-card/60 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-1">
+              <span className="text-xs text-muted-foreground font-semibold flex items-center gap-1.5">
+                <Cloud className="w-4 h-4 text-amber-500" />
+                Cloud State
+              </span>
+              <div className="text-sm font-bold text-amber-600 mt-2 flex items-center gap-1">
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Synced</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground">Firestore Real-time</p>
+            </div>
+          </div>
+
+          {/* Academic Details Card */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <Card className="p-5 sm:p-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-slate-200/80 dark:border-white/10 shadow-xs space-y-4">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Award className="w-4 h-4 text-purple-600" />
+                <span>Academic Calibration</span>
+              </CardTitle>
+
+              <div className="space-y-3 text-xs">
+                <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-muted-foreground">Education Board:</span>
+                  <span className="font-bold text-foreground">{studentDetails.board}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-muted-foreground">Class Curriculum:</span>
+                  <span className="font-bold text-foreground">Class {studentDetails.classNumber}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-muted-foreground">Target Stream:</span>
+                  <span className="font-bold text-foreground">Science (PCM: 042, 043, 041)</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-muted-foreground">Medium / Language:</span>
+                  <span className="font-bold text-foreground">
+                    {studentDetails.medium} ({studentDetails.preferredLanguage})
+                  </span>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-5 sm:p-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-slate-200/80 dark:border-white/10 shadow-xs space-y-4">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Clock className="w-4 h-4 text-purple-600" />
+                <span>Daily Routine & Schedule</span>
+              </CardTitle>
+
+              <div className="space-y-3 text-xs">
+                <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-muted-foreground">Wake Up Time:</span>
+                  <span className="font-bold text-foreground">{studyRoutine.wakeTime || '06:00'}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-muted-foreground">School Timings:</span>
+                  <span className="font-bold text-foreground">
+                    {studyRoutine.schoolTiming.start} - {studyRoutine.schoolTiming.end}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-muted-foreground">Daily Study Target:</span>
+                  <span className="font-bold text-purple-600">{studyRoutine.studyHoursPerDay} Hours/Day</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-muted-foreground">Sleep Time:</span>
+                  <span className="font-bold text-foreground">{studyRoutine.sleepTime || '23:00'}</span>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

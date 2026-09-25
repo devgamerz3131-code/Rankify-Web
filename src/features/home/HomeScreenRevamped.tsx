@@ -6,6 +6,7 @@ import { db } from '@/firebase/config';
 import { useAuth } from '@/hooks/use-auth';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { useNavigation } from '@/contexts/NavigationContext';
+import { useAIMemory } from '@/contexts/AIMemoryContext';
 import { syncEngine } from '@/services/sync-engine';
 import { rebalanceNeedsFocus } from '@/services/ai-plan-generator';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -89,6 +90,7 @@ function playCelebrationChime() {
 export const HomeScreenRevamped: React.FC = () => {
   const { user } = useAuth();
   const { setActiveTab } = useNavigation();
+  const { recentDoubts, setActiveDoubtToContinue } = useAIMemory();
   const {
     studentDetails: contextDetails,
     chapterProgressMap: contextChapters,
@@ -634,31 +636,54 @@ export const HomeScreenRevamped: React.FC = () => {
             initial={{ opacity: 0, scale: 0.95, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="p-6 rounded-3xl bg-gradient-to-r from-emerald-950 via-teal-950 to-slate-950 text-white border border-emerald-500/40 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4"
+            className="p-6 rounded-3xl bg-gradient-to-r from-emerald-950 via-teal-950 to-slate-950 text-white border border-emerald-500/40 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4"
           >
             <div className="flex items-center gap-4 text-center sm:text-left">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0 text-2xl">
-                🔥
+              <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0 text-3xl animate-bounce">
+                🎉
               </div>
               <div>
-                <h4 className="text-lg font-extrabold text-white">
-                  🔥 Excellent! Today's mission completed!
+                <h4 className="text-lg sm:text-xl font-black text-white">
+                  🎉 Great Job! Today's target completed.
                 </h4>
-                <p className="text-xs text-emerald-200/90 mt-0.5">
-                  You finished all recommended CBSE Class 12 tasks today. Keep the momentum going or practice extra questions!
+                <p className="text-xs text-emerald-200/90 mt-1 max-w-lg">
+                  You conquered your daily CBSE Class 12 tasks! Keep your momentum active with extra revisions or practice tests.
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
-              <Button
-                variant="primary"
+            <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2 shrink-0">
+              <button
                 onClick={handleAskNewTask}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-5 h-10 rounded-xl shadow-lg shadow-emerald-600/30 cursor-pointer"
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-md cursor-pointer flex items-center gap-1.5 transition-colors"
               >
-                <span>Continue Studying (More Tasks)</span>
-                <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
-              </Button>
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span>Generate More Tasks</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('study')}
+                className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3.5 py-2 rounded-xl border border-white/20 cursor-pointer flex items-center gap-1.5 transition-colors"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Continue Revision</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('practice')}
+                className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3.5 py-2 rounded-xl border border-white/20 cursor-pointer flex items-center gap-1.5 transition-colors"
+              >
+                <Target className="w-3.5 h-3.5" />
+                <span>Take Practice Test</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('progress')}
+                className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3.5 py-2 rounded-xl border border-white/20 cursor-pointer flex items-center gap-1.5 transition-colors"
+              >
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span>View Progress</span>
+              </button>
             </div>
           </motion.div>
         )}
@@ -913,7 +938,211 @@ export const HomeScreenRevamped: React.FC = () => {
         </Card>
       </div>
 
-      {/* 7. Dynamic Motivation Card */}
+      {/* 7. Quick Actions Hub */}
+      <div className="p-5 rounded-3xl bg-card/60 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-purple-600" />
+            <h3 className="font-bold text-sm text-foreground">Quick Board Actions</h3>
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            1-Click Launchers
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <button
+            onClick={() => setActiveTab('ask-ai')}
+            className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 hover:border-purple-500 hover:shadow-md transition-all text-left space-y-1.5 cursor-pointer group"
+          >
+            <div className="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div className="text-xs font-bold text-foreground">Ask AI Doubt</div>
+            <p className="text-[10px] text-muted-foreground">Physics, Chem & Maths</p>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('practice')}
+            className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 hover:border-purple-500 hover:shadow-md transition-all text-left space-y-1.5 cursor-pointer group"
+          >
+            <div className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-300 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <Target className="w-4 h-4" />
+            </div>
+            <div className="text-xs font-bold text-foreground">Solve Board PYQs</div>
+            <p className="text-[10px] text-muted-foreground">10-Year CBSE bank</p>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('study')}
+            className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 hover:border-purple-500 hover:shadow-md transition-all text-left space-y-1.5 cursor-pointer group"
+          >
+            <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-300 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <BookOpen className="w-4 h-4" />
+            </div>
+            <div className="text-xs font-bold text-foreground">40 Chapters</div>
+            <p className="text-[10px] text-muted-foreground">Official CBSE syllabus</p>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('progress')}
+            className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 hover:border-purple-500 hover:shadow-md transition-all text-left space-y-1.5 cursor-pointer group"
+          >
+            <div className="w-8 h-8 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <TrendingUp className="w-4 h-4" />
+            </div>
+            <div className="text-xs font-bold text-foreground">Diagnostic Stats</div>
+            <p className="text-[10px] text-muted-foreground">Accuracy & Weak areas</p>
+          </button>
+        </div>
+      </div>
+
+      {/* 8. Recent Doubts & Recent Activity Split Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Recent Doubts from AI Memory */}
+        <Card className="p-5 sm:p-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-slate-200/80 dark:border-white/10 shadow-xs flex flex-col justify-between space-y-3">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-purple-600" />
+                <h3 className="font-bold text-sm text-foreground">Recent Doubts & AI Memory</h3>
+              </div>
+              <span className="text-[10px] font-bold text-purple-600 bg-purple-50 dark:bg-purple-950/60 px-2 py-0.5 rounded-full border border-purple-200 dark:border-purple-800/40">
+                Session Active
+              </span>
+            </div>
+
+            {recentDoubts.length === 0 ? (
+              <div className="p-6 text-center rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  No doubts asked yet in this session. Ask any Physics, Chemistry, or Maths question to keep it in active memory!
+                </p>
+                <button
+                  onClick={() => setActiveTab('ask-ai')}
+                  className="px-3.5 py-1.5 rounded-xl bg-purple-600 text-white text-xs font-bold shadow-xs cursor-pointer"
+                >
+                  Ask AI Tutor Now
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {recentDoubts.slice(0, 3).map((d) => (
+                  <div
+                    key={d.id}
+                    onClick={() => {
+                      setActiveDoubtToContinue(d);
+                      setActiveTab('ask-ai');
+                    }}
+                    className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:border-purple-400 border border-slate-200/70 dark:border-white/5 cursor-pointer transition-all flex items-center justify-between gap-3 group"
+                  >
+                    <div className="space-y-0.5 flex-1 min-w-0">
+                      <div className="text-xs font-bold text-foreground truncate group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                        {d.question}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {d.subject} • {d.chapter}
+                      </div>
+                    </div>
+                    <span className="text-xs font-bold text-purple-600 dark:text-purple-400 shrink-0 group-hover:translate-x-0.5 transition-transform">
+                      Resume →
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-xs">
+            <span className="text-muted-foreground font-medium">Have a new question?</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setActiveTab('ask-ai')}
+              className="text-xs text-purple-600 dark:text-purple-400 font-bold p-0 h-auto cursor-pointer"
+            >
+              <span>Open AI Doubt Solver</span>
+              <ArrowRight className="w-3.5 h-3.5 ml-1" />
+            </Button>
+          </div>
+        </Card>
+
+        {/* Recent Dynamic Activity Feed */}
+        <Card className="p-5 sm:p-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-slate-200/80 dark:border-white/10 shadow-xs flex flex-col justify-between space-y-3">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Activity className="w-4 h-4 text-emerald-600" />
+                <h3 className="font-bold text-sm text-foreground">Recent Study Activity</h3>
+              </div>
+              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/40">
+                Real-time
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-white/5 flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center font-bold text-xs">
+                    ✓
+                  </div>
+                  <div>
+                    <span className="font-bold text-foreground">Daily Mission Synchronized</span>
+                    <p className="text-[10px] text-muted-foreground">
+                      {completedCount} of {totalTasks} tasks completed today
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] text-muted-foreground font-mono">Today</span>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-white/5 flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-purple-600 flex items-center justify-center font-bold text-xs">
+                    ★
+                  </div>
+                  <div>
+                    <span className="font-bold text-foreground">Syllabus Progress Verified</span>
+                    <p className="text-[10px] text-muted-foreground">
+                      {overallCoverage}% of CBSE Class 12 PCM completed
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] text-muted-foreground font-mono">Active</span>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-white/5 flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center font-bold text-xs">
+                    🔥
+                  </div>
+                  <div>
+                    <span className="font-bold text-foreground">Streak Protected</span>
+                    <p className="text-[10px] text-muted-foreground">
+                      {statistics.streak || 1} day active learning streak maintained
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] text-muted-foreground font-mono">Live</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-xs">
+            <span className="text-muted-foreground font-medium">Continue your streak:</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setActiveTab('study')}
+              className="text-xs text-emerald-600 dark:text-emerald-400 font-bold p-0 h-auto cursor-pointer"
+            >
+              <span>Continue Studying</span>
+              <ArrowRight className="w-3.5 h-3.5 ml-1" />
+            </Button>
+          </div>
+        </Card>
+      </div>
+
+      {/* 9. Dynamic Motivation Card */}
       <div className="p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-purple-950 to-slate-900 text-white border border-purple-500/30 shadow-md flex items-center gap-4">
         <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center shrink-0">
           <Quote className="w-5 h-5 text-purple-300" />
