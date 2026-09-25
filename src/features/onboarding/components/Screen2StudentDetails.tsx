@@ -86,11 +86,11 @@ export const Screen2StudentDetails: React.FC = () => {
             </span>
             <span className="flex items-center gap-1">
               <CheckCircle2 className="w-3.5 h-3.5 text-purple-600" />
-              Chemistry (12 Ch)
+              Chemistry (10 Ch)
             </span>
             <span className="flex items-center gap-1">
               <CheckCircle2 className="w-3.5 h-3.5 text-purple-600" />
-              Maths (14 Ch)
+              Maths (13 Ch)
             </span>
           </div>
         </div>

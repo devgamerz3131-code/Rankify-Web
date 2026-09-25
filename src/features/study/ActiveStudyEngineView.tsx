@@ -70,7 +70,7 @@ export const ActiveStudyEngineView: React.FC = () => {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-md px-3.5 py-1 text-xs font-semibold text-purple-200 border border-white/15">
               <Sparkles className="h-3.5 w-3.5 text-purple-300" />
-              <span>CBSE Class 12 PCM Study Engine • 40 Official Chapters</span>
+              <span>CBSE Class 12 PCM Study Engine • 37 Official Chapters</span>
             </div>
 
             <Button
@@ -89,7 +89,7 @@ export const ActiveStudyEngineView: React.FC = () => {
           </h1>
 
           <p className="text-sm text-purple-100/90 max-w-2xl leading-relaxed">
-            Full official CBSE Class 12 PCM curriculum covering Physics (14), Chemistry (12), and Mathematics (14). Track your progress percentages, confidence levels, and needs-focus topics.
+            Full official CBSE Class 12 PCM curriculum covering Physics (14), Chemistry (10), and Mathematics (13). Track your progress percentages, confidence levels, and needs-focus topics.
           </p>
 
           {/* Quick Metrics */}

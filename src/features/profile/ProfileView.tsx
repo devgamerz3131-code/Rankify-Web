@@ -39,7 +39,7 @@ export const ProfileView: React.FC = () => {
     }
   };
 
-  const totalChapters = Object.keys(chapterProgressMap || {}).length || 40;
+  const totalChapters = Object.keys(chapterProgressMap || {}).length || 37;
   const completedChapters = Object.values(chapterProgressMap || {}).filter(
     (c) => c.status === 'Completed' || c.completion
   ).length;

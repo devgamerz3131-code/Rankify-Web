@@ -43,7 +43,7 @@ export const Screen7SyllabusTracker: React.FC = () => {
     return chapters.filter((c) => c.subjectId === activeTab);
   }, [chapters, activeTab]);
 
-  const totalChapters = chapters.length || 40;
+  const totalChapters = chapters.length || 37;
   const evaluatedChapters = chapters.filter((c) => c.progressPercentage > 0 || c.confidence !== 3).length;
 
   const physicsCount = chapters.filter((c) => c.subjectId === 'physics').length;

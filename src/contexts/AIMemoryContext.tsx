@@ -54,7 +54,7 @@ const defaultState: AIMemoryState = {
       title: "Lens Maker's Equation",
       formula: "\\frac{1}{f} = (n - 1)\\left(\\frac{1}{R_1} - \\frac{1}{R_2}\\right)",
       subject: 'Physics',
-      chapter: 'Ray Optics',
+      chapter: 'Ray Optics and Optical Instruments',
     },
     {
       title: 'Nernst Equation',

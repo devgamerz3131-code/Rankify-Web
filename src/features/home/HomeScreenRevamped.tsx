@@ -980,7 +980,7 @@ export const HomeScreenRevamped: React.FC = () => {
             <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-300 flex items-center justify-center group-hover:scale-105 transition-transform">
               <BookOpen className="w-4 h-4" />
             </div>
-            <div className="text-xs font-bold text-foreground">40 Chapters</div>
+            <div className="text-xs font-bold text-foreground">37 Chapters</div>
             <p className="text-[10px] text-muted-foreground">Official CBSE syllabus</p>
           </button>
 

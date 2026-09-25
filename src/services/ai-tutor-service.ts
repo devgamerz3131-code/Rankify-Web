@@ -83,16 +83,16 @@ export function detectSubjectAndChapter(query: string): {
     return { detectedSubject: 'Physics', detectedChapter: 'Alternating Current' };
   }
   if (q.includes('lens') || q.includes('refraction') || q.includes('mirror') || q.includes('optics') || q.includes('telescope')) {
-    return { detectedSubject: 'Physics', detectedChapter: 'Ray Optics' };
+    return { detectedSubject: 'Physics', detectedChapter: 'Ray Optics and Optical Instruments' };
   }
   if (q.includes('interference') || q.includes('diffraction') || q.includes('young') || q.includes('wave optics')) {
     return { detectedSubject: 'Physics', detectedChapter: 'Wave Optics' };
   }
   if (q.includes('photoelectric') || q.includes('work function') || q.includes('de broglie') || q.includes('dual nature')) {
-    return { detectedSubject: 'Physics', detectedChapter: 'Dual Nature' };
+    return { detectedSubject: 'Physics', detectedChapter: 'Dual Nature of Radiation and Matter' };
   }
   if (q.includes('semiconductor') || q.includes('diode') || q.includes('p-n junction') || q.includes('rectifier')) {
-    return { detectedSubject: 'Physics', detectedChapter: 'Semiconductors' };
+    return { detectedSubject: 'Physics', detectedChapter: 'Semiconductor Electronics: Materials, Devices and Simple Circuits' };
   }
 
   // 2. Check Chemistry
@@ -105,23 +105,20 @@ export function detectSubjectAndChapter(query: string): {
   if (q.includes('rate constant') || q.includes('arrhenius') || q.includes('activation energy') || q.includes('half life') || q.includes('kinetics')) {
     return { detectedSubject: 'Chemistry', detectedChapter: 'Chemical Kinetics' };
   }
-  if (q.includes('lanthanoid') || q.includes('transition element') || q.includes('kmno4') || q.includes('d block')) {
-    return { detectedSubject: 'Chemistry', detectedChapter: 'd and f Block' };
+  if (q.includes('lanthanoid') || q.includes('transition element') || q.includes('kmno4') || q.includes('d block') || q.includes('f block')) {
+    return { detectedSubject: 'Chemistry', detectedChapter: 'The d- and f-Block Elements' };
   }
   if (q.includes('werner') || q.includes('crystal field') || q.includes('ligand') || q.includes('coordination')) {
     return { detectedSubject: 'Chemistry', detectedChapter: 'Coordination Compounds' };
   }
   if (q.includes('sn1') || q.includes('sn2') || q.includes('haloalkane') || q.includes('haloarene')) {
-    return { detectedSubject: 'Chemistry', detectedChapter: 'Haloalkanes' };
+    return { detectedSubject: 'Chemistry', detectedChapter: 'Haloalkanes and Haloarenes' };
   }
-  if (q.includes('phenol') || q.includes('reimer') || q.includes('kolbe') || q.includes('williamson') || q.includes('ether')) {
-    return { detectedSubject: 'Chemistry', detectedChapter: 'Alcohol Phenol Ether' };
+  if (q.includes('phenol') || q.includes('reimer') || q.includes('kolbe') || q.includes('williamson') || q.includes('ether') || q.includes('alcohol')) {
+    return { detectedSubject: 'Chemistry', detectedChapter: 'Alcohols, Phenols and Ethers' };
   }
-  if (q.includes('aldol') || q.includes('cannizzaro') || q.includes('aldehyde') || q.includes('ketone')) {
-    return { detectedSubject: 'Chemistry', detectedChapter: 'Aldehyde Ketone' };
-  }
-  if (q.includes('carboxylic') || q.includes('hvz')) {
-    return { detectedSubject: 'Chemistry', detectedChapter: 'Carboxylic Acid' };
+  if (q.includes('aldol') || q.includes('cannizzaro') || q.includes('aldehyde') || q.includes('ketone') || q.includes('carboxylic') || q.includes('hvz')) {
+    return { detectedSubject: 'Chemistry', detectedChapter: 'Aldehydes, Ketones and Carboxylic Acids' };
   }
   if (q.includes('amine') || q.includes('hoffmann bromamide') || q.includes('diazonium')) {
     return { detectedSubject: 'Chemistry', detectedChapter: 'Amines' };
@@ -131,17 +128,20 @@ export function detectSubjectAndChapter(query: string): {
   }
 
   // 3. Check Mathematics
+  if (q.includes('relation') || q.includes('reflexive') || q.includes('symmetric') || q.includes('transitive') || q.includes('one-one') || q.includes('onto')) {
+    return { detectedSubject: 'Mathematics', detectedChapter: 'Relations and Functions' };
+  }
+  if (q.includes('inverse trig') || q.includes('principal value') || q.includes('sin^-1') || q.includes('cos^-1') || q.includes('tan^-1')) {
+    return { detectedSubject: 'Mathematics', detectedChapter: 'Inverse Trigonometric Functions' };
+  }
   if (q.includes('matrix') || q.includes('matrices') || q.includes('skew symmetric') || q.includes('transpose')) {
     return { detectedSubject: 'Mathematics', detectedChapter: 'Matrices' };
   }
   if (q.includes('determinant') || q.includes('cramer') || q.includes('adjoint') || q.includes('cofactor')) {
     return { detectedSubject: 'Mathematics', detectedChapter: 'Determinants' };
   }
-  if (q.includes('continuity') || q.includes('continuous function')) {
-    return { detectedSubject: 'Mathematics', detectedChapter: 'Continuity' };
-  }
-  if (q.includes('differentiab') || q.includes('chain rule') || q.includes('implicit derivative') || q.includes('logarithmic diff')) {
-    return { detectedSubject: 'Mathematics', detectedChapter: 'Differentiability' };
+  if (q.includes('continuity') || q.includes('continuous function') || q.includes('differentiab') || q.includes('chain rule') || q.includes('implicit derivative') || q.includes('logarithmic diff')) {
+    return { detectedSubject: 'Mathematics', detectedChapter: 'Continuity and Differentiability' };
   }
   if (q.includes('maxima') || q.includes('minima') || q.includes('rate of change') || q.includes('increasing decreasing')) {
     return { detectedSubject: 'Mathematics', detectedChapter: 'Application of Derivatives' };
@@ -155,8 +155,11 @@ export function detectSubjectAndChapter(query: string): {
   if (q.includes('dot product') || q.includes('cross product') || q.includes('vector') || q.includes('direction cosine')) {
     return { detectedSubject: 'Mathematics', detectedChapter: 'Vector Algebra' };
   }
-  if (q.includes('3d') || q.includes('skew lines') || q.includes('shortest distance') || q.includes('equation of line in space')) {
-    return { detectedSubject: 'Mathematics', detectedChapter: '3D Geometry' };
+  if (q.includes('3d') || q.includes('skew lines') || q.includes('shortest distance') || q.includes('equation of line in space') || q.includes('three-dimensional')) {
+    return { detectedSubject: 'Mathematics', detectedChapter: 'Three-Dimensional Geometry' };
+  }
+  if (q.includes('linear program') || q.includes('feasible region') || q.includes('objective function')) {
+    return { detectedSubject: 'Mathematics', detectedChapter: 'Linear Programming' };
   }
   if (q.includes('bayes') || q.includes('conditional probability') || q.includes('random variable') || q.includes('probability')) {
     return { detectedSubject: 'Mathematics', detectedChapter: 'Probability' };
