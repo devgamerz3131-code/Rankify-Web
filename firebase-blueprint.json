@@ -10,36 +10,129 @@
         "displayName": { "type": "string", "maxLength": 100 },
         "photoURL": { "type": "string", "maxLength": 1024 },
         "role": { "type": "string", "enum": ["student", "admin"] },
-        "cbseClass": { "type": "number" },
-        "stream": { "type": "string", "enum": ["science", "commerce", "arts", "general"] },
-        "school": { "type": "string", "maxLength": 200 },
-        "targetExam": { "type": "string", "maxLength": 100 },
+        "classNumber": { "type": "number" },
+        "board": { "type": "string", "maxLength": 50 },
+        "medium": { "type": "string", "maxLength": 50 },
+        "preferredLanguage": { "type": "string", "maxLength": 50 },
+        "targetPercentage": { "type": "number" },
+        "stream": { "type": "string", "maxLength": 50 },
+        "subjects": { "type": "array" },
+        "onboardingCompleted": { "type": "boolean" },
+        "onboardingStep": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "email", "role"]
     },
-    "StudyMaterial": {
-      "title": "StudyMaterial",
-      "description": "Educational content for CBSE syllabus.",
+    "UserPreferences": {
+      "title": "UserPreferences",
+      "description": "Student daily study routine, learning style, and revision style.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "studyHoursPerDay": { "type": "number" },
+        "schoolTiming": { "type": "object" },
+        "coachingTiming": { "type": "object" },
+        "wakeTime": { "type": "string", "maxLength": 10 },
+        "sleepTime": { "type": "string", "maxLength": 10 },
+        "holidays": { "type": "array" },
+        "learningStyle": { "type": "string", "enum": ["Video", "Notes", "Questions", "Mixed"] },
+        "revisionStyle": { "type": "string", "enum": ["Daily", "Alternate Day", "Weekend"] },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId"]
+    },
+    "ExamInformation": {
+      "title": "ExamInformation",
+      "description": "Student target exam type and examination date.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "examType": { "type": "string", "maxLength": 50 },
+        "customExamName": { "type": "string", "maxLength": 100 },
+        "examDate": { "type": "string", "maxLength": 50 },
+        "daysRemaining": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "examType"]
+    },
+    "ChapterProgress": {
+      "title": "ChapterProgress",
+      "description": "Chapter-level learning status, confidence score, and metrics.",
       "type": "object",
       "properties": {
         "id": { "type": "string", "maxLength": 128 },
+        "chapterId": { "type": "string", "maxLength": 128 },
+        "chapterName": { "type": "string", "maxLength": 200 },
         "subjectId": { "type": "string", "maxLength": 64 },
-        "chapterId": { "type": "string", "maxLength": 64 },
-        "classNumber": { "type": "number" },
-        "title": { "type": "string", "maxLength": 200 },
-        "type": { "type": "string", "enum": ["notes", "ncert-solutions", "concept-map", "formulas", "past-papers"] },
-        "contentUrl": { "type": "string", "maxLength": 1024 },
-        "isPremium": { "type": "boolean" },
-        "estimatedReadMinutes": { "type": "number" },
+        "subjectName": { "type": "string", "maxLength": 100 },
+        "status": { "type": "string", "enum": ["Never Started", "Started", "Need Revision", "Completed"] },
+        "confidence": { "type": "number" },
+        "lastStudied": { "type": "string" },
+        "studyMinutes": { "type": "number" },
+        "questionSolved": { "type": "number" },
+        "revisionCount": { "type": "number" },
+        "completionPercentage": { "type": "number" },
+        "topics": { "type": "array" },
+        "orderIndex": { "type": "number" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "subjectId", "classNumber", "title", "type"]
+      "required": ["id", "chapterName", "status", "confidence"]
     },
-    "UserProgress": {
-      "title": "UserProgress",
-      "description": "Tracks student learning streaks, chapter completion, and practice test analytics.",
+    "StudyPlan": {
+      "title": "StudyPlan",
+      "description": "AI-generated tailored syllabus roadmap, weak chapters, and queues.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "weakChapters": { "type": "array" },
+        "strongChapters": { "type": "array" },
+        "priorityQueue": { "type": "array" },
+        "dailyTargets": { "type": "array" },
+        "weeklyTargets": { "type": "array" },
+        "revisionQueue": { "type": "array" },
+        "recommendedStudyHours": { "type": "number" },
+        "expectedCompletionDate": { "type": "string", "maxLength": 100 },
+        "recommendedSessionLength": { "type": "number" },
+        "difficultyRating": { "type": "string", "maxLength": 50 },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "summary": { "type": "string", "maxLength": 1000 }
+      },
+      "required": ["id", "userId", "generatedAt"]
+    },
+    "DailyTarget": {
+      "title": "DailyTarget",
+      "description": "Specific daily milestone generated for the student.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "dayNumber": { "type": "number" },
+        "date": { "type": "string", "maxLength": 50 },
+        "chapterName": { "type": "string", "maxLength": 200 },
+        "subjectName": { "type": "string", "maxLength": 100 },
+        "taskTitle": { "type": "string", "maxLength": 300 },
+        "allocatedMinutes": { "type": "number" },
+        "isCompleted": { "type": "boolean" }
+      },
+      "required": ["id", "date", "taskTitle"]
+    },
+    "WeeklyTarget": {
+      "title": "WeeklyTarget",
+      "description": "Weekly syllabus and practice goals.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "weekNumber": { "type": "number" },
+        "title": { "type": "string", "maxLength": 200 },
+        "goals": { "type": "array" },
+        "isCompleted": { "type": "boolean" }
+      },
+      "required": ["id", "weekNumber", "title"]
+    },
+    "StudyStatistics": {
+      "title": "StudyStatistics",
+      "description": "Cumulative analytics on student learning streaks and accuracy.",
       "type": "object",
       "properties": {
         "userId": { "type": "string", "maxLength": 128 },
@@ -53,6 +146,19 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId"]
+    },
+    "SyllabusTemplate": {
+      "title": "SyllabusTemplate",
+      "description": "Master syllabus template by board and class.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "board": { "type": "string", "maxLength": 50 },
+        "classNumber": { "type": "number" },
+        "subjects": { "type": "array" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "board", "classNumber", "subjects"]
     }
   },
   "firestore": {
@@ -60,13 +166,37 @@
       "schema": "UserProfile",
       "description": "Stores user profiles keyed by Firebase Auth UID."
     },
-    "/studyMaterials/{materialId}": {
-      "schema": "StudyMaterial",
-      "description": "Curated CBSE study notes, NCERT solutions, and formula sheets."
+    "/users/{userId}/user_preferences/{prefId}": {
+      "schema": "UserPreferences",
+      "description": "Student study schedule and learning style preferences."
     },
-    "/progress/{userId}": {
-      "schema": "UserProgress",
-      "description": "Student progress, streaks, and analytics keyed by student UID."
+    "/users/{userId}/exam_information/{examId}": {
+      "schema": "ExamInformation",
+      "description": "Target exam information and target dates."
+    },
+    "/users/{userId}/chapter_progress/{chapterId}": {
+      "schema": "ChapterProgress",
+      "description": "Student status and confidence per individual chapter."
+    },
+    "/users/{userId}/study_plan/{planId}": {
+      "schema": "StudyPlan",
+      "description": "AI generated personalized study roadmap."
+    },
+    "/users/{userId}/daily_targets/{targetId}": {
+      "schema": "DailyTarget",
+      "description": "Actionable daily tasks."
+    },
+    "/users/{userId}/weekly_targets/{targetId}": {
+      "schema": "WeeklyTarget",
+      "description": "Weekly syllabus milestones."
+    },
+    "/users/{userId}/study_statistics/{statId}": {
+      "schema": "StudyStatistics",
+      "description": "Aggregated user statistics and streaks."
+    },
+    "/syllabus_templates/{templateId}": {
+      "schema": "SyllabusTemplate",
+      "description": "Syllabus curriculum templates for CBSE, RBSE, ICSE, and State Boards."
     }
   }
 }

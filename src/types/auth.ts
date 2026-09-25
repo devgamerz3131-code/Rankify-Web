@@ -6,10 +6,18 @@ export interface UserProfile {
   displayName: string | null;
   photoURL: string | null;
   role: UserRole;
-  cbseClass?: number; // 9, 10, 11, 12
+  cbseClass?: number; // legacy alias
+  classNumber?: number; // 6 to 12
+  board?: 'CBSE' | 'RBSE' | 'ICSE' | 'State Board';
+  medium?: 'English' | 'Hindi';
+  preferredLanguage?: 'English' | 'Hindi' | 'Hinglish';
+  targetPercentage?: number;
   stream?: 'science' | 'commerce' | 'arts' | 'general';
+  subjects?: string[];
   school?: string;
-  targetExam?: string; // e.g. "CBSE Board 2027", "JEE 2027", "NEET 2027"
+  targetExam?: string;
+  onboardingCompleted?: boolean;
+  onboardingStep?: number;
   createdAt?: string;
   updatedAt?: string;
 }

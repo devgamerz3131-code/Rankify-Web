@@ -9,6 +9,7 @@ import {
   logoutUser,
 } from '@/firebase/auth/auth-service';
 import { formatAuthError } from '@/utils/auth-error';
+import { syncEngine } from '@/services/sync-engine';
 import toast from 'react-hot-toast';
 
 export interface AuthContextValue extends AuthState {
@@ -130,6 +131,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOutUser = useCallback(async () => {
     try {
+      if (user?.uid) {
+        await syncEngine.flushAndClear(user.uid);
+      }
       await logoutUser();
       setUser(null);
       toast.success('Signed out successfully.');
@@ -137,7 +141,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const msg = err instanceof Error ? err.message : 'Error signing out';
       toast.error(msg);
     }
-  }, []);
+  }, [user?.uid]);
 
   const value = useMemo(
     () => ({
