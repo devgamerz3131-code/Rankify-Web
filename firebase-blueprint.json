@@ -1,0 +1,72 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with role-based access for students and admins.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 255 },
+        "displayName": { "type": "string", "maxLength": 100 },
+        "photoURL": { "type": "string", "maxLength": 1024 },
+        "role": { "type": "string", "enum": ["student", "admin"] },
+        "cbseClass": { "type": "number" },
+        "stream": { "type": "string", "enum": ["science", "commerce", "arts", "general"] },
+        "school": { "type": "string", "maxLength": 200 },
+        "targetExam": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "StudyMaterial": {
+      "title": "StudyMaterial",
+      "description": "Educational content for CBSE syllabus.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "subjectId": { "type": "string", "maxLength": 64 },
+        "chapterId": { "type": "string", "maxLength": 64 },
+        "classNumber": { "type": "number" },
+        "title": { "type": "string", "maxLength": 200 },
+        "type": { "type": "string", "enum": ["notes", "ncert-solutions", "concept-map", "formulas", "past-papers"] },
+        "contentUrl": { "type": "string", "maxLength": 1024 },
+        "isPremium": { "type": "boolean" },
+        "estimatedReadMinutes": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "subjectId", "classNumber", "title", "type"]
+    },
+    "UserProgress": {
+      "title": "UserProgress",
+      "description": "Tracks student learning streaks, chapter completion, and practice test analytics.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "totalStudyMinutes": { "type": "number" },
+        "totalQuestionsAttempted": { "type": "number" },
+        "accuracyRate": { "type": "number" },
+        "chaptersCompleted": { "type": "number" },
+        "currentStreak": { "type": "number" },
+        "longestStreak": { "type": "number" },
+        "lastActiveDate": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Stores user profiles keyed by Firebase Auth UID."
+    },
+    "/studyMaterials/{materialId}": {
+      "schema": "StudyMaterial",
+      "description": "Curated CBSE study notes, NCERT solutions, and formula sheets."
+    },
+    "/progress/{userId}": {
+      "schema": "UserProgress",
+      "description": "Student progress, streaks, and analytics keyed by student UID."
+    }
+  }
+}

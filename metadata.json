@@ -1,0 +1,6 @@
+{
+  "name": "Rankify",
+  "description": "Rankify is a production-grade educational platform for CBSE students featuring personalized study paths, adaptive practice, AI doubt assistance, and progress tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
