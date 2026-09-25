@@ -8,10 +8,15 @@ import { AuthModal } from '@/features/auth/components/AuthModal';
 import { SearchModal } from '@/components/ui/search-modal';
 import { OfflineIndicator } from '@/components/common/offline-indicator';
 import { ToastProviderComponent } from '@/components/ui/toast';
+import { AnnouncementBanner } from '@/components/common/AnnouncementBanner';
+import { AppUpdateModal } from '@/components/common/AppUpdateModal';
 
 export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors duration-200">
+      {/* Remote Announcement Banner */}
+      <AnnouncementBanner />
+
       {/* Top Navigation */}
       <TopNav />
 
@@ -31,11 +36,12 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
       {/* Floating Mobile Bottom Navigation */}
       <BottomNav />
 
-      {/* Global Modals & Notifications */}
+      {/* Global Modals & System Components */}
       <AuthModal />
       <SearchModal />
       <OfflineIndicator />
       <ToastProviderComponent />
+      <AppUpdateModal />
     </div>
   );
 };

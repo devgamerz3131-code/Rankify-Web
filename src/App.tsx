@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { AppProviders } from '@/providers';
 import { useAuth } from '@/hooks/use-auth';
@@ -12,12 +12,35 @@ import { PracticeView } from '@/features/practice/PracticeView';
 import { AskAIView } from '@/features/ask-ai/AskAIView';
 import { ProfileView } from '@/features/profile/ProfileView';
 import { syncEngine } from '@/services/sync-engine';
+import { backupRestoreService } from '@/services/backup-restore';
+import { remoteConfig } from '@/services/remote-config';
+import { MaintenanceScreen } from '@/components/common/MaintenanceScreen';
+import { ErrorBoundary } from '@/components/common/error-boundary';
 
 const AppRouter: React.FC = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { activeTab } = useNavigation();
+  const [isMaintenance, setIsMaintenance] = useState(() => remoteConfig.isMaintenanceActive());
 
-  // 1. Apple-grade persistent auth resolving loader
+  useEffect(() => {
+    return remoteConfig.subscribe((cfg) => {
+      setIsMaintenance(cfg.maintenance.enabled);
+    });
+  }, []);
+
+  // Auto-restore backup when user authenticates
+  useEffect(() => {
+    if (user?.uid) {
+      backupRestoreService.restoreCloudBackup(user.uid).catch(() => {});
+    }
+  }, [user?.uid]);
+
+  // 1. Maintenance Mode
+  if (isMaintenance) {
+    return <MaintenanceScreen />;
+  }
+
+  // 2. Persistent auth resolving loader
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white px-4 selection:bg-purple-500">
@@ -36,13 +59,12 @@ const AppRouter: React.FC = () => {
     );
   }
 
-  // 2. Unauthenticated Gateway (Email, Google, Forgot Password)
+  // 3. Unauthenticated Gateway
   if (!isAuthenticated || !user) {
     return <AuthGateway />;
   }
 
-  // 3. First Login Detection:
-  // Check Firestore user profile onboardingCompleted flag or local cache fallback
+  // 4. First Login Detection:
   const cachedCompleted = syncEngine.getLocalCache<boolean>('onboarding_completed', user.uid);
   const isOnboardingCompleted = user.onboardingCompleted === true || cachedCompleted === true;
 
@@ -50,7 +72,7 @@ const AppRouter: React.FC = () => {
     return <OnboardingContainer />;
   }
 
-  // 4. Authenticated & Onboarded: Render Dynamic Tab Views
+  // 5. Authenticated & Onboarded: Render Dynamic Tab Views
   const renderTabContent = () => {
     switch (activeTab) {
       case 'home':
@@ -71,15 +93,19 @@ const AppRouter: React.FC = () => {
 
   return (
     <MainLayout>
-      {renderTabContent()}
+      <ErrorBoundary>
+        {renderTabContent()}
+      </ErrorBoundary>
     </MainLayout>
   );
 };
 
 export default function App() {
   return (
-    <AppProviders>
-      <AppRouter />
-    </AppProviders>
+    <ErrorBoundary>
+      <AppProviders>
+        <AppRouter />
+      </AppProviders>
+    </ErrorBoundary>
   );
 }

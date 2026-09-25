@@ -37,6 +37,10 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ProgressPercentage } from '@/types/onboarding';
+import { analytics } from '@/services/analytics';
+import { achievementsService } from '@/services/achievements-service';
+import { ShareCardModal } from '@/components/common/ShareCardModal';
+import { Share2 } from 'lucide-react';
 
 export interface TaskItem {
   id: string;
@@ -228,6 +232,7 @@ export const HomeScreenRevamped: React.FC = () => {
 
   const [hasCelebratedToday, setHasCelebratedToday] = useState(false);
   const [showCelebrationBanner, setShowCelebrationBanner] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // 1. DAILY RESET ENGINE (Section 7)
   // Every midnight Today's progress resets to 0%. Overall progress NEVER resets.
@@ -432,6 +437,14 @@ export const HomeScreenRevamped: React.FC = () => {
     }
 
     toast.success(`Completed: ${taskToUpdate.taskTitle}`, { icon: '✅' });
+
+    // Track analytics & evaluate gamified achievements
+    analytics.trackTaskCompleted(taskToUpdate.subjectName, taskToUpdate.chapterName, taskToUpdate.taskTitle);
+    achievementsService.evaluateProgress({
+      streak: newStats.streak,
+      totalMinutes: newStats.totalStudyMinutes,
+      questionsSolved: newStats.questionsSolved,
+    });
 
     // Sync to Firestore immediately
     syncEngine.setLocalCache('study_statistics', newStats, uid);
@@ -653,6 +666,14 @@ export const HomeScreenRevamped: React.FC = () => {
             </div>
 
             <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2 shrink-0">
+              <button
+                onClick={() => setShowShareModal(true)}
+                className="bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-md cursor-pointer flex items-center gap-1.5 transition-colors"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span>Share Milestone</span>
+              </button>
+
               <button
                 onClick={handleAskNewTask}
                 className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-md cursor-pointer flex items-center gap-1.5 transition-colors"
@@ -1156,6 +1177,19 @@ export const HomeScreenRevamped: React.FC = () => {
           </span>
         </div>
       </div>
+
+      {/* Share Milestone Modal */}
+      <ShareCardModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        studentName={profileData.displayName || user?.displayName || 'Scholar'}
+        streak={statistics.streak}
+        studyMinutes={statistics.totalStudyMinutes || 120}
+        tasksCompleted={completedCount}
+        totalTasks={totalTasks}
+        daysToExam={daysRemaining}
+        targetScore={profileData.targetPercentage || 95}
+      />
     </div>
   );
 };
