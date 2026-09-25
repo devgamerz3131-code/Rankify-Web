@@ -112,12 +112,11 @@ export const Screen8AIPlan: React.FC = () => {
         {/* Primary Heading */}
         <div className="space-y-2">
           <h2 className="text-2xl sm:text-4xl font-extrabold text-foreground tracking-tight">
-            Rankify AI is analysing your preparation...
+            Rankify AI is analysing your syllabus...
           </h2>
           <p className="text-xs sm:text-sm text-muted-foreground max-w-lg mx-auto">
             Calibrating syllabus weightage, student confidence metrics, and study routines for{' '}
-            <strong>{studentDetails.name || 'Student'}</strong> ({studentDetails.board} Class{' '}
-            {studentDetails.classNumber}).
+            <strong>{studentDetails.name || 'Student'}</strong> (CBSE Class 12 PCM).
           </p>
         </div>
 

@@ -28,8 +28,7 @@ export const Screen3SubjectSelection: React.FC = () => {
           Select Your Subjects
         </h2>
         <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-          Showing subjects calibrated for <strong>{studentDetails.board} Class {studentDetails.classNumber}</strong>
-          {studentDetails.stream && studentDetails.stream !== 'general' ? ` (${studentDetails.stream.toUpperCase()})` : ''}.
+          Showing subjects calibrated for <strong>CBSE Class 12 (SCIENCE PCM)</strong>.
         </p>
       </div>
 

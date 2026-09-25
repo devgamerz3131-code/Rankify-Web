@@ -35,8 +35,10 @@ export async function getOrCreateUserProfile(
     displayName: user.displayName || additionalData?.displayName || 'Student',
     photoURL: user.photoURL,
     role: (additionalData?.role as UserRole) || 'student',
-    cbseClass: additionalData?.cbseClass || 10,
-    stream: additionalData?.stream || 'science',
+    cbseClass: 12,
+    classNumber: 12,
+    board: 'CBSE',
+    stream: 'science-pcm',
     school: additionalData?.school || '',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -67,7 +69,7 @@ export async function registerWithEmail(
   pass: string,
   displayName: string,
   role: UserRole = 'student',
-  cbseClass: number = 10
+  cbseClass: number = 12
 ): Promise<UserProfile> {
   const cred = await createUserWithEmailAndPassword(auth, email, pass);
   if (displayName) {

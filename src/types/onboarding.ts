@@ -1,25 +1,25 @@
-export type BoardType = 'CBSE' | 'RBSE' | 'ICSE' | 'State Board';
-export type ClassNumber = 6 | 7 | 8 | 9 | 10 | 11 | 12;
+export type BoardType = 'CBSE';
+export type ClassNumber = 12;
 export type MediumType = 'English' | 'Hindi';
 export type PreferredLanguageType = 'English' | 'Hindi' | 'Hinglish';
 
 export interface StudentDetails {
   name: string;
-  classNumber: ClassNumber;
-  board: BoardType;
+  classNumber: 12;
+  board: 'CBSE';
   medium: MediumType;
   preferredLanguage: PreferredLanguageType;
   targetPercentage: number;
-  stream?: 'science-pcm' | 'science-pcb' | 'science-pcmb' | 'commerce' | 'arts' | 'general';
+  stream: 'science-pcm';
 }
 
 export interface SubjectItem {
-  id: string;
-  name: string;
-  code?: string;
+  id: 'physics' | 'chemistry' | 'mathematics';
+  name: 'Physics' | 'Chemistry' | 'Mathematics';
+  code: string;
   color: string;
   iconName?: string;
-  isCore?: boolean;
+  isCore: boolean;
 }
 
 export interface StudyRoutine {
@@ -35,10 +35,10 @@ export interface StudyRoutine {
   };
   wakeTime: string;
   sleepTime: string;
-  holidays: string[]; // e.g. ['Sunday', 'Saturday']
+  holidays: string[]; // e.g. ['Sunday']
 }
 
-export type ExamType = 'School Test' | 'Half Yearly' | 'Boards' | 'JEE' | 'NEET' | 'Custom';
+export type ExamType = 'Boards' | 'Pre-Boards' | 'School Test' | 'Half Yearly' | 'Custom';
 
 export interface UpcomingExam {
   examType: ExamType;
@@ -51,24 +51,36 @@ export type LearningStyleType = 'Video' | 'Notes' | 'Questions' | 'Mixed';
 export type RevisionStyleType = 'Daily' | 'Alternate Day' | 'Weekend';
 
 export type ChapterStatusType = 'Never Started' | 'Started' | 'Need Revision' | 'Completed';
+export type ProgressPercentage = 0 | 25 | 50 | 75 | 100;
 export type ConfidenceLevel = 1 | 2 | 3 | 4 | 5;
 
 export interface ChapterProgress {
   id: string;
   chapterId: string;
   chapterName: string;
-  subjectId: string;
-  subjectName: string;
-  status: ChapterStatusType;
+  subjectId: 'physics' | 'chemistry' | 'mathematics';
+  subjectName: 'Physics' | 'Chemistry' | 'Mathematics';
+  progressPercentage: ProgressPercentage;
   confidence: ConfidenceLevel;
-  lastStudied: string | null;
-  studyMinutes: number;
-  questionSolved: number;
   revisionCount: number;
-  completionPercentage: number;
+  practiceQuestions: number;
+  weakTopics: string[];
+  strongTopics: string[];
+  timeSpent: number; // in minutes
+  accuracy: number; // percentage 0 - 100
+  completion: boolean;
+  needsRevision: boolean;
+  needsFocus: boolean;
+  lastOpened: string | null;
+  lastStudied: string | null;
   topics?: string[];
   orderIndex: number;
   updatedAt: string;
+  // Backward compatibility fields
+  status: ChapterStatusType;
+  completionPercentage: number;
+  studyMinutes: number;
+  questionSolved: number;
 }
 
 export interface SubjectSyllabusTemplate {
@@ -149,6 +161,36 @@ export interface RevisionQueueItem {
 export interface AIStudyPlan {
   id: string;
   userId: string;
+  todaysMission: string;
+  todaysChapters: string[];
+  todaysQuestions: number;
+  revisionTasks: {
+    id: string;
+    title: string;
+    chapterName: string;
+    subjectName: string;
+    isCompleted: boolean;
+  }[];
+  focusTopic: string;
+  estimatedCompletion: string;
+  motivation: string;
+  studyStreak: number;
+  accuracy: number;
+  weakestChapter: string;
+  strongestChapter: string;
+  dailyGoal: {
+    minutes: number;
+    tasksCount: number;
+  };
+  dailyTasks: {
+    id: string;
+    taskTitle: string;
+    subjectName: string;
+    chapterName: string;
+    allocatedMinutes: number;
+    isCompleted: boolean;
+    status: 'pending' | 'completed' | 'skipped';
+  }[];
   weakChapters: string[];
   strongChapters: string[];
   priorityQueue: PriorityQueueItem[];

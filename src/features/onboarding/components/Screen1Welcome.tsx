@@ -18,7 +18,7 @@ export const Screen1Welcome: React.FC = () => {
       >
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 dark:bg-purple-400/10 border border-purple-500/20 backdrop-blur-md text-xs font-semibold text-purple-600 dark:text-purple-300">
           <Sparkles className="w-4 h-4 text-purple-500 animate-pulse" />
-          <span>Intelligent Academic OS for Classes 6–12</span>
+          <span>CBSE Class 12 PCM • Dedicated AI Study Planner</span>
         </div>
       </motion.div>
 
@@ -33,7 +33,7 @@ export const Screen1Welcome: React.FC = () => {
           Welcome to <span className="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-500 bg-clip-text text-transparent">Rankify</span>
         </h1>
         <p className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto leading-relaxed">
-          The Apple-grade study planning system that diagnoses your weak syllabus chapters, balances your daily school routine, and generates a guaranteed board exam roadmap.
+          The Apple-grade study planner engineered exclusively for CBSE Class 12 Physics, Chemistry, and Mathematics. Diagnoses weak chapters, tracks daily problem solving, and synthesizes your personalized board roadmap.
         </p>
       </motion.div>
 
@@ -69,9 +69,9 @@ export const Screen1Welcome: React.FC = () => {
           <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-3">
             <BookOpen className="w-5 h-5" />
           </div>
-          <h3 className="font-bold text-sm text-foreground mb-1">Standardized Curriculums</h3>
+          <h3 className="font-bold text-sm text-foreground mb-1">Official CBSE Class 12</h3>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Full CBSE, RBSE, ICSE & State Board syllabi with verified chapter-by-chapter weightage.
+            Latest CBSE Class 12 PCM syllabus with all 40 chapters across Physics, Chemistry, and Mathematics.
           </p>
         </div>
 

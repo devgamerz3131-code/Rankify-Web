@@ -5,12 +5,11 @@ import { ExamType } from '@/types/onboarding';
 import { ArrowLeft, ArrowRight, Target, CalendarDays, Flame, CheckCircle2 } from 'lucide-react';
 
 const EXAM_TYPES: { id: ExamType; title: string; subtitle: string }[] = [
-  { id: 'Boards', title: 'Board Examinations', subtitle: 'Official 10th or 12th Annual Board Exams' },
+  { id: 'Boards', title: 'CBSE Class 12 Board Exams', subtitle: 'Official Annual Board Examinations' },
+  { id: 'Pre-Boards', title: 'Pre-Board Examinations', subtitle: 'School comprehensive board simulation' },
   { id: 'Half Yearly', title: 'Half-Yearly / Mid-Terms', subtitle: 'Mid-session school syllabus evaluation' },
-  { id: 'School Test', title: 'School Unit Test', subtitle: 'Upcoming periodic test or monthly assessment' },
-  { id: 'JEE', title: 'JEE Main / Advanced', subtitle: 'National engineering entrance examination' },
-  { id: 'NEET', title: 'NEET UG', subtitle: 'National medical entrance examination' },
-  { id: 'Custom', title: 'Custom Exam Target', subtitle: 'Specify your own exam name and date' },
+  { id: 'School Test', title: 'School Unit Test', subtitle: 'Upcoming periodic test or chapter assessment' },
+  { id: 'Custom', title: 'Custom Exam Target', subtitle: 'Specify your own target milestone and date' },
 ];
 
 export const Screen5UpcomingExam: React.FC = () => {

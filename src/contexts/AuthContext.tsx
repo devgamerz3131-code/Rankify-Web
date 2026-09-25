@@ -22,6 +22,7 @@ export interface AuthContextValue extends AuthState {
   signInWithGooglePopup: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   signOutUser: () => Promise<void>;
+  markOnboardingComplete: () => void;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -77,7 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signUp = useCallback(
-    async (email: string, pass: string, name: string, role: UserRole = 'student', cbseClass: number = 10) => {
+    async (email: string, pass: string, name: string, role: UserRole = 'student', cbseClass: number = 12) => {
       setIsLoading(true);
       setError(null);
       try {
@@ -143,6 +144,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user?.uid]);
 
+  const markOnboardingComplete = useCallback(() => {
+    setUser((prev) => (prev ? { ...prev, onboardingCompleted: true } : null));
+  }, []);
+
   const value = useMemo(
     () => ({
       user,
@@ -158,8 +163,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       signInWithGooglePopup,
       sendPasswordReset,
       signOutUser,
+      markOnboardingComplete,
     }),
-    [user, isLoading, error, modalState, openAuthModal, closeAuthModal, clearError, signIn, signUp, signInWithGooglePopup, sendPasswordReset, signOutUser]
+    [user, isLoading, error, modalState, openAuthModal, closeAuthModal, clearError, signIn, signUp, signInWithGooglePopup, sendPasswordReset, signOutUser, markOnboardingComplete]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

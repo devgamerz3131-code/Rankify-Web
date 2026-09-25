@@ -12,6 +12,7 @@ import {
   AIStudyPlan,
   ChapterStatusType,
   ConfidenceLevel,
+  ProgressPercentage,
 } from '@/types/onboarding';
 import {
   getOrSeedSyllabusTemplate,
@@ -38,7 +39,11 @@ interface OnboardingContextType extends OnboardingState {
   setRevisionStyle: (style: RevisionStyleType) => void;
   updateChapterProgress: (
     chapterId: string,
-    updates: { status?: ChapterStatusType; confidence?: ConfidenceLevel }
+    updates: Partial<ChapterProgress> & {
+      status?: ChapterStatusType;
+      confidence?: ConfidenceLevel;
+      progressPercentage?: ProgressPercentage;
+    }
   ) => void;
   startAIPlanGeneration: (fastTrack?: boolean) => Promise<void>;
   completeOnboarding: () => Promise<void>;
@@ -47,12 +52,12 @@ interface OnboardingContextType extends OnboardingState {
 
 const DEFAULT_DETAILS: StudentDetails = {
   name: '',
-  classNumber: 10,
+  classNumber: 12,
   board: 'CBSE',
   medium: 'English',
   preferredLanguage: 'English',
-  targetPercentage: 92,
-  stream: 'general',
+  targetPercentage: 95,
+  stream: 'science-pcm',
 };
 
 const DEFAULT_ROUTINE: StudyRoutine = {
@@ -80,7 +85,7 @@ const AI_GENERATION_MESSAGES = [
 const OnboardingContext = createContext<OnboardingContextType | null>(null);
 
 export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { user, markOnboardingComplete } = useAuth();
   const userId = user?.uid || 'guest';
 
   // 1. Initial State from local cache if present
@@ -99,10 +104,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   });
 
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>(() => {
-    const cached = syncEngine.getLocalCache<string[]>('selected_subjects', userId);
-    if (cached?.length) return cached;
-    const defaultSubs = getSubjectsForClassAndBoard(10, 'CBSE');
-    return defaultSubs.map((s) => s.id);
+    return ['physics', 'chemistry', 'mathematics'];
   });
 
   const [studyRoutine, setStudyRoutine] = useState<StudyRoutine>(() => {
@@ -314,21 +316,75 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, []);
 
   const updateChapterProgress = useCallback(
-    (chapterId: string, updates: { status?: ChapterStatusType; confidence?: ConfidenceLevel }) => {
+    (
+      chapterId: string,
+      updates: Partial<ChapterProgress> & {
+        status?: ChapterStatusType;
+        confidence?: ConfidenceLevel;
+        progressPercentage?: ProgressPercentage;
+      }
+    ) => {
       setChapterProgressMap((prev) => {
         const existing = prev[chapterId];
         if (!existing) return prev;
-        const newStatus = updates.status !== undefined ? updates.status : existing.status;
-        const newConfidence = updates.confidence !== undefined ? updates.confidence : existing.confidence;
-        const completionPercentage =
-          newStatus === 'Completed' ? 100 : newStatus === 'Started' ? 40 : newStatus === 'Need Revision' ? 70 : 0;
+
+        const progressPercentage: ProgressPercentage =
+          updates.progressPercentage !== undefined
+            ? updates.progressPercentage
+            : updates.status === 'Completed'
+            ? 100
+            : updates.status === 'Started'
+            ? 50
+            : updates.status === 'Need Revision'
+            ? 50
+            : existing.progressPercentage ?? 0;
+
+        const confidence: ConfidenceLevel =
+          updates.confidence !== undefined ? updates.confidence : existing.confidence || 3;
+
+        const status: ChapterStatusType =
+          progressPercentage === 100
+            ? 'Completed'
+            : progressPercentage >= 50
+            ? 'Started'
+            : progressPercentage > 0
+            ? 'Started'
+            : 'Never Started';
+
+        const completion = progressPercentage === 100;
+        const needsRevision =
+          updates.needsRevision !== undefined ? updates.needsRevision : confidence <= 2;
+        const needsFocus =
+          updates.needsFocus !== undefined
+            ? updates.needsFocus
+            : (progressPercentage < 50 || confidence <= 2);
 
         const updatedCh: ChapterProgress = {
           ...existing,
-          status: newStatus,
-          confidence: newConfidence,
-          completionPercentage,
-          lastStudied: newStatus !== 'Never Started' ? new Date().toISOString() : existing.lastStudied,
+          ...updates,
+          progressPercentage,
+          confidence,
+          status,
+          completion,
+          needsRevision,
+          needsFocus,
+          completionPercentage: progressPercentage,
+          accuracy: updates.accuracy !== undefined ? updates.accuracy : existing.accuracy || 70,
+          practiceQuestions:
+            updates.practiceQuestions !== undefined
+              ? updates.practiceQuestions
+              : existing.practiceQuestions || (completion ? 25 : 0),
+          revisionCount:
+            updates.revisionCount !== undefined
+              ? updates.revisionCount
+              : existing.revisionCount || (completion ? 1 : 0),
+          timeSpent:
+            updates.timeSpent !== undefined
+              ? updates.timeSpent
+              : existing.timeSpent || (completion ? 120 : progressPercentage > 0 ? 45 : 0),
+          lastStudied:
+            progressPercentage > 0 ? new Date().toISOString() : existing.lastStudied,
+          lastOpened: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
 
@@ -341,7 +397,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             updatedCh as unknown as Record<string, unknown>
           );
 
-          // Prompt 4 required structure: users/{uid}/syllabus_progress/{subject}/chapters/{chapterId}
+          // Prompt 4 & Part 4 required structure: users/{uid}/syllabus_progress/{subject}/chapters/{chapterId}
           syncEngine.queueSync(
             user.uid,
             'users',
@@ -349,7 +405,12 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             {
               chapterName: updatedCh.chapterName,
               status: updatedCh.status,
+              progressPercentage: updatedCh.progressPercentage,
               confidence: updatedCh.confidence,
+              accuracy: updatedCh.accuracy,
+              needsFocus: updatedCh.needsFocus,
+              needsRevision: updatedCh.needsRevision,
+              completion: updatedCh.completion,
               updatedAt: updatedCh.updatedAt,
               completionPercentage: updatedCh.completionPercentage,
               subjectName: updatedCh.subjectName,
@@ -570,18 +631,18 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         icon: '🚀',
       });
 
-      // Reload or trigger user state refresh
-      window.location.reload();
+      // Seamlessly transition to Home view
+      markOnboardingComplete();
     } catch (error) {
       console.warn('Could not finalize onboarding in Firestore:', error);
       // Fallback: update local cache so student is never stuck
       syncEngine.setLocalCache('onboarding_completed', true, user.uid);
       toast.success('Offline mode: Study plan stored locally.');
-      window.location.reload();
+      markOnboardingComplete();
     } finally {
       setIsSaving(false);
     }
-  }, [user, studentDetails, selectedSubjectIds]);
+  }, [user, studentDetails, selectedSubjectIds, chapterProgressMap, markOnboardingComplete]);
 
   const value = useMemo(
     () => ({

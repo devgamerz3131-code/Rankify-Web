@@ -12,7 +12,7 @@ export interface UserProfile {
   medium?: 'English' | 'Hindi';
   preferredLanguage?: 'English' | 'Hindi' | 'Hinglish';
   targetPercentage?: number;
-  stream?: 'science' | 'commerce' | 'arts' | 'general';
+  stream?: 'science-pcm' | 'science' | 'commerce' | 'arts' | 'general';
   subjects?: string[];
   school?: string;
   targetExam?: string;

@@ -29,7 +29,7 @@ class SyncEngine {
   private initEventListeners() {
     if (typeof window === 'undefined') return;
 
-    // Immediate sync on beforeunload, pagehide, visibilitychange, and reconnect
+    // Immediate sync on beforeunload, pagehide, and reconnect
     window.addEventListener('beforeunload', () => {
       if (this.currentUserId) {
         this.flushImmediately(this.currentUserId);
@@ -42,8 +42,15 @@ class SyncEngine {
       }
     });
 
+    // App Resume: when user returns or tab becomes visible, flush sync immediately
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden' && this.currentUserId) {
+      if (this.currentUserId) {
+        this.flushImmediately(this.currentUserId);
+      }
+    });
+
+    window.addEventListener('focus', () => {
+      if (this.currentUserId) {
         this.flushImmediately(this.currentUserId);
       }
     });
@@ -54,6 +61,13 @@ class SyncEngine {
         this.flushImmediately(this.currentUserId);
       }
     });
+
+    // Background sync every 2 minutes
+    setInterval(() => {
+      if (this.currentUserId && navigator.onLine) {
+        this.flushImmediately(this.currentUserId).catch(() => {});
+      }
+    }, 120000);
   }
 
   /**

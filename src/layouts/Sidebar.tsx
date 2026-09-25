@@ -56,11 +56,11 @@ export const Sidebar: React.FC = () => {
       <div className="mt-auto pt-4">
         <div className="rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-50/70 dark:bg-slate-900/60 p-3.5 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-foreground">CBSE Board Track</span>
+            <span className="text-xs font-bold text-foreground">CBSE Class 12 PCM</span>
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
           </div>
           <p className="text-[11px] text-muted-foreground leading-snug">
-            Currently enrolled in Class {selectedClass} comprehensive curriculum.
+            Official 40-chapter curriculum: Physics, Chemistry & Mathematics.
           </p>
           {user?.role === 'admin' && (
             <div className="flex items-center gap-1.5 pt-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
