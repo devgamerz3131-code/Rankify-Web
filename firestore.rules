@@ -46,31 +46,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
 
       // User Subcollections
-      match /user_preferences/{prefId} {
-        allow read, write: if isOwner(userId);
-      }
-
-      match /exam_information/{examId} {
-        allow read, write: if isOwner(userId);
-      }
-
-      match /chapter_progress/{chapterId} {
-        allow read, write: if isOwner(userId);
-      }
-
-      match /study_plan/{planId} {
-        allow read, write: if isOwner(userId);
-      }
-
-      match /daily_targets/{targetId} {
-        allow read, write: if isOwner(userId);
-      }
-
-      match /weekly_targets/{targetId} {
-        allow read, write: if isOwner(userId);
-      }
-
-      match /study_statistics/{statId} {
+      match /{allSubcollections=**} {
         allow read, write: if isOwner(userId);
       }
     }

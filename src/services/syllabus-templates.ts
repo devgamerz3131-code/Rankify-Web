@@ -196,6 +196,108 @@ export const CANONICAL_SYLLABUS_TEMPLATES: Record<string, SyllabusTemplateDocume
       },
     ],
   },
+
+  // Class 11 CBSE
+  cbse_class_11: {
+    id: 'cbse_class_11',
+    board: 'CBSE',
+    classNumber: 11,
+    updatedAt: new Date().toISOString(),
+    subjects: [
+      {
+        subjectId: 'physics',
+        subjectName: 'Physics',
+        chapters: [
+          { id: 'phy_11_01', name: 'Units and Measurements', topics: ['SI Units', 'Dimensional Analysis and Applications', 'Significant Figures and Errors'], estimatedHours: 8, weightage: 6 },
+          { id: 'phy_11_02', name: 'Motion in a Straight Line', topics: ['Frame of Reference', 'Position-Time Graph', 'Kinematic Equations for Uniform Acceleration'], estimatedHours: 9, weightage: 6 },
+          { id: 'phy_11_03', name: 'Motion in a Plane', topics: ['Vectors Addition & Resolution', 'Projectile Motion', 'Uniform Circular Motion'], estimatedHours: 10, weightage: 7 },
+          { id: 'phy_11_04', name: 'Laws of Motion', topics: ['Newton’s Three Laws', 'Conservation of Linear Momentum', 'Friction & Banking of Roads'], estimatedHours: 11, weightage: 8 },
+          { id: 'phy_11_05', name: 'Work, Energy and Power', topics: ['Work-Energy Theorem', 'Conservative and Non-conservative Forces', 'Elastic & Inelastic Collisions'], estimatedHours: 10, weightage: 7 },
+          { id: 'phy_11_06', name: 'System of Particles and Rotational Motion', topics: ['Centre of Mass', 'Torque and Angular Momentum', 'Moment of Inertia & Parallel Axis Theorem'], estimatedHours: 13, weightage: 9 },
+          { id: 'phy_11_07', name: 'Gravitation', topics: ['Universal Law of Gravitation', 'Acceleration due to Gravity with Altitude & Depth', 'Escape Velocity & Orbital Velocity'], estimatedHours: 9, weightage: 6 },
+          { id: 'phy_11_08', name: 'Mechanical Properties of Solids', topics: ['Hooke’s Law', 'Young’s Modulus', 'Bulk Modulus & Shear Modulus'], estimatedHours: 7, weightage: 5 },
+          { id: 'phy_11_09', name: 'Mechanical Properties of Fluids', topics: ['Pascal’s Law', 'Viscosity and Stokes’ Law', 'Bernoulli’s Principle and Surface Tension'], estimatedHours: 11, weightage: 8 },
+          { id: 'phy_11_10', name: 'Thermal Properties of Matter', topics: ['Thermal Expansion', 'Specific Heat Capacity', 'Calorimetry and Heat Transfer'], estimatedHours: 8, weightage: 5 },
+          { id: 'phy_11_11', name: 'Thermodynamics', topics: ['Zeroth & First Law of Thermodynamics', 'Isothermal and Adiabatic Processes', 'Second Law and Reversible Processes'], estimatedHours: 10, weightage: 7 },
+          { id: 'phy_11_12', name: 'Kinetic Theory of Gases', topics: ['Ideal Gas Equation', 'RMS Speed and Kinetic Energy', 'Degrees of Freedom and Law of Equipartition'], estimatedHours: 8, weightage: 5 },
+          { id: 'phy_11_13', name: 'Oscillations', topics: ['Simple Harmonic Motion', 'Energy in SHM', 'Simple Pendulum and Resonance'], estimatedHours: 9, weightage: 6 },
+          { id: 'phy_11_14', name: 'Waves', topics: ['Longitudinal & Transverse Waves', 'Speed of Sound & Laplace Correction', 'Standing Waves in Strings and Organ Pipes', 'Beats'], estimatedHours: 10, weightage: 7 },
+        ],
+      },
+      {
+        subjectId: 'chemistry',
+        subjectName: 'Chemistry',
+        chapters: [
+          { id: 'chem_11_01', name: 'Some Basic Concepts of Chemistry', topics: ['Mole Concept and Molar Mass', 'Empirical and Molecular Formula', 'Stoichiometry and Limiting Reagent'], estimatedHours: 10, weightage: 7 },
+          { id: 'chem_11_02', name: 'Structure of Atom', topics: ['Bohr’s Model and Limitations', 'de Broglie Relation & Heisenberg Uncertainty', 'Quantum Numbers and Electronic Configuration'], estimatedHours: 12, weightage: 8 },
+          { id: 'chem_11_03', name: 'Classification of Elements and Periodicity', topics: ['Periodic Table Modern Law', 'Trends in Atomic Radii & Ionization Enthalpy', 'Electronegativity Trends'], estimatedHours: 8, weightage: 5 },
+          { id: 'chem_11_04', name: 'Chemical Bonding and Molecular Structure', topics: ['Lewis Structures', 'VSEPR Theory', 'Valence Bond Theory & Hybridisation', 'Molecular Orbital Theory'], estimatedHours: 14, weightage: 10 },
+          { id: 'chem_11_05', name: 'Chemical Thermodynamics', topics: ['First Law of Thermodynamics', 'Enthalpy of Reactions', 'Entropy and Gibbs Free Energy', 'Spontaneity Criteria'], estimatedHours: 12, weightage: 9 },
+          { id: 'chem_11_06', name: 'Equilibrium', topics: ['Law of Chemical Equilibrium', 'Le Chatelier’s Principle', 'Ionic Equilibrium & pH', 'Buffer Solutions and Solubility Product'], estimatedHours: 14, weightage: 10 },
+          { id: 'chem_11_07', name: 'Redox Reactions', topics: ['Oxidation Number Concept', 'Balancing Redox Equations (Ion-Electron Method)'], estimatedHours: 7, weightage: 4 },
+          { id: 'chem_11_08', name: 'Organic Chemistry: Some Basic Principles', topics: ['IUPAC Nomenclature', 'Inductive & Mesomeric Effects', 'Hyperconjugation & Reaction Intermediates'], estimatedHours: 13, weightage: 9 },
+          { id: 'chem_11_09', name: 'Hydrocarbons', topics: ['Alkanes, Alkenes and Alkynes', 'Markovnikov’s Rule', 'Aromaticity & Benzene Electrophilic Substitution'], estimatedHours: 12, weightage: 8 },
+        ],
+      },
+      {
+        subjectId: 'mathematics',
+        subjectName: 'Mathematics',
+        chapters: [
+          { id: 'math_11_01', name: 'Sets', topics: ['Representation of Sets', 'Subsets and Power Set', 'Venn Diagrams and Set Operations'], estimatedHours: 7, weightage: 5 },
+          { id: 'math_11_02', name: 'Relations and Functions', topics: ['Cartesian Product', 'Domain and Range', 'Polynomial, Rational, Modulus and Signum Functions'], estimatedHours: 8, weightage: 6 },
+          { id: 'math_11_03', name: 'Trigonometric Functions', topics: ['Angles in Radians & Degrees', 'Trigonometric Identities and Formulas', 'General Solutions'], estimatedHours: 13, weightage: 10 },
+          { id: 'math_11_04', name: 'Complex Numbers and Quadratic Equations', topics: ['Algebra of Complex Numbers', 'Modulus and Conjugate', 'Argand Plane'], estimatedHours: 8, weightage: 5 },
+          { id: 'math_11_05', name: 'Linear Inequalities', topics: ['Algebraic Solutions of Linear Inequalities in One Variable', 'Graphical Solutions in Two Variables'], estimatedHours: 6, weightage: 4 },
+          { id: 'math_11_06', name: 'Permutations and Combinations', topics: ['Fundamental Principle of Counting', 'nPr and nCr Formulas and Applications'], estimatedHours: 9, weightage: 7 },
+          { id: 'math_11_07', name: 'Binomial Theorem', topics: ['Binomial Theorem for Positive Integral Index', 'General and Middle Terms'], estimatedHours: 7, weightage: 5 },
+          { id: 'math_11_08', name: 'Sequences and Series', topics: ['Arithmetic and Geometric Progressions', 'General Term and Sum of n Terms of GP'], estimatedHours: 9, weightage: 7 },
+          { id: 'math_11_09', name: 'Straight Lines', topics: ['Slope of a Line', 'Various Forms of Equations of a Line', 'Distance of a Point from a Line'], estimatedHours: 9, weightage: 7 },
+          { id: 'math_11_10', name: 'Conic Sections', topics: ['Circles, Parabola, Ellipse, Hyperbola Equations and Properties'], estimatedHours: 10, weightage: 8 },
+          { id: 'math_11_11', name: 'Introduction to 3D Geometry', topics: ['Coordinate Axes and Planes', 'Distance Formula in 3D', 'Section Formula in 3D'], estimatedHours: 6, weightage: 4 },
+          { id: 'math_11_12', name: 'Limits and Derivatives', topics: ['Intuitive Idea of Limits', 'Standard Limits Formulas', 'Derivatives of Polynomial and Trigonometric Functions'], estimatedHours: 12, weightage: 9 },
+          { id: 'math_11_13', name: 'Statistics', topics: ['Measures of Dispersion', 'Mean Deviation', 'Variance and Standard Deviation'], estimatedHours: 7, weightage: 5 },
+          { id: 'math_11_14', name: 'Probability', topics: ['Events and Axiomatic Approach to Probability'], estimatedHours: 7, weightage: 5 },
+        ],
+      },
+      {
+        subjectId: 'biology',
+        subjectName: 'Biology',
+        chapters: [
+          { id: 'bio_11_01', name: 'The Living World', topics: ['Characteristics of Living Organisms', 'Binomial Nomenclature', 'Taxonomic Categories'], estimatedHours: 5, weightage: 4 },
+          { id: 'bio_11_02', name: 'Biological Classification', topics: ['Five Kingdom Classification', 'Monera, Protista, Fungi', 'Viruses, Viroids, Lichens'], estimatedHours: 8, weightage: 6 },
+          { id: 'bio_11_03', name: 'Plant Kingdom', topics: ['Algae, Bryophytes, Pteridophytes, Gymnosperms, Angiosperms', 'Alternation of Generations'], estimatedHours: 9, weightage: 6 },
+          { id: 'bio_11_04', name: 'Animal Kingdom', topics: ['Non-chordates (Porifera to Echinodermata)', 'Chordates Classification and Characters'], estimatedHours: 11, weightage: 8 },
+          { id: 'bio_11_05', name: 'Morphology of Flowering Plants', topics: ['Root, Stem, Leaf Modifications', 'Inflorescence, Flower, Fruit and Seed'], estimatedHours: 9, weightage: 6 },
+          { id: 'bio_11_06', name: 'Anatomy of Flowering Plants', topics: ['Meristematic and Permanent Tissues', 'Internal Structure of Dicot and Monocot Root, Stem, Leaf'], estimatedHours: 8, weightage: 5 },
+          { id: 'bio_11_07', name: 'Structural Organisation in Animals', topics: ['Animal Tissues Types', 'Morphology and Anatomy of Frog'], estimatedHours: 7, weightage: 4 },
+          { id: 'bio_11_08', name: 'Cell: The Unit of Life', topics: ['Prokaryotic and Eukaryotic Cells', 'Cell Organelles Structure and Function'], estimatedHours: 10, weightage: 7 },
+          { id: 'bio_11_09', name: 'Biomolecules', topics: ['Proteins, Carbohydrates, Lipids, Nucleic Acids', 'Enzymes and Factors Affecting Enzyme Activity'], estimatedHours: 9, weightage: 6 },
+          { id: 'bio_11_10', name: 'Cell Cycle and Cell Division', topics: ['Interphase', 'Mitosis and Meiosis Stages', 'Significance of Cell Division'], estimatedHours: 8, weightage: 6 },
+          { id: 'bio_11_11', name: 'Photosynthesis in Higher Plants', topics: ['Light Reaction', 'Calvin Cycle and C4 Pathway', 'Factors Affecting Photosynthesis'], estimatedHours: 10, weightage: 7 },
+          { id: 'bio_11_12', name: 'Respiration in Plants', topics: ['Glycolysis', 'Krebs Cycle and Electron Transport System', 'Respiratory Quotient'], estimatedHours: 9, weightage: 6 },
+          { id: 'bio_11_13', name: 'Plant Growth and Development', topics: ['Phases of Growth', 'Plant Growth Regulators (Auxin, GA, Cytokinin, ABA, Ethylene)'], estimatedHours: 7, weightage: 5 },
+          { id: 'bio_11_14', name: 'Breathing and Exchange of Gases', topics: ['Respiratory Volumes and Capacities', 'Exchange and Transport of Gases', 'Regulation of Respiration'], estimatedHours: 8, weightage: 5 },
+          { id: 'bio_11_15', name: 'Body Fluids and Circulation', topics: ['Blood and Lymph', 'Human Circulatory System and Cardiac Cycle', 'ECG and Disorders'], estimatedHours: 9, weightage: 6 },
+          { id: 'bio_11_16', name: 'Excretory Products and their Elimination', topics: ['Urine Formation and Counter Current Mechanism', 'Regulation of Kidney Function'], estimatedHours: 8, weightage: 5 },
+          { id: 'bio_11_17', name: 'Locomotion and Movement', topics: ['Types of Movement', 'Mechanism of Muscle Contraction', 'Skeletal System and Joints'], estimatedHours: 8, weightage: 5 },
+          { id: 'bio_11_18', name: 'Neural Control and Coordination', topics: ['Structure of Neuron', 'Nerve Impulse Conduction', 'Central and Peripheral Nervous System'], estimatedHours: 8, weightage: 5 },
+          { id: 'bio_11_19', name: 'Chemical Coordination and Integration', topics: ['Endocrine Glands and Hormones', 'Mechanism of Hormone Action'], estimatedHours: 8, weightage: 5 },
+        ],
+      },
+      {
+        subjectId: 'english_core',
+        subjectName: 'English Core',
+        chapters: [
+          { id: 'engc_11_01', name: 'The Portrait of a Lady & A Photograph', topics: ['Grandmother Characterisation', 'Nostalgia and Transience of Life'], estimatedHours: 5, weightage: 5 },
+          { id: 'engc_11_02', name: 'We’re Not Afraid to Die', topics: ['Courage and Teamwork Under Crisis', 'Maritime Vocabulary & Themes'], estimatedHours: 6, weightage: 6 },
+          { id: 'engc_11_03', name: 'Discovering Tut: The Saga Continues', topics: ['Forensic Archaeology', 'History of Ancient Egypt'], estimatedHours: 6, weightage: 6 },
+          { id: 'engc_11_04', name: 'The Summer of the Beautiful White Horse', topics: ['Garoghlanian Tribe Integrity', 'Childhood Innocence Themes'], estimatedHours: 5, weightage: 5 },
+          { id: 'engc_11_05', name: 'The Address & Mother’s Day', topics: ['War Trauma and Memory', 'Family Roles and Gender Dynamics'], estimatedHours: 6, weightage: 6 },
+          { id: 'engc_11_06', name: 'Writing Skills & Grammar', topics: ['Poster Making', 'Speech and Debate Writing', 'Tenses and Clauses'], estimatedHours: 10, weightage: 14 },
+        ],
+      },
+    ],
+  },
 };
 
 /**
@@ -288,7 +390,8 @@ export async function getOrSeedSyllabusTemplate(
   }
 
   // Fallback to canonical dataset matching class
-  const fallbackKey = classNumber >= 11 ? 'cbse_class_12' : 'cbse_class_10';
+  const fallbackKey =
+    classNumber === 11 ? 'cbse_class_11' : classNumber === 12 ? 'cbse_class_12' : 'cbse_class_10';
   const canonical = CANONICAL_SYLLABUS_TEMPLATES[fallbackKey] || CANONICAL_SYLLABUS_TEMPLATES['cbse_class_10'];
 
   const templateToSave: SyllabusTemplateDocument = {

@@ -70,14 +70,11 @@ const DEFAULT_EXAM: UpcomingExam = {
 };
 
 const AI_GENERATION_MESSAGES = [
-  'Analyzing syllabus and board weightage...',
-  'Reading chapter progress and student confidence...',
-  'Finding weak chapters & high-risk topics...',
-  'Balancing study schedule with school & sleep timing...',
-  'Planning spaced repetition revision cadence...',
-  'Generating daily and weekly milestone targets...',
-  'Finalizing personalized Rankify study roadmap...',
-  'Almost Ready! Calibrating final recommendations...',
+  'Analyzing syllabus...',
+  'Checking weak chapters...',
+  'Calculating available time...',
+  'Creating daily targets...',
+  'Preparing your roadmap...',
 ];
 
 const OnboardingContext = createContext<OnboardingContextType | null>(null);
@@ -343,6 +340,21 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             `${user.uid}/chapter_progress/${chapterId}`,
             updatedCh as unknown as Record<string, unknown>
           );
+
+          // Prompt 4 required structure: users/{uid}/syllabus_progress/{subject}/chapters/{chapterId}
+          syncEngine.queueSync(
+            user.uid,
+            'users',
+            `${user.uid}/syllabus_progress/${updatedCh.subjectId}/chapters/${chapterId}`,
+            {
+              chapterName: updatedCh.chapterName,
+              status: updatedCh.status,
+              confidence: updatedCh.confidence,
+              updatedAt: updatedCh.updatedAt,
+              completionPercentage: updatedCh.completionPercentage,
+              subjectName: updatedCh.subjectName,
+            }
+          );
         }
 
         return {
@@ -400,11 +412,79 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             // Persist plan to local cache & Firestore
             if (user?.uid) {
               syncEngine.setLocalCache('active_study_plan', plan, user.uid);
+              syncEngine.setLocalCache('current_study_plan', plan, user.uid);
+
+              // 1. Sync study_plan/active
               syncEngine.queueSync(
                 user.uid,
                 'users',
                 `${user.uid}/study_plan/active`,
                 plan as unknown as Record<string, unknown>
+              );
+
+              // 2. Prompt 4 required structure: users/{uid}/study_plan/current
+              // Fields: dailyTasks[], weeklyGoals[], focusChapters[], generatedAt
+              const currentPlanData = {
+                id: plan.id,
+                userId: user.uid,
+                dailyTasks: plan.dailyTargets.map((t) => ({
+                  id: t.id,
+                  taskTitle: t.taskTitle,
+                  subjectName: t.subjectName,
+                  chapterName: t.chapterName,
+                  allocatedMinutes: t.allocatedMinutes,
+                  isCompleted: t.isCompleted,
+                  status: t.isCompleted ? 'completed' : 'pending',
+                })),
+                weeklyGoals: plan.weeklyTargets.map((w) => ({
+                  id: w.id,
+                  weekNumber: w.weekNumber,
+                  title: w.title,
+                  goals: w.goals,
+                  isCompleted: w.isCompleted,
+                })),
+                focusChapters: plan.priorityQueue.map((p) => ({
+                  chapterId: p.chapterId,
+                  chapterName: p.chapterName,
+                  subjectName: p.subjectName,
+                  priority: p.priority,
+                  reason: p.reason,
+                })),
+                weakChapters: plan.weakChapters,
+                strongChapters: plan.strongChapters,
+                recommendedPractice: plan.revisionQueue,
+                upcomingRevision: plan.revisionQueue,
+                recommendedStudyHours: plan.recommendedStudyHours,
+                expectedCompletionDate: plan.expectedCompletionDate,
+                recommendedSessionLength: plan.recommendedSessionLength,
+                difficultyRating: plan.difficultyRating,
+                summary: plan.summary,
+                generatedAt: plan.generatedAt,
+                updatedAt: new Date().toISOString(),
+              };
+
+              syncEngine.queueSync(
+                user.uid,
+                'users',
+                `${user.uid}/study_plan/current`,
+                currentPlanData as unknown as Record<string, unknown>
+              );
+
+              // 3. Initialize study statistics
+              syncEngine.queueSync(
+                user.uid,
+                'users',
+                `${user.uid}/study_statistics`,
+                {
+                  streak: 1,
+                  completedTasksCount: 0,
+                  todayProgressPercent: 0,
+                  totalStudyMinutes: 0,
+                  questionsSolved: 0,
+                  lastActiveDate: new Date().toISOString().split('T')[0],
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                }
               );
             }
             resolve();
@@ -454,6 +534,29 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         await updateDoc(userRef, completedData);
       } catch {
         await setDoc(userRef, completedData, { merge: true });
+      }
+
+      // Queue all evaluated chapters into Firestore
+      for (const ch of Object.values(chapterProgressMap)) {
+        syncEngine.queueSync(
+          user.uid,
+          'users',
+          `${user.uid}/chapter_progress/${ch.id}`,
+          ch as unknown as Record<string, unknown>
+        );
+        syncEngine.queueSync(
+          user.uid,
+          'users',
+          `${user.uid}/syllabus_progress/${ch.subjectId}/chapters/${ch.id}`,
+          {
+            chapterName: ch.chapterName,
+            status: ch.status,
+            confidence: ch.confidence,
+            updatedAt: ch.updatedAt || new Date().toISOString(),
+            completionPercentage: ch.completionPercentage,
+            subjectName: ch.subjectName,
+          }
+        );
       }
 
       // Flush all pending syncs immediately

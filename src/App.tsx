@@ -5,11 +5,17 @@ import { useAuth } from '@/hooks/use-auth';
 import { AuthGateway } from '@/features/auth/components/AuthGateway';
 import { OnboardingContainer } from '@/features/onboarding/components/OnboardingContainer';
 import { MainLayout } from '@/layouts';
+import { useNavigation } from '@/contexts/NavigationContext';
+import { HomeScreenRevamped } from '@/features/home/HomeScreenRevamped';
 import { ActiveStudyEngineView } from '@/features/study/ActiveStudyEngineView';
+import { PracticeView } from '@/features/practice/PracticeView';
+import { AskAIView } from '@/features/ask-ai/AskAIView';
+import { ProfileView } from '@/features/profile/ProfileView';
 import { syncEngine } from '@/services/sync-engine';
 
 const AppRouter: React.FC = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
+  const { activeTab } = useNavigation();
 
   // 1. Apple-grade persistent auth resolving loader
   if (isLoading) {
@@ -44,10 +50,28 @@ const AppRouter: React.FC = () => {
     return <OnboardingContainer />;
   }
 
-  // 4. Authenticated & Onboarded: Render Production Syllabus Tracker & AI Study Plan Engine
+  // 4. Authenticated & Onboarded: Render Dynamic Tab Views
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'home':
+        return <HomeScreenRevamped />;
+      case 'study':
+      case 'progress':
+        return <ActiveStudyEngineView />;
+      case 'practice':
+        return <PracticeView />;
+      case 'ask-ai':
+        return <AskAIView />;
+      case 'profile':
+        return <ProfileView />;
+      default:
+        return <HomeScreenRevamped />;
+    }
+  };
+
   return (
     <MainLayout>
-      <ActiveStudyEngineView />
+      {renderTabContent()}
     </MainLayout>
   );
 };
