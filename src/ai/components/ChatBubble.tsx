@@ -1,5 +1,5 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Copy,
   Check,
@@ -19,8 +19,12 @@ import {
   FileText,
   Clock,
   Compass,
+  Download,
+  Printer,
+  ChevronDown,
 } from 'lucide-react';
 import { Message } from '../model/types';
+import { exportPromptAsTxt, exportPromptAsPdf } from '../utils/export-prompt';
 
 interface ChatBubbleProps {
   message: Message;
@@ -45,6 +49,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
   onToggleFavorite,
   isRegenerating,
 }) => {
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const isUser = message.role === 'user';
   const prompt = message.promptResult;
 
@@ -121,6 +126,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
   const difficulty = prompt?.difficulty || 'Board Level';
   const questionType = prompt?.questionType || 'Concept';
   const intent = prompt?.intent || 'Detailed Study';
+  const activeBooster = prompt?.activeBooster;
   const estimatedResponseLength =
     prompt?.estimatedResponseLength || '~1,800 - 2,500 words';
   const estimatedStudyTime = prompt?.estimatedStudyTime || '15 - 20 mins';
@@ -174,9 +180,9 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
         {/* PROMPT CARD (Material 3 Surface) */}
         {/* ========================================================= */}
         <div className="rounded-3xl bg-card border border-slate-200/80 dark:border-white/10 shadow-lg overflow-hidden transition-all hover:border-purple-500/30">
-          {/* Card Top Banner: Metadata Chips */}
+          {/* Card Top Banner: Metadata Chips & Coach Status */}
           <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-slate-900/30 flex flex-wrap items-center justify-between gap-2.5">
-            {/* Left Chips: Detected Subject, Detected Chapter, Question Type, Intent */}
+            {/* Left Chips: Detected Subject, Detected Chapter, Question Type, Intent, Booster */}
             <div className="flex flex-wrap items-center gap-2">
               {/* Detected Subject Chip */}
               <span
@@ -204,6 +210,20 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-sky-700 dark:text-sky-300 bg-sky-100/70 dark:bg-sky-950/70 px-2.5 py-0.5 rounded-full border border-sky-200 dark:border-sky-800/60">
                 <Compass className="w-3 h-3 text-sky-500" />
                 <span>{intent}</span>
+              </span>
+
+              {/* Active Booster Pill (if applied) */}
+              {activeBooster && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-950/80 px-2.5 py-0.5 rounded-full border border-amber-300 dark:border-amber-700/60">
+                  <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
+                  <span>{activeBooster}</span>
+                </span>
+              )}
+
+              {/* Coach Active Pill */}
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-950/80 px-2.5 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-700/60">
+                <Sparkles className="w-3 h-3 text-emerald-500" />
+                <span>Coach Active</span>
               </span>
             </div>
 
@@ -276,11 +296,12 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
           {/* ========================================================= */}
           {/* BUTTONS TOOLBAR */}
           {/* 1. Copy Prompt */}
-          {/* 2. Favorite */}
-          {/* 3. Regenerate */}
-          {/* 4. Share */}
-          {/* 5. Open ChatGPT */}
-          {/* 6. Open Gemini */}
+          {/* 2. Open ChatGPT */}
+          {/* 3. Open Gemini */}
+          {/* 4. Export (TXT / PDF) */}
+          {/* 5. Share */}
+          {/* 6. Regenerate Prompt */}
+          {/* 7. Favorite */}
           {/* ========================================================= */}
           <div className="p-3 sm:p-4 bg-slate-50/70 dark:bg-slate-900/40 border-t border-slate-100 dark:border-white/5 flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -337,8 +358,67 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
               )}
             </div>
 
-            {/* Secondary Actions: Share, Regenerate, Favorite */}
-            <div className="flex items-center gap-1.5 ml-auto">
+            {/* Secondary Actions: Export, Share, Regenerate, Favorite */}
+            <div className="flex items-center gap-1.5 ml-auto relative">
+              {/* Export Menu (TXT & PDF) */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsExportOpen(!isExportOpen)}
+                  className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-muted-foreground hover:text-foreground text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer border border-slate-200 dark:border-slate-700/80"
+                  title="Export options"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Export</span>
+                  <ChevronDown className="w-3 h-3 opacity-60" />
+                </button>
+
+                <AnimatePresence>
+                  {isExportOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 bottom-full mb-1.5 w-40 p-1.5 bg-card border border-slate-200/90 dark:border-slate-700 rounded-xl shadow-xl z-20 space-y-0.5"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          exportPromptAsTxt(
+                            message.content,
+                            badgeInfo.name,
+                            prompt?.chapter?.name || 'Class12'
+                          );
+                          setIsExportOpen(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-foreground hover:bg-purple-50 dark:hover:bg-purple-950/40 text-left transition cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5 text-purple-600" />
+                        <span>Export as TXT</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          exportPromptAsPdf(
+                            message.content,
+                            badgeInfo.name,
+                            prompt?.chapter?.name || 'Class12',
+                            qualityScore
+                          );
+                          setIsExportOpen(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-foreground hover:bg-purple-50 dark:hover:bg-purple-950/40 text-left transition cursor-pointer"
+                      >
+                        <Printer className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>Print / Save PDF</span>
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
               {/* Share Button */}
               {onShare && (
                 <button

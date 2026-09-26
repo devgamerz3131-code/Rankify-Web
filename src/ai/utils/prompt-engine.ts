@@ -6,6 +6,8 @@ import {
   DifficultyLevel,
   PromptQualityScore,
   DetectedSubject,
+  PromptBooster,
+  StudentContextInfo,
 } from '../model/types';
 import {
   detectSubjectAndChapter,
@@ -13,6 +15,10 @@ import {
   detectStudyIntent,
   detectDifficulty,
 } from './detector';
+import {
+  getSavedStudentContext,
+  formatStudentCoachDirective,
+} from './student-context';
 
 /**
  * Extracts a neat topic string from the student's question.
@@ -64,10 +70,7 @@ function mapQuestionTypeToCategory(qType: QuestionType): PromptCategory {
 }
 
 /**
- * Builds the subject-specific pedagogical rule:
- * - Mathematics: Solve every step. Never skip calculations.
- * - Physics: Explain intuition before formulas.
- * - Chemistry: Explain reactions with logic. Highlight important exceptions.
+ * Builds the subject-specific pedagogical rule.
  */
 function getSubjectPedagogyRule(subject: DetectedSubject): string[] {
   switch (subject) {
@@ -98,6 +101,75 @@ function getSubjectPedagogyRule(subject: DetectedSubject): string[] {
         '• Connect theoretical definitions directly to the NCERT textbook.',
         '• Provide concrete illustrative examples.',
       ];
+  }
+}
+
+/**
+ * Builds booster directives if booster is active.
+ */
+function getBoosterDirective(booster?: PromptBooster): string[] {
+  if (!booster) return [];
+  switch (booster) {
+    case 'Easy Mode':
+      return [
+        'Active Booster: 🟢 Easy Mode (Beginner Friendly)',
+        '• Use intuitive real-world analogies before formal academic jargon.',
+        '• Break mathematical steps into atomic chunks with explanatory callouts.',
+        '• Define every technical term in plain language.',
+      ];
+    case 'Board Mode':
+      return [
+        'Active Booster: 🟣 Board Exam Mode (CBSE Pattern)',
+        '• Frame answers strictly as per CBSE marking schemes with explicit mark allocations.',
+        '• Highlight essential board keywords to underline in the exam.',
+        '• Emphasize point-wise presentation and NCERT diagram labels.',
+      ];
+    case 'Topper Mode':
+      return [
+        'Active Booster: ⚡ Topper Mode (95%+ Target)',
+        '• Include High-Order Thinking Skills (HOTS) questions and subtle conceptual traps.',
+        '• Rigorously state theoretical edge cases, boundary conditions, and proofs.',
+        '• Provide challenge numericals requiring cross-chapter synthesis.',
+      ];
+    case 'Crash Course':
+      return [
+        'Active Booster: 🚀 Crash Course (High-Density Recall)',
+        '• Deliver maximum conceptual density with zero fluff.',
+        '• Prioritize high-weightage formulas, definitions, and recurrent exam triggers.',
+        '• Use structured comparison tables and rapid-fire bullet points.',
+      ];
+    case 'Revision Only':
+      return [
+        'Active Booster: 🔄 Revision Only (Rapid Summary)',
+        '• Focus strictly on one-page summary points, key formulas, and memory tricks.',
+        '• Skip lengthy introductory prose in favor of direct board points.',
+      ];
+    case 'NCERT Only':
+      return [
+        'Active Booster: 📖 NCERT Only (Textbook Grounding)',
+        '• Cite exact NCERT chapter sections, solved examples, and in-text questions.',
+        '• Restrict definitions to official NCERT phrasing.',
+      ];
+    case 'PYQs Only':
+      return [
+        'Active Booster: 🏆 PYQs Only (10-Year Board Focus)',
+        '• Structure entire response around verified CBSE Delhi & All India board questions.',
+        '• Detail year of appearance, question format (2/3/5 marks), and official key points.',
+      ];
+    case 'Numericals Only':
+      return [
+        'Active Booster: 🔢 Numericals Only (Calculation Drill)',
+        '• Provide representative numerical problems with given data, formula, and step marking.',
+        '• Include SI unit conversions and common calculation errors.',
+      ];
+    case 'Formula Only':
+      return [
+        'Active Booster: 📐 Formula Sheet Only (Master Reference)',
+        '• Compile complete formula table with symbols, SI units, and dimensions.',
+        '• Include sign conventions and applicability limits.',
+      ];
+    default:
+      return [];
   }
 }
 
@@ -144,11 +216,16 @@ function getTaskDirective(
 }
 
 /**
- * Rankify AI Prompt Engine
+ * Rankify AI Personal Study Coach Prompt Engine
  * Transforms any student doubt into an expert, personalized CBSE Class 12 study prompt.
+ * Seamlessly integrates student progress, weak chapters, targets, and one-tap boosters.
  * Zero external APIs. 100% offline synthesis.
  */
-export function generateStudyPrompt(userQuery: string): PromptResult {
+export function generateStudyPrompt(
+  userQuery: string,
+  customBooster?: PromptBooster,
+  explicitStudentContext?: StudentContextInfo
+): PromptResult {
   const { subject, chapter } = detectSubjectAndChapter(userQuery);
   const questionType = detectQuestionType(userQuery);
   const intent = detectStudyIntent(userQuery);
@@ -156,7 +233,14 @@ export function generateStudyPrompt(userQuery: string): PromptResult {
   const topic = extractTopicFromQuery(userQuery, chapter.name);
   const category = mapQuestionTypeToCategory(questionType);
 
-  const teacherSubject = subject === 'General CBSE' ? 'Science' : subject;
+  const studentContext =
+    explicitStudentContext || getSavedStudentContext(subject, chapter);
+  const coachDirectives = formatStudentCoachDirective(
+    studentContext,
+    subject,
+    chapter.name
+  );
+  const boosterDirectives = getBoosterDirective(customBooster);
   const taskDirective = getTaskDirective(topic, questionType, intent);
   const subjectPedagogy = getSubjectPedagogyRule(subject);
 
@@ -182,8 +266,11 @@ export function generateStudyPrompt(userQuery: string): PromptResult {
 
   // Build the intelligent, personalized prompt text
   const promptLines: string[] = [
-    'You are an expert CBSE Class 12 teacher.',
+    'You are an expert CBSE Class 12 teacher and personal academic coach.',
     '',
+    ...coachDirectives,
+    '',
+    ...(boosterDirectives.length > 0 ? [...boosterDirectives, ''] : []),
     `Subject: ${subject}`,
     `Chapter: ${chapter.name}`,
     `Focus Area: ${questionType}`,
@@ -253,6 +340,8 @@ export function generateStudyPrompt(userQuery: string): PromptResult {
       chars: charCount,
       words: wordCount,
     },
+    activeBooster: customBooster,
+    studentContext,
     generatedPrompt,
     bulletPoints: standardRequirements,
     rawQuery: userQuery,

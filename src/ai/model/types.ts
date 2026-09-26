@@ -46,6 +46,37 @@ export interface DetectedChapter {
   isCompleted?: boolean;
 }
 
+export type PromptBooster =
+  | 'Easy Mode'
+  | 'Board Mode'
+  | 'Topper Mode'
+  | 'Crash Course'
+  | 'Revision Only'
+  | 'NCERT Only'
+  | 'PYQs Only'
+  | 'Numericals Only'
+  | 'Formula Only';
+
+export interface StudentContextInfo {
+  name: string;
+  classNumber: number;
+  board: string;
+  stream: string;
+  preferredLanguage: string;
+  targetPercentage: number;
+  overallProgress: number;
+  weakSubjects: string[];
+  strongSubjects: string[];
+  needsFocusChapters: string[];
+  todaysFocusChapter?: string;
+  accuracy: number;
+  chapterProgressPercentage?: number;
+  chapterConfidence?: number;
+  chapterWeakTopics?: string[];
+  isNeedsFocus?: boolean;
+  isCompleted?: boolean;
+}
+
 export type PromptCategory =
   | 'concept_explanation'
   | 'ncert_derivations'
@@ -81,6 +112,8 @@ export interface PromptResult {
   estimatedResponseLength: string;
   estimatedStudyTime: string;
   promptLength: PromptLengthInfo;
+  activeBooster?: PromptBooster;
+  studentContext?: StudentContextInfo;
   generatedPrompt: string;
   bulletPoints: string[];
   rawQuery: string;

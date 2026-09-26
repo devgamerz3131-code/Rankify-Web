@@ -15,7 +15,7 @@ export class ChatRepository {
   }
 
   /**
-   * Retrieves all conversations from local storage, sorted by latest updated.
+   * Retrieves all conversations from local storage, sorted with pinned items first, then latest updated.
    */
   public getAllConversations(): Conversation[] {
     if (typeof window === 'undefined') return [];
@@ -24,12 +24,29 @@ export class ChatRepository {
       if (!raw) return [];
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        return parsed.sort((a, b) => b.updatedAt - a.updatedAt);
+        return parsed.sort((a, b) => {
+          if (a.pinned && !b.pinned) return -1;
+          if (!a.pinned && b.pinned) return 1;
+          return b.updatedAt - a.updatedAt;
+        });
       }
       return [];
     } catch {
       return [];
     }
+  }
+
+  /**
+   * Toggles pin status on a conversation.
+   */
+  public togglePin(conversationId: string): boolean {
+    const all = this.getAllConversations();
+    const conv = all.find((c) => c.id === conversationId);
+    if (!conv) return false;
+
+    conv.pinned = !conv.pinned;
+    this.saveAll(all);
+    return !!conv.pinned;
   }
 
   /**

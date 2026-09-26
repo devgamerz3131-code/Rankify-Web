@@ -17,6 +17,7 @@ import { ChatBubble } from '../components/ChatBubble';
 import { ChatInput } from '../components/ChatInput';
 import { EmptyState } from '../components/EmptyState';
 import { SmartSuggestions } from '../components/SmartSuggestions';
+import { PromptBoostersBar } from '../components/PromptBoostersBar';
 
 export const RankifyAiScreen: React.FC = () => {
   const {
@@ -26,13 +27,16 @@ export const RankifyAiScreen: React.FC = () => {
     copiedMessageId,
     searchQuery,
     activeFilter,
+    activeBooster,
     filteredConversations,
     startNewConversation,
     selectConversation,
     deleteConversation,
+    togglePin,
     clearAllConversations,
     submitQuery,
     regeneratePrompt,
+    toggleBooster,
     copyPrompt,
     toggleFavorite,
     handleOpenChatGPT,
@@ -82,6 +86,7 @@ export const RankifyAiScreen: React.FC = () => {
           onSelect={selectConversation}
           onNewChat={startNewConversation}
           onDelete={deleteConversation}
+          onTogglePin={togglePin}
           onClearAll={clearAllConversations}
         />
       </div>
@@ -114,6 +119,7 @@ export const RankifyAiScreen: React.FC = () => {
                 onSelect={selectConversation}
                 onNewChat={startNewConversation}
                 onDelete={deleteConversation}
+                onTogglePin={togglePin}
                 onClearAll={clearAllConversations}
                 onCloseMobile={() => setIsMobileSidebarOpen(false)}
               />
@@ -144,7 +150,7 @@ export const RankifyAiScreen: React.FC = () => {
                 </div>
               )}
               <h1 className="font-extrabold text-sm sm:text-base text-foreground truncate">
-                {currentConversation?.title || 'Rankify AI Study Prompt Generator'}
+                {currentConversation?.title || 'Rankify AI Personal Study Coach'}
               </h1>
               {currentConversation?.detectedChapter && (
                 <span className="hidden lg:inline-flex text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/40 truncate max-w-[200px]">
@@ -158,7 +164,7 @@ export const RankifyAiScreen: React.FC = () => {
             {/* Offline Safe Tag */}
             <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold border border-emerald-500/20">
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Offline Master Engine</span>
+              <span>Personal Coach Active</span>
             </div>
 
             {/* Header New Chat Button */}
@@ -188,7 +194,7 @@ export const RankifyAiScreen: React.FC = () => {
           </div>
         </div>
 
-        {/* Smart Suggestions Bar (Weak, Needs Focus, or Next Chapter Recommendation) */}
+        {/* Smart Suggestions Bar (Recommended Today banner & 10 smart quick prompt buttons) */}
         <SmartSuggestions
           currentChapter={currentConversation?.detectedChapter}
           currentSubject={currentConversation?.detectedSubject}
@@ -196,7 +202,7 @@ export const RankifyAiScreen: React.FC = () => {
         />
 
         {/* Chat Messages Feed / Empty State */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4">
           {messages.length === 0 ? (
             <EmptyState onSelectSuggestion={submitQuery} />
           ) : (
@@ -207,7 +213,9 @@ export const RankifyAiScreen: React.FC = () => {
                   message={msg}
                   isCopied={copiedMessageId === msg.id}
                   onCopy={handleCopy}
-                  onRegenerate={msg.role === 'assistant' ? regeneratePrompt : undefined}
+                  onRegenerate={
+                    msg.role === 'assistant' ? regeneratePrompt : undefined
+                  }
                   onOpenChatGPT={
                     msg.role === 'assistant'
                       ? (text, id) => handleOpenChatGPT(text, id)
@@ -240,7 +248,7 @@ export const RankifyAiScreen: React.FC = () => {
                   className="flex items-center gap-3 p-4 rounded-2xl bg-card border border-slate-200/80 dark:border-white/10 max-w-sm text-xs text-muted-foreground"
                 >
                   <Sparkles className="w-4 h-4 text-purple-600 animate-spin" />
-                  <span>Synthesizing pedagogical CBSE Class 12 prompt...</span>
+                  <span>Synthesizing personalized CBSE Class 12 coach prompt...</span>
                 </motion.div>
               )}
 
@@ -249,8 +257,16 @@ export const RankifyAiScreen: React.FC = () => {
           )}
         </div>
 
-        {/* Input Bar Dock */}
-        <div className="p-3 sm:p-4 bg-card/60 backdrop-blur-md border-t border-slate-200/80 dark:border-white/10 shrink-0">
+        {/* Prompt Boosters Bar & Input Bar Dock */}
+        <div className="p-3 sm:p-4 bg-card/70 backdrop-blur-md border-t border-slate-200/80 dark:border-white/10 shrink-0 space-y-2">
+          {/* Prompt Boosters Bar */}
+          <PromptBoostersBar
+            activeBooster={activeBooster}
+            onToggleBooster={toggleBooster}
+            isLoading={isLoading}
+          />
+
+          {/* Main Input Component */}
           <ChatInput
             onSend={submitQuery}
             isLoading={isLoading}

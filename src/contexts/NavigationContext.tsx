@@ -4,6 +4,14 @@ import { CBSEClassNumber } from '@/types/cbse';
 import { safeLocalStorage } from '@/utils/storage';
 import { APP_CONFIG } from '@/constants/config';
 
+export interface AiPromptPrefill {
+  subject?: string;
+  chapter?: string;
+  difficulty?: string;
+  questionType?: string;
+  query?: string;
+}
+
 export interface NavigationContextValue {
   activeTab: NavRoute;
   setActiveTab: (tab: NavRoute) => void;
@@ -12,6 +20,9 @@ export interface NavigationContextValue {
   isSearchOpen: boolean;
   setIsSearchOpen: (open: boolean) => void;
   toggleSearch: () => void;
+  aiPrefill: AiPromptPrefill | null;
+  setAiPrefill: (prefill: AiPromptPrefill | null) => void;
+  navigateToAi: (prefill?: AiPromptPrefill) => void;
 }
 
 export const NavigationContext = createContext<NavigationContextValue | null>(null);
@@ -29,6 +40,7 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   });
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [aiPrefill, setAiPrefill] = useState<AiPromptPrefill | null>(null);
 
   // Sync URL hash or pathname with activeTab
   const setActiveTab = (tab: NavRoute) => {
@@ -37,6 +49,13 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const newPath = tab === 'home' ? '/' : `/${tab}`;
       window.history.pushState(null, '', newPath);
     }
+  };
+
+  const navigateToAi = (prefill?: AiPromptPrefill) => {
+    if (prefill) {
+      setAiPrefill(prefill);
+    }
+    setActiveTab('ai');
   };
 
   useEffect(() => {
@@ -65,8 +84,11 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       isSearchOpen,
       setIsSearchOpen,
       toggleSearch,
+      aiPrefill,
+      setAiPrefill,
+      navigateToAi,
     }),
-    [activeTab, selectedClass, isSearchOpen]
+    [activeTab, selectedClass, isSearchOpen, aiPrefill]
   );
 
   return <NavigationContext.Provider value={value}>{children}</NavigationContext.Provider>;

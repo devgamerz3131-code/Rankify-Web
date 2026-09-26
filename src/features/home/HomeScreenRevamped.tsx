@@ -92,7 +92,7 @@ function playCelebrationChime() {
 
 export const HomeScreenRevamped: React.FC = () => {
   const { user } = useAuth();
-  const { setActiveTab } = useNavigation();
+  const { setActiveTab, navigateToAi } = useNavigation();
   const {
     studentDetails: contextDetails,
     chapterProgressMap: contextChapters,
@@ -716,12 +716,23 @@ export const HomeScreenRevamped: React.FC = () => {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {planState.todaysChapters.map((ch, idx) => (
-            <span
+            <button
               key={idx}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-500/20"
+              type="button"
+              onClick={() =>
+                navigateToAi({
+                  chapter: ch,
+                  difficulty: 'Board Level',
+                  questionType: 'Concept',
+                  query: `Explain ${ch} step by step for CBSE Boards`,
+                })
+              }
+              title="Open AI Prompt Generator for this chapter"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/20 cursor-pointer transition-colors"
             >
+              <Sparkles className="w-3 h-3 text-purple-500" />
               <span>{ch}</span>
-            </span>
+            </button>
           ))}
           <span className="text-xs font-mono font-semibold text-muted-foreground ml-1">
             Goal: {planState.todaysQuestions} Questions
@@ -793,6 +804,24 @@ export const HomeScreenRevamped: React.FC = () => {
 
                 {!isDone && !isSkipped && (
                   <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        navigateToAi({
+                          subject: task.subjectName,
+                          chapter: task.chapterName,
+                          difficulty: 'Board Level',
+                          questionType: 'Concept',
+                          query: `Explain ${task.chapterName} with key formulas and derivations for today's task`,
+                        })
+                      }
+                      className="text-xs h-8 px-2.5 rounded-xl font-bold border-purple-500/30 text-purple-600 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 cursor-pointer shadow-xs"
+                      title="Ask AI Coach about this task"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 mr-1 text-purple-500" />
+                      <span>Ask AI</span>
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"

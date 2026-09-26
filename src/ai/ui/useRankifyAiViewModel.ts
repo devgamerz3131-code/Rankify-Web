@@ -1,10 +1,17 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import toast from 'react-hot-toast';
-import { Conversation, Message, PromptResult } from '../model/types';
+import {
+  Conversation,
+  Message,
+  PromptResult,
+  PromptBooster,
+} from '../model/types';
 import { chatRepository } from '../repository/chat-repository';
 import { generateStudyPrompt } from '../utils/prompt-engine';
 import { openChatGPT, openGemini, sharePrompt } from '../utils/external-ai';
+import { getSavedStudentContext } from '../utils/student-context';
 import { TimeFilterOption } from '../components/ChatSidebar';
+import { useNavigation } from '@/contexts/NavigationContext';
 
 export interface RankifyAiViewModelState {
   conversations: Conversation[];
@@ -16,6 +23,7 @@ export interface RankifyAiViewModelState {
   copiedMessageId: string | null;
   searchQuery: string;
   activeFilter: TimeFilterOption;
+  activeBooster: PromptBooster | null;
   filteredConversations: Conversation[];
 }
 
@@ -23,9 +31,11 @@ export interface RankifyAiViewModelActions {
   startNewConversation: (title?: string) => Conversation;
   selectConversation: (id: string) => void;
   deleteConversation: (id: string) => void;
+  togglePin: (id: string) => void;
   clearAllConversations: () => void;
-  submitQuery: (query: string) => Promise<void>;
+  submitQuery: (query: string, boosterOverride?: PromptBooster) => Promise<void>;
   regeneratePrompt: (messageId: string) => Promise<void>;
+  toggleBooster: (booster: PromptBooster) => void;
   copyPrompt: (text: string, messageId?: string) => Promise<boolean>;
   toggleFavorite: (messageId?: string) => void;
   handleOpenChatGPT: (promptText: string, messageId?: string) => Promise<void>;
@@ -38,6 +48,8 @@ export interface RankifyAiViewModelActions {
 export type RankifyAiViewModel = RankifyAiViewModelState & RankifyAiViewModelActions;
 
 export function useRankifyAiViewModel(): RankifyAiViewModel {
+  const { aiPrefill, setAiPrefill } = useNavigation();
+
   const [conversations, setConversations] = useState<Conversation[]>(() => {
     return chatRepository.getAllConversations();
   });
@@ -52,6 +64,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeFilter, setActiveFilter] = useState<TimeFilterOption>('all');
+  const [activeBooster, setActiveBooster] = useState<PromptBooster | null>(null);
 
   // Reload conversations from repository
   const refreshConversations = useCallback(() => {
@@ -113,6 +126,18 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
     [currentConversationId, refreshConversations]
   );
 
+  // Toggle pin conversation
+  const togglePin = useCallback(
+    (id: string) => {
+      const isPinned = chatRepository.togglePin(id);
+      refreshConversations();
+      toast.success(isPinned ? 'Chat pinned to top 📌' : 'Chat unpinned', {
+        duration: 2000,
+      });
+    },
+    [refreshConversations]
+  );
+
   // Clear all conversations
   const clearAllConversations = useCallback(() => {
     chatRepository.clearAll();
@@ -121,9 +146,9 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
     setGeneratedPrompt(null);
   }, []);
 
-  // Submit query: instantaneous synthesis, 0ms delay, no API calls
+  // Submit query: instantaneous synthesis, 0ms delay, no API calls, personalized
   const submitQuery = useCallback(
-    async (query: string) => {
+    async (query: string, boosterOverride?: PromptBooster) => {
       const clean = query.trim();
       if (!clean) return;
 
@@ -152,8 +177,9 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
 
       chatRepository.addMessage(targetConvId, userMessage);
 
-      // 2. Synthesize structured CBSE prompt instantly (0ms delay for high performance)
-      const promptRes = generateStudyPrompt(clean);
+      // 2. Synthesize personalized prompt instantly with student data & active booster
+      const boosterToUse = boosterOverride || activeBooster || undefined;
+      const promptRes = generateStudyPrompt(clean, boosterToUse);
       setGeneratedPrompt(promptRes);
 
       // 3. Assistant Prompt Message
@@ -191,7 +217,44 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
 
       setIsLoading(false);
     },
-    [currentConversationId, refreshConversations]
+    [currentConversationId, activeBooster, refreshConversations]
+  );
+
+  // Toggle booster: updates booster and immediately re-boosts current message if available
+  const toggleBooster = useCallback(
+    (booster: PromptBooster) => {
+      const nextBooster = activeBooster === booster ? null : booster;
+      setActiveBooster(nextBooster);
+
+      if (nextBooster) {
+        toast.success(`Boosted: ${nextBooster} 🚀`, { duration: 2000 });
+      }
+
+      // If there's an active assistant message, re-synthesize with this booster instantly
+      if (currentConversation && currentConversation.messages.length > 0) {
+        const lastAssistant = [...currentConversation.messages]
+          .reverse()
+          .find((m) => m.role === 'assistant');
+
+        if (lastAssistant) {
+          const rawQuery =
+            lastAssistant.promptResult?.rawQuery || lastAssistant.content;
+          const boostedPrompt = generateStudyPrompt(
+            rawQuery,
+            nextBooster || undefined
+          );
+
+          setGeneratedPrompt(boostedPrompt);
+          lastAssistant.content = boostedPrompt.generatedPrompt;
+          lastAssistant.promptResult = boostedPrompt;
+          lastAssistant.timestamp = Date.now();
+
+          chatRepository.saveConversation(currentConversation);
+          refreshConversations();
+        }
+      }
+    },
+    [activeBooster, currentConversation, refreshConversations]
   );
 
   // Regenerate prompt for a specific message (instantaneous)
@@ -204,7 +267,10 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
       setIsLoading(true);
 
       const rawQuery = targetMsg.promptResult?.rawQuery || targetMsg.content;
-      const freshPrompt = generateStudyPrompt(rawQuery);
+      const freshPrompt = generateStudyPrompt(
+        rawQuery,
+        activeBooster || undefined
+      );
       setGeneratedPrompt(freshPrompt);
 
       targetMsg.content = freshPrompt.generatedPrompt;
@@ -221,7 +287,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
         if (typeof navigator !== 'undefined' && navigator.clipboard) {
           await navigator.clipboard.writeText(freshPrompt.generatedPrompt);
           setCopiedMessageId(targetMsg.id);
-          toast.success('Prompt copied successfully', {
+          toast.success('Prompt copied', {
             icon: '📋',
             duration: 2500,
           });
@@ -233,7 +299,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
 
       setIsLoading(false);
     },
-    [currentConversation, refreshConversations]
+    [currentConversation, activeBooster, refreshConversations]
   );
 
   // Copy prompt to clipboard manually
@@ -304,14 +370,44 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
     []
   );
 
+  // Home Screen / External Task Prefill integration:
+  // If user presses Ask AI from Home, automatically fill without asking again!
+  useEffect(() => {
+    if (aiPrefill) {
+      const { query, chapter, subject } = aiPrefill;
+      const queryToSubmit =
+        query ||
+        `Explain ${chapter || 'Core Concepts'} step by step for CBSE Boards`;
+
+      // Clear prefill so it doesn't trigger again on subsequent renders
+      setAiPrefill(null);
+
+      // Create new chat and submit immediately
+      const newConv = chatRepository.createConversation(
+        chapter ? `${chapter} • AI Study` : 'AI Study Session',
+        subject as any
+      );
+      refreshConversations();
+      setCurrentConversationId(newConv.id);
+
+      // Submit immediately
+      submitQuery(queryToSubmit);
+    }
+  }, [aiPrefill, setAiPrefill, submitQuery, refreshConversations]);
+
   // Initialize with a blank conversation if completely empty on first launch
   useEffect(() => {
-    if (conversations.length === 0 && !currentConversationId) {
-      const initial = chatRepository.createConversation('Study Session 1', 'Chemistry');
+    if (conversations.length === 0 && !currentConversationId && !aiPrefill) {
+      const student = getSavedStudentContext();
+      const initialChapter = student.todaysFocusChapter || 'Electrochemistry';
+      const initial = chatRepository.createConversation(
+        `Study Session • ${initialChapter}`,
+        'Chemistry'
+      );
       refreshConversations();
       setCurrentConversationId(initial.id);
     }
-  }, [conversations.length, currentConversationId, refreshConversations]);
+  }, [conversations.length, currentConversationId, aiPrefill, refreshConversations]);
 
   return {
     conversations,
@@ -323,13 +419,16 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
     copiedMessageId,
     searchQuery,
     activeFilter,
+    activeBooster,
     filteredConversations,
     startNewConversation,
     selectConversation,
     deleteConversation,
+    togglePin,
     clearAllConversations,
     submitQuery,
     regeneratePrompt,
+    toggleBooster,
     copyPrompt,
     toggleFavorite,
     handleOpenChatGPT,

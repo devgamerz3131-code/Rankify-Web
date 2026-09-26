@@ -12,6 +12,7 @@ import {
   Clock,
   TrendingUp,
   Calendar,
+  Pin,
 } from 'lucide-react';
 import { Conversation } from '../model/types';
 
@@ -33,11 +34,16 @@ interface ChatSidebarProps {
   onSelect: (id: string) => void;
   onNewChat: () => void;
   onDelete: (id: string) => void;
+  onTogglePin?: (id: string) => void;
   onClearAll: () => void;
   onCloseMobile?: () => void;
 }
 
-const FILTER_ITEMS: { id: TimeFilterOption; label: string; icon: React.FC<{ className?: string }> }[] = [
+const FILTER_ITEMS: {
+  id: TimeFilterOption;
+  label: string;
+  icon: React.FC<{ className?: string }>;
+}[] = [
   { id: 'all', label: 'All', icon: Calendar },
   { id: 'today', label: 'Today', icon: Clock },
   { id: 'yesterday', label: 'Yesterday', icon: Clock },
@@ -56,6 +62,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   onSelect,
   onNewChat,
   onDelete,
+  onTogglePin,
   onClearAll,
   onCloseMobile,
 }) => {
@@ -83,7 +90,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
               AI
             </div>
             <span className="font-extrabold text-sm tracking-tight text-foreground">
-              Study Chats
+              Study Coach
             </span>
           </div>
 
@@ -109,7 +116,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
           className="w-full h-9 px-3.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>New Study Chat</span>
+          <span>New Study Session</span>
         </button>
 
         {/* Search Chats Input */}
@@ -119,7 +126,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search conversations..."
+            placeholder="Search study history..."
             className="w-full h-8 pl-8 pr-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-purple-500/40 border border-transparent"
           />
           {searchQuery && (
@@ -166,13 +173,15 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
               ? 'No matching chats found.'
               : activeFilter !== 'all'
               ? `No chats found in "${activeFilter.replace('_', ' ')}".`
-              : 'No study chats yet.'}
+              : 'No study chats yet. Start asking doubts!'}
           </div>
         ) : (
           conversations.map((conv) => {
             const isActive = conv.id === activeId;
             const hasFavorite =
               conv.isFavorite || conv.messages.some((m) => m.isFavorite);
+            const isPinned = conv.pinned;
+
             return (
               <div
                 key={conv.id}
@@ -186,10 +195,13 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                     : 'text-muted-foreground hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:text-foreground border border-transparent'
                 }`}
               >
-                <div className="flex items-center gap-2.5 min-w-0 pr-6">
+                <div className="flex items-center gap-2.5 min-w-0 pr-12">
                   {getSubjectIcon(conv.detectedSubject)}
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
+                      {isPinned && (
+                        <Pin className="w-3 h-3 text-purple-600 fill-purple-600 dark:text-purple-400 dark:fill-purple-400 shrink-0" />
+                      )}
                       <p className="text-xs truncate">{conv.title}</p>
                       {hasFavorite && (
                         <Star className="w-3 h-3 text-amber-500 fill-amber-500 shrink-0" />
@@ -203,18 +215,38 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                   </div>
                 </div>
 
-                {/* Delete button on hover / active */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(conv.id);
-                  }}
-                  title="Delete chat"
-                  className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-muted-foreground hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all cursor-pointer shrink-0"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                {/* Pin and Delete actions */}
+                <div className="flex items-center gap-1 shrink-0">
+                  {onTogglePin && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onTogglePin(conv.id);
+                      }}
+                      title={isPinned ? 'Unpin chat' : 'Pin chat to top'}
+                      className={`p-1 rounded-lg transition-all cursor-pointer ${
+                        isPinned
+                          ? 'text-purple-600 dark:text-purple-400'
+                          : 'opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40'
+                      }`}
+                    >
+                      <Pin className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(conv.id);
+                    }}
+                    title="Delete chat"
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-muted-foreground hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all cursor-pointer shrink-0"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             );
           })
