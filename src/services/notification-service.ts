@@ -181,7 +181,7 @@ export class NotificationEngine {
         };
       default:
         return {
-          title: 'Rankify AI Study Reminder',
+          title: 'Rankify Study Reminder',
           body: `Stay consistent with your CBSE Class 12 PCM schedule today!`,
         };
     }

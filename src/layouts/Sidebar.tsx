@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { NAV_ITEMS } from '@/constants/navigation';
-import { Sparkles, Shield } from '@/icons';
+import { Shield } from '@/icons';
 import { useAuth } from '@/hooks/use-auth';
 
 export const Sidebar: React.FC = () => {
@@ -34,19 +34,6 @@ export const Sidebar: React.FC = () => {
                 <Icon className={`h-4 w-4 ${isActive ? 'text-white' : 'text-muted-foreground'}`} />
                 <span>{item.label}</span>
               </div>
-
-              {item.isAi ? (
-                <span
-                  className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                    isActive
-                      ? 'bg-white/20 text-white'
-                      : 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300'
-                  }`}
-                >
-                  <Sparkles className="h-2.5 w-2.5" />
-                  {item.badge}
-                </span>
-              ) : null}
             </button>
           );
         })}

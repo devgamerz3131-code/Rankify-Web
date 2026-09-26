@@ -694,34 +694,6 @@ export const AdminDashboardView: React.FC = () => {
                 </button>
               </div>
             ))}
-
-            {/* AI Availability Toggle */}
-            <div className="flex items-center justify-between p-3 rounded-2xl bg-purple-50/50 dark:bg-purple-950/20 border border-purple-500/30">
-              <div>
-                <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-                  <span>AI Doubt Engine Global Availability</span>
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Master switch to enable/disable AI queries across the entire platform
-                </p>
-              </div>
-
-              <button
-                onClick={() => {
-                  const nextState = !remoteCfg.aiAvailability.enabled;
-                  remoteConfig.setAIAvailability(nextState);
-                  toast.success(`AI Tutor ${nextState ? 'Activated' : 'Paused'}`);
-                }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
-                  remoteCfg.aiAvailability.enabled
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-rose-600 text-white'
-                }`}
-              >
-                {remoteCfg.aiAvailability.enabled ? 'AI Active' : 'AI Paused'}
-              </button>
-            </div>
           </div>
         </div>
       )}

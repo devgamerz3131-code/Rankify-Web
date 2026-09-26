@@ -24,9 +24,6 @@ export const BottomNav: React.FC = () => {
             >
               <div className="relative">
                 <Icon className={`h-5 w-5 ${isActive ? 'stroke-[2.4]' : 'stroke-[1.8]'}`} />
-                {item.isAi && (
-                  <span className="absolute -top-1 -right-2 h-2 w-2 rounded-full bg-purple-500" />
-                )}
               </div>
               <span className="text-[10px] tracking-tight mt-0.5">{item.label}</span>
             </button>

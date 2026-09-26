@@ -25,7 +25,7 @@ export const Screen4StudyRoutine: React.FC = () => {
           Your Daily Study Routine
         </h2>
         <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-          Rankify AI uses your daily schedule to allocate realistic study blocks and avoid burnout.
+          Rankify uses your daily schedule to allocate realistic study blocks and avoid burnout.
         </p>
       </div>
 

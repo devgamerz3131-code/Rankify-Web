@@ -104,7 +104,7 @@ export const Screen8AIPlan: React.FC = () => {
               transition={{ duration: 1.5, repeat: Infinity }}
               className="text-[10px] font-mono font-bold text-purple-300 mt-1"
             >
-              RANKIFY AI
+              RANKIFY PLANNER
             </motion.div>
           </div>
         </div>
@@ -112,7 +112,7 @@ export const Screen8AIPlan: React.FC = () => {
         {/* Primary Heading */}
         <div className="space-y-2">
           <h2 className="text-2xl sm:text-4xl font-extrabold text-foreground tracking-tight">
-            Rankify AI is analysing your syllabus...
+            Rankify is analysing your syllabus...
           </h2>
           <p className="text-xs sm:text-sm text-muted-foreground max-w-lg mx-auto">
             Calibrating syllabus weightage, student confidence metrics, and study routines for{' '}

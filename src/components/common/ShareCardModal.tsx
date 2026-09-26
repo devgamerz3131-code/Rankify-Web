@@ -170,7 +170,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
               <div className="text-xl font-black text-white flex items-center gap-2">
                 <span>🏆 Centurion Solver Badge</span>
               </div>
-              <p className="text-xs text-slate-300">Mastered 100+ Board Questions with AI Tutor</p>
+              <p className="text-xs text-slate-300">Mastered 100+ Board Questions with Rankify</p>
             </div>
           )}
 

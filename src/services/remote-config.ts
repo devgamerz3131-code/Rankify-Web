@@ -89,7 +89,7 @@ export const DEFAULT_REMOTE_CONFIG: RemoteConfigState = {
     enforceBlock: false,
     releaseNotes: [
       'Strict 37-chapter CBSE Class 12 PCM official syllabus alignment',
-      'Advanced step-by-step AI Doubt Tutor with NCERT grounding',
+      'Comprehensive NCERT chapter-wise revision and question sets',
       'Study reports and gamified academic achievements',
       'One-click high-resolution share cards for study streaks',
     ],

@@ -860,7 +860,7 @@ export const HomeScreenRevamped: React.FC = () => {
             </div>
 
             <p className="text-xs text-muted-foreground mb-3">
-              Needs Focus never stays static. Once you practice enough questions and reach 80%+ accuracy, Rankify AI automatically moves it to Mastered and promotes the next weak chapter.
+              Needs Focus never stays static. Once you practice enough questions and reach 80%+ accuracy, Rankify automatically moves it to Mastered and promotes the next weak chapter.
             </p>
 
             <div className="space-y-2">
@@ -971,14 +971,14 @@ export const HomeScreenRevamped: React.FC = () => {
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <button
-            onClick={() => setActiveTab('ask-ai')}
+            onClick={() => setActiveTab('study')}
             className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 hover:border-purple-500 hover:shadow-md transition-all text-left space-y-1.5 cursor-pointer group"
           >
             <div className="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 flex items-center justify-center group-hover:scale-105 transition-transform">
               <Sparkles className="w-4 h-4" />
             </div>
-            <div className="text-xs font-bold text-foreground">Ask AI Tutor</div>
-            <p className="text-[10px] text-purple-600 dark:text-purple-400 font-bold">Class 12 Study Prompts</p>
+            <div className="text-xs font-bold text-foreground">Active Revision</div>
+            <p className="text-[10px] text-purple-600 dark:text-purple-400 font-bold">High-Yield Formulae</p>
           </button>
 
           <button
@@ -1018,41 +1018,41 @@ export const HomeScreenRevamped: React.FC = () => {
 
       {/* 8. Recent Doubts & Recent Activity Split Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* Rankify AI Tutor Active Card */}
+        {/* Priority Revision Hub */}
         <Card className="p-5 sm:p-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-slate-200/80 dark:border-white/10 shadow-xs flex flex-col justify-between space-y-3">
           <div>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-purple-600" />
-                <h3 className="font-bold text-sm text-foreground">Rankify AI Tutor</h3>
+                <Target className="w-4 h-4 text-purple-600" />
+                <h3 className="font-bold text-sm text-foreground">Priority Revision Hub</h3>
               </div>
               <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2 py-0.5 rounded-full border border-purple-200 dark:border-purple-800/40">
-                Active
+                Board Focus
               </span>
             </div>
 
             <div className="p-6 text-center rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 space-y-2">
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Ask any Physics, Chemistry, or Maths doubt to instantly craft high-yield structured study prompts with auto-detected chapters.
+                Review high-weightage chapters, practice NCERT derivations, and solve previous 10-year CBSE board question sets.
               </p>
               <button
-                onClick={() => setActiveTab('ask-ai')}
+                onClick={() => setActiveTab('practice')}
                 className="px-3.5 py-1.5 rounded-xl bg-purple-600 text-white text-xs font-bold shadow-xs cursor-pointer hover:bg-purple-500 transition-colors"
               >
-                Launch AI Tutor
+                Practice Questions
               </button>
             </div>
           </div>
 
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-xs">
-            <span className="text-muted-foreground font-medium">Class 12 AI Prompter:</span>
+            <span className="text-muted-foreground font-medium">CBSE Question Bank:</span>
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setActiveTab('ask-ai')}
+              onClick={() => setActiveTab('study')}
               className="text-xs text-purple-600 dark:text-purple-400 font-bold p-0 h-auto cursor-pointer"
             >
-              <span>Open AI Tutor</span>
+              <span>Explore Curriculum</span>
               <ArrowRight className="w-3.5 h-3.5 ml-1" />
             </Button>
           </div>
@@ -1144,7 +1144,7 @@ export const HomeScreenRevamped: React.FC = () => {
             "{planState.motivation}"
           </p>
           <span className="text-[10px] font-mono text-purple-300 block">
-            — Rankify AI Academic Coach (CBSE Class 12 PCM)
+            — Rankify Academic Coach (CBSE Class 12 PCM)
           </span>
         </div>
       </div>

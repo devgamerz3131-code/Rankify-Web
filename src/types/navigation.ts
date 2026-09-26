@@ -1,6 +1,6 @@
 import { ComponentType } from 'react';
 
-export type NavRoute = 'home' | 'study' | 'practice' | 'ask-ai' | 'progress' | 'profile';
+export type NavRoute = 'home' | 'study' | 'practice' | 'progress' | 'profile';
 
 export interface NavItem {
   id: NavRoute;
@@ -8,5 +8,4 @@ export interface NavItem {
   path: string;
   icon: ComponentType<{ className?: string }>;
   badge?: string;
-  isAi?: boolean;
 }

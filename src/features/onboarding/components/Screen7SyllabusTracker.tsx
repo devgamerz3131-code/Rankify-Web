@@ -68,7 +68,7 @@ export const Screen7SyllabusTracker: React.FC = () => {
           Chapter-by-Chapter Progress Assessment
         </h2>
         <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-xl mx-auto">
-          Specify your current completion level and confidence on every chapter. Rankify AI uses this to balance your daily routine and isolate priority revision targets.
+          Specify your current completion level and confidence on every chapter. Rankify uses this to balance your daily routine and isolate priority revision targets.
         </p>
       </div>
 
