@@ -156,7 +156,7 @@ export class ChatRepository {
   }
 
   /**
-   * Updates last used timestamp on conversation or prompt.
+   * Updates last used timestamp and increments use count on conversation or prompt.
    */
   public updateLastUsed(conversationId: string, messageId?: string): void {
     const all = this.getAllConversations();
@@ -165,18 +165,74 @@ export class ChatRepository {
 
     const now = Date.now();
     conv.lastUsedAt = now;
+    conv.useCount = (conv.useCount || 0) + 1;
 
     if (messageId) {
       const msg = conv.messages.find((m) => m.id === messageId);
       if (msg) {
         msg.lastUsedAt = now;
+        msg.useCount = (msg.useCount || 0) + 1;
         if (msg.promptResult) {
           msg.promptResult.lastUsedAt = now;
+          msg.promptResult.useCount = (msg.promptResult.useCount || 0) + 1;
         }
       }
     }
 
     this.saveAll(all);
+  }
+
+  /**
+   * Filters conversations by timeline or category:
+   * - all
+   * - today
+   * - yesterday
+   * - this_week
+   * - favorites
+   * - most_used
+   */
+  public getFilteredConversations(
+    filterType: 'all' | 'today' | 'yesterday' | 'this_week' | 'favorites' | 'most_used',
+    searchQuery: string = ''
+  ): Conversation[] {
+    let list = this.getAllConversations();
+
+    // 1. Text search filter
+    const cleanSearch = searchQuery.toLowerCase().trim();
+    if (cleanSearch) {
+      list = list.filter((conv) => {
+        const inTitle = conv.title.toLowerCase().includes(cleanSearch);
+        const inMessages = conv.messages.some((m) => m.content.toLowerCase().includes(cleanSearch));
+        const inSubject = conv.detectedSubject?.toLowerCase().includes(cleanSearch);
+        const inChapter = conv.detectedChapter?.name.toLowerCase().includes(cleanSearch);
+        return inTitle || inMessages || inSubject || inChapter;
+      });
+    }
+
+    // 2. Timeline / category filter
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const startOfYesterday = startOfToday - 24 * 60 * 60 * 1000;
+    const startOfWeek = startOfToday - 7 * 24 * 60 * 60 * 1000;
+
+    switch (filterType) {
+      case 'today':
+        return list.filter((c) => c.updatedAt >= startOfToday);
+      case 'yesterday':
+        return list.filter((c) => c.updatedAt >= startOfYesterday && c.updatedAt < startOfToday);
+      case 'this_week':
+        return list.filter((c) => c.updatedAt >= startOfWeek);
+      case 'favorites':
+        return list.filter((c) => c.isFavorite || c.messages.some((m) => m.isFavorite));
+      case 'most_used':
+        return [...list].sort(
+          (a, b) =>
+            (b.useCount || b.messages.length || 0) - (a.useCount || a.messages.length || 0)
+        );
+      case 'all':
+      default:
+        return list;
+    }
   }
 
   /**

@@ -4,21 +4,46 @@ export type DetectedSubject = 'Physics' | 'Chemistry' | 'Mathematics' | 'General
 
 export type QuestionType =
   | 'Concept'
+  | 'Theory'
   | 'Numerical'
   | 'Derivation'
   | 'Formula'
+  | 'NCERT Exercise'
+  | 'Example'
   | 'PYQ'
-  | 'MCQ'
   | 'Assertion Reason'
+  | 'MCQ'
+  | 'Case Study'
   | 'Competency Question'
   | 'Revision'
-  | 'Notes';
+  | 'Short Notes'
+  | 'Important Questions';
+
+export type StudyIntent =
+  | 'Quick Revision'
+  | 'Detailed Study'
+  | 'Exam Preparation'
+  | 'Numerical Practice'
+  | 'Formula Revision'
+  | 'Board Questions'
+  | 'Sample Paper Help';
+
+export type PromptQualityScore = 'Excellent' | 'Very High' | 'High' | 'Good';
+
+export type DifficultyLevel =
+  | 'Easy'
+  | 'Moderate'
+  | 'Board Level'
+  | 'Challenge (95%+)';
 
 export interface DetectedChapter {
   name: string;
   code?: string;
   subject: DetectedSubject;
   standardConfidence?: number;
+  isWeak?: boolean;
+  needsFocus?: boolean;
+  isCompleted?: boolean;
 }
 
 export type PromptCategory =
@@ -48,15 +73,21 @@ export interface PromptResult {
   subject: DetectedSubject;
   chapter: DetectedChapter;
   questionType: QuestionType;
-  difficulty: string;
-  promptLength: PromptLengthInfo;
+  intent: StudyIntent;
+  difficulty: DifficultyLevel;
+  boardPattern: string;
+  qualityScore: PromptQualityScore;
   estimatedQuality: string;
+  estimatedResponseLength: string;
+  estimatedStudyTime: string;
+  promptLength: PromptLengthInfo;
   generatedPrompt: string;
   bulletPoints: string[];
   rawQuery: string;
   generatedAt: number;
   isFavorite?: boolean;
   lastUsedAt?: number;
+  useCount?: number;
 }
 
 export interface Message {
@@ -68,6 +99,7 @@ export interface Message {
   promptResult?: PromptResult;
   isFavorite?: boolean;
   lastUsedAt?: number;
+  useCount?: number;
 }
 
 export interface Conversation {
@@ -76,10 +108,12 @@ export interface Conversation {
   createdAt: number;
   updatedAt: number;
   lastUsedAt?: number;
+  useCount?: number;
   messages: Message[];
   detectedSubject?: DetectedSubject;
   detectedChapter?: DetectedChapter;
   pinned?: boolean;
   isFavorite?: boolean;
 }
+
 

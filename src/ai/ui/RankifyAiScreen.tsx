@@ -16,6 +16,7 @@ import { ChatSidebar } from '../components/ChatSidebar';
 import { ChatBubble } from '../components/ChatBubble';
 import { ChatInput } from '../components/ChatInput';
 import { EmptyState } from '../components/EmptyState';
+import { SmartSuggestions } from '../components/SmartSuggestions';
 
 export const RankifyAiScreen: React.FC = () => {
   const {
@@ -24,6 +25,7 @@ export const RankifyAiScreen: React.FC = () => {
     isLoading,
     copiedMessageId,
     searchQuery,
+    activeFilter,
     filteredConversations,
     startNewConversation,
     selectConversation,
@@ -37,6 +39,7 @@ export const RankifyAiScreen: React.FC = () => {
     handleOpenGemini,
     handleShare,
     setSearchQuery,
+    setActiveFilter,
   } = useRankifyAiViewModel();
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -74,6 +77,8 @@ export const RankifyAiScreen: React.FC = () => {
           activeId={currentConversation?.id || null}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          activeFilter={activeFilter}
+          onFilterChange={setActiveFilter}
           onSelect={selectConversation}
           onNewChat={startNewConversation}
           onDelete={deleteConversation}
@@ -104,6 +109,8 @@ export const RankifyAiScreen: React.FC = () => {
                 activeId={currentConversation?.id || null}
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
+                activeFilter={activeFilter}
+                onFilterChange={setActiveFilter}
                 onSelect={selectConversation}
                 onNewChat={startNewConversation}
                 onDelete={deleteConversation}
@@ -137,7 +144,7 @@ export const RankifyAiScreen: React.FC = () => {
                 </div>
               )}
               <h1 className="font-extrabold text-sm sm:text-base text-foreground truncate">
-                {currentConversation?.title || 'Rankify AI Prompt Engine'}
+                {currentConversation?.title || 'Rankify AI Study Prompt Generator'}
               </h1>
               {currentConversation?.detectedChapter && (
                 <span className="hidden lg:inline-flex text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/40 truncate max-w-[200px]">
@@ -151,7 +158,7 @@ export const RankifyAiScreen: React.FC = () => {
             {/* Offline Safe Tag */}
             <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold border border-emerald-500/20">
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Offline Architecture</span>
+              <span>Offline Master Engine</span>
             </div>
 
             {/* Header New Chat Button */}
@@ -180,6 +187,13 @@ export const RankifyAiScreen: React.FC = () => {
             )}
           </div>
         </div>
+
+        {/* Smart Suggestions Bar (Weak, Needs Focus, or Next Chapter Recommendation) */}
+        <SmartSuggestions
+          currentChapter={currentConversation?.detectedChapter}
+          currentSubject={currentConversation?.detectedSubject}
+          onSelectPrompt={submitQuery}
+        />
 
         {/* Chat Messages Feed / Empty State */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-4">
@@ -226,7 +240,7 @@ export const RankifyAiScreen: React.FC = () => {
                   className="flex items-center gap-3 p-4 rounded-2xl bg-card border border-slate-200/80 dark:border-white/10 max-w-sm text-xs text-muted-foreground"
                 >
                   <Sparkles className="w-4 h-4 text-purple-600 animate-spin" />
-                  <span>Synthesizing structured CBSE Class 12 prompt...</span>
+                  <span>Synthesizing pedagogical CBSE Class 12 prompt...</span>
                 </motion.div>
               )}
 
@@ -237,7 +251,11 @@ export const RankifyAiScreen: React.FC = () => {
 
         {/* Input Bar Dock */}
         <div className="p-3 sm:p-4 bg-card/60 backdrop-blur-md border-t border-slate-200/80 dark:border-white/10 shrink-0">
-          <ChatInput onSend={submitQuery} isLoading={isLoading} />
+          <ChatInput
+            onSend={submitQuery}
+            isLoading={isLoading}
+            activeChapterName={currentConversation?.detectedChapter?.name}
+          />
         </div>
       </div>
     </div>

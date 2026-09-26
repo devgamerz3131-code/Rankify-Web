@@ -1,4 +1,10 @@
-import { DetectedSubject, DetectedChapter, QuestionType } from '../model/types';
+import {
+  DetectedSubject,
+  DetectedChapter,
+  QuestionType,
+  StudyIntent,
+  DifficultyLevel,
+} from '../model/types';
 
 interface ChapterMetadata {
   name: string;
@@ -633,15 +639,20 @@ export function detectSubjectAndChapter(query: string): {
  * Detects question type automatically from the student's doubt.
  * Categories:
  * - Concept
+ * - Theory
  * - Numerical
  * - Derivation
  * - Formula
+ * - NCERT Exercise
+ * - Example
  * - PYQ
- * - MCQ
  * - Assertion Reason
+ * - MCQ
+ * - Case Study
  * - Competency Question
  * - Revision
- * - Notes
+ * - Short Notes
+ * - Important Questions
  */
 export function detectQuestionType(query: string): QuestionType {
   const q = query.toLowerCase().trim();
@@ -658,7 +669,28 @@ export function detectQuestionType(query: string): QuestionType {
     return 'Assertion Reason';
   }
 
-  // 2. MCQ
+  // 2. Case Study
+  if (
+    q.includes('case study') ||
+    q.includes('case-based') ||
+    q.includes('case based') ||
+    q.includes('passage based') ||
+    q.includes('source based')
+  ) {
+    return 'Case Study';
+  }
+
+  // 3. Competency Question
+  if (
+    q.includes('competency') ||
+    q.includes('application based') ||
+    q.includes('real life') ||
+    q.includes('cbse pattern question')
+  ) {
+    return 'Competency Question';
+  }
+
+  // 4. MCQ
   if (
     q.includes('mcq') ||
     q.includes('multiple choice') ||
@@ -669,21 +701,53 @@ export function detectQuestionType(query: string): QuestionType {
     return 'MCQ';
   }
 
-  // 3. Competency Question / Case-Based
+  // 5. NCERT Exercise / Example
   if (
-    q.includes('competency') ||
-    q.includes('case study') ||
-    q.includes('case-based') ||
-    q.includes('case based') ||
-    q.includes('passage based') ||
-    q.includes('source based') ||
-    q.includes('application based') ||
-    q.includes('real life')
+    q.includes('ncert exercise') ||
+    q.includes('back exercise') ||
+    q.includes('in-text') ||
+    q.includes('intext') ||
+    q.includes('ncert solution') ||
+    q.includes('ncert only')
   ) {
-    return 'Competency Question';
+    return 'NCERT Exercise';
   }
 
-  // 4. Derivation
+  if (
+    q.includes('example') ||
+    q.includes('solved example') ||
+    q.includes('ncert example') ||
+    q.includes('illustration')
+  ) {
+    return 'Example';
+  }
+
+  // 6. PYQ
+  if (
+    q.includes('pyq') ||
+    q.includes('previous year') ||
+    q.includes('board question') ||
+    q.includes('past paper') ||
+    q.includes('delhi board') ||
+    q.includes('all india board') ||
+    q.includes('repeated question') ||
+    q.includes('frequently asked')
+  ) {
+    return 'PYQ';
+  }
+
+  // 7. Important Questions
+  if (
+    q.includes('important question') ||
+    q.includes('most important') ||
+    q.includes('top question') ||
+    q.includes('expected question') ||
+    q.includes('sure shot')
+  ) {
+    return 'Important Questions';
+  }
+
+  // 8. Derivation
   if (
     q.includes('derivation') ||
     q.includes('derive') ||
@@ -695,7 +759,7 @@ export function detectQuestionType(query: string): QuestionType {
     return 'Derivation';
   }
 
-  // 5. Numerical
+  // 9. Numerical
   if (
     q.includes('numerical') ||
     q.includes('calculate') ||
@@ -703,12 +767,13 @@ export function detectQuestionType(query: string): QuestionType {
     q.includes('compute') ||
     q.includes('find the value') ||
     q.includes('problem') ||
-    q.includes('numerical examples')
+    q.includes('numerical examples') ||
+    q.includes('numerical practice')
   ) {
     return 'Numerical';
   }
 
-  // 6. Formula
+  // 10. Formula
   if (
     q.includes('formula') ||
     q.includes('formulae') ||
@@ -720,20 +785,19 @@ export function detectQuestionType(query: string): QuestionType {
     return 'Formula';
   }
 
-  // 7. PYQ
+  // 11. Short Notes
   if (
-    q.includes('pyq') ||
-    q.includes('previous year') ||
-    q.includes('board question') ||
-    q.includes('past paper') ||
-    q.includes('delhi board') ||
-    q.includes('repeated question') ||
-    q.includes('frequently asked')
+    q.includes('short notes') ||
+    q.includes('handwritten') ||
+    q.includes('key points') ||
+    q.includes('bullet points') ||
+    q.includes('detailed notes') ||
+    q.includes('notes')
   ) {
-    return 'PYQ';
+    return 'Short Notes';
   }
 
-  // 8. Revision
+  // 12. Revision
   if (
     q.includes('revision') ||
     q.includes('revise') ||
@@ -741,23 +805,148 @@ export function detectQuestionType(query: string): QuestionType {
     q.includes('one shot') ||
     q.includes('mind map') ||
     q.includes('summary') ||
-    q.includes('cheat sheet')
+    q.includes('cheat sheet') ||
+    q.includes('fast revision')
   ) {
     return 'Revision';
   }
 
-  // 9. Notes
+  // 13. Theory
   if (
-    q.includes('notes') ||
-    q.includes('short notes') ||
-    q.includes('handwritten') ||
-    q.includes('key points') ||
-    q.includes('bullet points')
+    q.includes('theory') ||
+    q.includes('principle') ||
+    q.includes('working') ||
+    q.includes('construction') ||
+    q.includes('diagram')
   ) {
-    return 'Notes';
+    return 'Theory';
   }
 
-  // Default Concept
+  // Default: Concept
   return 'Concept';
+}
+
+/**
+ * Automatically understands student's study intent:
+ * - Quick Revision
+ * - Detailed Study
+ * - Exam Preparation
+ * - Numerical Practice
+ * - Formula Revision
+ * - Board Questions
+ * - Sample Paper Help
+ */
+export function detectStudyIntent(query: string): StudyIntent {
+  const q = query.toLowerCase().trim();
+
+  // 1. Numerical Practice
+  if (
+    q.includes('numerical') ||
+    q.includes('problem') ||
+    q.includes('calculate') ||
+    q.includes('solve')
+  ) {
+    return 'Numerical Practice';
+  }
+
+  // 2. Formula Revision
+  if (
+    q.includes('formula') ||
+    q.includes('formula sheet') ||
+    q.includes('equation') ||
+    q.includes('units')
+  ) {
+    return 'Formula Revision';
+  }
+
+  // 3. Quick Revision
+  if (
+    q.includes('quick') ||
+    q.includes('fast') ||
+    q.includes('one shot') ||
+    q.includes('summary') ||
+    q.includes('recap') ||
+    q.includes('cheat sheet')
+  ) {
+    return 'Quick Revision';
+  }
+
+  // 4. Sample Paper Help
+  if (
+    q.includes('sample paper') ||
+    q.includes('model paper') ||
+    q.includes('pre board') ||
+    q.includes('mock') ||
+    q.includes('blueprint')
+  ) {
+    return 'Sample Paper Help';
+  }
+
+  // 5. Board Questions / PYQ
+  if (
+    q.includes('board question') ||
+    q.includes('pyq') ||
+    q.includes('previous year') ||
+    q.includes('delhi') ||
+    q.includes('all india') ||
+    q.includes('frequently asked')
+  ) {
+    return 'Board Questions';
+  }
+
+  // 6. Exam Preparation
+  if (
+    q.includes('exam') ||
+    q.includes('test') ||
+    q.includes('score 95') ||
+    q.includes('tips') ||
+    q.includes('strategy') ||
+    q.includes('important')
+  ) {
+    return 'Exam Preparation';
+  }
+
+  // Default: Detailed Study
+  return 'Detailed Study';
+}
+
+/**
+ * Detects difficulty target based on query phrasing.
+ */
+export function detectDifficulty(query: string): DifficultyLevel {
+  const q = query.toLowerCase().trim();
+
+  if (
+    q.includes("like i'm 10") ||
+    q.includes('like im 10') ||
+    q.includes('simple') ||
+    q.includes('beginner') ||
+    q.includes('basics') ||
+    q.includes('from scratch')
+  ) {
+    return 'Easy';
+  }
+
+  if (
+    q.includes('tough') ||
+    q.includes('hard') ||
+    q.includes('hots') ||
+    q.includes('challenge') ||
+    q.includes('95+') ||
+    q.includes('topper') ||
+    q.includes('advanced')
+  ) {
+    return 'Challenge (95%+)';
+  }
+
+  if (
+    q.includes('step by step') ||
+    q.includes('moderate') ||
+    q.includes('clear doubts')
+  ) {
+    return 'Moderate';
+  }
+
+  return 'Board Level';
 }
 

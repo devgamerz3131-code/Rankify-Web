@@ -1,12 +1,35 @@
 import React from 'react';
-import { Plus, Search, Trash2, MessageSquare, Atom, Zap, Calculator, BookOpen, X } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  Trash2,
+  Atom,
+  Zap,
+  Calculator,
+  BookOpen,
+  X,
+  Star,
+  Clock,
+  TrendingUp,
+  Calendar,
+} from 'lucide-react';
 import { Conversation } from '../model/types';
+
+export type TimeFilterOption =
+  | 'all'
+  | 'today'
+  | 'yesterday'
+  | 'this_week'
+  | 'favorites'
+  | 'most_used';
 
 interface ChatSidebarProps {
   conversations: Conversation[];
   activeId: string | null;
   searchQuery: string;
   onSearchChange: (q: string) => void;
+  activeFilter?: TimeFilterOption;
+  onFilterChange?: (filter: TimeFilterOption) => void;
   onSelect: (id: string) => void;
   onNewChat: () => void;
   onDelete: (id: string) => void;
@@ -14,11 +37,22 @@ interface ChatSidebarProps {
   onCloseMobile?: () => void;
 }
 
+const FILTER_ITEMS: { id: TimeFilterOption; label: string; icon: React.FC<{ className?: string }> }[] = [
+  { id: 'all', label: 'All', icon: Calendar },
+  { id: 'today', label: 'Today', icon: Clock },
+  { id: 'yesterday', label: 'Yesterday', icon: Clock },
+  { id: 'this_week', label: 'This Week', icon: Calendar },
+  { id: 'favorites', label: 'Favorites', icon: Star },
+  { id: 'most_used', label: 'Most Used', icon: TrendingUp },
+];
+
 export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   conversations,
   activeId,
   searchQuery,
   onSearchChange,
+  activeFilter = 'all',
+  onFilterChange,
   onSelect,
   onNewChat,
   onDelete,
@@ -91,23 +125,54 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
           {searchQuery && (
             <button
               onClick={() => onSearchChange('')}
-              className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"
+              className="absolute right-2 top-2 text-muted-foreground hover:text-foreground cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
+
+        {/* Recent Prompts Category Chips: Today, Yesterday, This Week, Favorites, Most Used */}
+        {onFilterChange && (
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pt-1">
+            {FILTER_ITEMS.map((item) => {
+              const Icon = item.icon;
+              const isSelected = activeFilter === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onFilterChange(item.id)}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-tight whitespace-nowrap transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-purple-600 text-white shadow-xs'
+                      : 'bg-slate-100 dark:bg-slate-800/80 text-muted-foreground hover:text-foreground hover:bg-slate-200 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  <Icon className="w-2.5 h-2.5" />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Conversation List */}
       <div className="flex-1 overflow-y-auto p-2 space-y-1">
         {conversations.length === 0 ? (
           <div className="p-6 text-center text-xs text-muted-foreground">
-            {searchQuery ? 'No matching chats found.' : 'No study chats yet.'}
+            {searchQuery
+              ? 'No matching chats found.'
+              : activeFilter !== 'all'
+              ? `No chats found in "${activeFilter.replace('_', ' ')}".`
+              : 'No study chats yet.'}
           </div>
         ) : (
           conversations.map((conv) => {
             const isActive = conv.id === activeId;
+            const hasFavorite =
+              conv.isFavorite || conv.messages.some((m) => m.isFavorite);
             return (
               <div
                 key={conv.id}
@@ -124,9 +189,15 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                 <div className="flex items-center gap-2.5 min-w-0 pr-6">
                   {getSubjectIcon(conv.detectedSubject)}
                   <div className="min-w-0">
-                    <p className="text-xs truncate">{conv.title}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs truncate">{conv.title}</p>
+                      {hasFavorite && (
+                        <Star className="w-3 h-3 text-amber-500 fill-amber-500 shrink-0" />
+                      )}
+                    </div>
                     <p className="text-[10px] text-muted-foreground font-normal">
-                      {conv.messages.length} {conv.messages.length === 1 ? 'message' : 'messages'}
+                      {conv.messages.length}{' '}
+                      {conv.messages.length === 1 ? 'message' : 'messages'}
                       {conv.detectedSubject ? ` • ${conv.detectedSubject}` : ''}
                     </p>
                   </div>

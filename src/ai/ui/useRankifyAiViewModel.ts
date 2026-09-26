@@ -4,6 +4,7 @@ import { Conversation, Message, PromptResult } from '../model/types';
 import { chatRepository } from '../repository/chat-repository';
 import { generateStudyPrompt } from '../utils/prompt-engine';
 import { openChatGPT, openGemini, sharePrompt } from '../utils/external-ai';
+import { TimeFilterOption } from '../components/ChatSidebar';
 
 export interface RankifyAiViewModelState {
   conversations: Conversation[];
@@ -14,6 +15,7 @@ export interface RankifyAiViewModelState {
   isLoading: boolean;
   copiedMessageId: string | null;
   searchQuery: string;
+  activeFilter: TimeFilterOption;
   filteredConversations: Conversation[];
 }
 
@@ -30,6 +32,7 @@ export interface RankifyAiViewModelActions {
   handleOpenGemini: (promptText: string, messageId?: string) => Promise<void>;
   handleShare: (promptText: string, subject: string, chapter: string) => Promise<void>;
   setSearchQuery: (query: string) => void;
+  setActiveFilter: (filter: TimeFilterOption) => void;
 }
 
 export type RankifyAiViewModel = RankifyAiViewModelState & RankifyAiViewModelActions;
@@ -48,6 +51,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [activeFilter, setActiveFilter] = useState<TimeFilterOption>('all');
 
   // Reload conversations from repository
   const refreshConversations = useCallback(() => {
@@ -66,18 +70,10 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
     return currentConversation?.messages || [];
   }, [currentConversation]);
 
-  // Filter conversations based on search
+  // Filter conversations based on timeline / category / search query
   const filteredConversations = useMemo(() => {
-    if (!searchQuery.trim()) return conversations;
-    const q = searchQuery.toLowerCase().trim();
-    return conversations.filter(
-      (c) =>
-        c.title.toLowerCase().includes(q) ||
-        c.detectedSubject?.toLowerCase().includes(q) ||
-        c.detectedChapter?.name.toLowerCase().includes(q) ||
-        c.messages.some((m) => m.content.toLowerCase().includes(q))
-    );
-  }, [conversations, searchQuery]);
+    return chatRepository.getFilteredConversations(activeFilter, searchQuery);
+  }, [conversations, activeFilter, searchQuery]);
 
   // Start new conversation
   const startNewConversation = useCallback((title?: string) => {
@@ -125,7 +121,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
     setGeneratedPrompt(null);
   }, []);
 
-  // Submit query: strictly produces structured prompt via Prompt Engine, zero APIs, zero answering
+  // Submit query: instantaneous synthesis, 0ms delay, no API calls
   const submitQuery = useCallback(
     async (query: string) => {
       const clean = query.trim();
@@ -155,11 +151,8 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
       };
 
       chatRepository.addMessage(targetConvId, userMessage);
-      refreshConversations();
 
-      // 2. Synthesize structured prompt via pure local Prompt Engine (smooth 250ms feedback)
-      await new Promise((resolve) => setTimeout(resolve, 250));
-
+      // 2. Synthesize structured CBSE prompt instantly (0ms delay for high performance)
       const promptRes = generateStudyPrompt(clean);
       setGeneratedPrompt(promptRes);
 
@@ -173,6 +166,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
         promptResult: promptRes,
         isFavorite: false,
         lastUsedAt: Date.now(),
+        useCount: 1,
       };
 
       chatRepository.addMessage(targetConvId, assistantMessage);
@@ -200,7 +194,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
     [currentConversationId, refreshConversations]
   );
 
-  // Regenerate prompt for a specific message
+  // Regenerate prompt for a specific message (instantaneous)
   const regeneratePrompt = useCallback(
     async (messageId: string) => {
       if (!currentConversation) return;
@@ -208,7 +202,6 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
       if (!targetMsg) return;
 
       setIsLoading(true);
-      await new Promise((resolve) => setTimeout(resolve, 200));
 
       const rawQuery = targetMsg.promptResult?.rawQuery || targetMsg.content;
       const freshPrompt = generateStudyPrompt(rawQuery);
@@ -218,6 +211,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
       targetMsg.promptResult = freshPrompt;
       targetMsg.timestamp = Date.now();
       targetMsg.lastUsedAt = Date.now();
+      targetMsg.useCount = (targetMsg.useCount || 0) + 1;
 
       chatRepository.saveConversation(currentConversation);
       refreshConversations();
@@ -254,7 +248,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
           }
           setTimeout(() => setCopiedMessageId(null), 2500);
         }
-        toast.success('Prompt copied successfully', {
+        toast.success('Prompt copied', {
           icon: '📋',
           duration: 2500,
         });
@@ -328,6 +322,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
     isLoading,
     copiedMessageId,
     searchQuery,
+    activeFilter,
     filteredConversations,
     startNewConversation,
     selectConversation,
@@ -341,6 +336,6 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
     handleOpenGemini,
     handleShare,
     setSearchQuery,
+    setActiveFilter,
   };
 }
-
