@@ -6,7 +6,6 @@ import { db } from '@/firebase/config';
 import { useAuth } from '@/hooks/use-auth';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { useNavigation } from '@/contexts/NavigationContext';
-import { useAIMemory } from '@/contexts/AIMemoryContext';
 import { syncEngine } from '@/services/sync-engine';
 import { rebalanceNeedsFocus } from '@/services/ai-plan-generator';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -94,7 +93,6 @@ function playCelebrationChime() {
 export const HomeScreenRevamped: React.FC = () => {
   const { user } = useAuth();
   const { setActiveTab } = useNavigation();
-  const { recentDoubts, setActiveDoubtToContinue } = useAIMemory();
   const {
     studentDetails: contextDetails,
     chapterProgressMap: contextChapters,
@@ -979,8 +977,8 @@ export const HomeScreenRevamped: React.FC = () => {
             <div className="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 flex items-center justify-center group-hover:scale-105 transition-transform">
               <Sparkles className="w-4 h-4" />
             </div>
-            <div className="text-xs font-bold text-foreground">Ask AI Doubt</div>
-            <p className="text-[10px] text-muted-foreground">Physics, Chem & Maths</p>
+            <div className="text-xs font-bold text-foreground">Rankify AI Tutor</div>
+            <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold">Coming Soon</p>
           </button>
 
           <button
@@ -1020,68 +1018,41 @@ export const HomeScreenRevamped: React.FC = () => {
 
       {/* 8. Recent Doubts & Recent Activity Split Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* Recent Doubts from AI Memory */}
+        {/* Rankify AI Tutor Preview Card */}
         <Card className="p-5 sm:p-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-slate-200/80 dark:border-white/10 shadow-xs flex flex-col justify-between space-y-3">
           <div>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-purple-600" />
-                <h3 className="font-bold text-sm text-foreground">Recent Doubts & AI Memory</h3>
+                <h3 className="font-bold text-sm text-foreground">Rankify AI Tutor</h3>
               </div>
-              <span className="text-[10px] font-bold text-purple-600 bg-purple-50 dark:bg-purple-950/60 px-2 py-0.5 rounded-full border border-purple-200 dark:border-purple-800/40">
-                Session Active
+              <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800/40">
+                Coming Soon
               </span>
             </div>
 
-            {recentDoubts.length === 0 ? (
-              <div className="p-6 text-center rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 space-y-2">
-                <p className="text-xs text-muted-foreground">
-                  No doubts asked yet in this session. Ask any Physics, Chemistry, or Maths question to keep it in active memory!
-                </p>
-                <button
-                  onClick={() => setActiveTab('ask-ai')}
-                  className="px-3.5 py-1.5 rounded-xl bg-purple-600 text-white text-xs font-bold shadow-xs cursor-pointer"
-                >
-                  Ask AI Tutor Now
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {recentDoubts.slice(0, 3).map((d) => (
-                  <div
-                    key={d.id}
-                    onClick={() => {
-                      setActiveDoubtToContinue(d);
-                      setActiveTab('ask-ai');
-                    }}
-                    className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:border-purple-400 border border-slate-200/70 dark:border-white/5 cursor-pointer transition-all flex items-center justify-between gap-3 group"
-                  >
-                    <div className="space-y-0.5 flex-1 min-w-0">
-                      <div className="text-xs font-bold text-foreground truncate group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
-                        {d.question}
-                      </div>
-                      <div className="text-[10px] text-muted-foreground">
-                        {d.subject} • {d.chapter}
-                      </div>
-                    </div>
-                    <span className="text-xs font-bold text-purple-600 dark:text-purple-400 shrink-0 group-hover:translate-x-0.5 transition-transform">
-                      Resume →
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="p-6 text-center rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 space-y-2">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                An on-device CBSE Class 12 PCM AI Tutor model is currently undergoing fine-tuning for zero-latency NCERT doubt solving.
+              </p>
+              <button
+                onClick={() => setActiveTab('ask-ai')}
+                className="px-3.5 py-1.5 rounded-xl bg-purple-600 text-white text-xs font-bold shadow-xs cursor-pointer hover:bg-purple-500 transition-colors"
+              >
+                Learn More
+              </button>
+            </div>
           </div>
 
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-xs">
-            <span className="text-muted-foreground font-medium">Have a new question?</span>
+            <span className="text-muted-foreground font-medium">On-Device AI Model:</span>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setActiveTab('ask-ai')}
               className="text-xs text-purple-600 dark:text-purple-400 font-bold p-0 h-auto cursor-pointer"
             >
-              <span>Open AI Doubt Solver</span>
+              <span>View Details</span>
               <ArrowRight className="w-3.5 h-3.5 ml-1" />
             </Button>
           </div>
