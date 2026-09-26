@@ -21,6 +21,10 @@ export interface AskAIRequest {
     recentDoubts?: string[];
     recentWeakTopics?: string[];
   };
+  image?: {
+    base64: string;
+    mimeType: string;
+  } | null;
 }
 
 export interface AskAIResponse {
@@ -211,6 +215,7 @@ export async function askAITutor(req: AskAIRequest): Promise<AskAIResponse> {
             mode,
             history: req.history,
             memoryContext: req.memoryContext,
+            image: req.image,
           }),
           signal: controller.signal,
         });

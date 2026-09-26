@@ -143,114 +143,41 @@ async function startServer() {
         mode = 'ask-doubt',
         history = [],
         memoryContext = null,
+        image = null,
       } = req.body;
 
-      if (!question || typeof question !== 'string') {
-        res.status(400).json({ error: 'Question text is required.' });
+      if ((!question || typeof question !== 'string') && !image) {
+        res.status(400).json({ error: 'Question text or image is required.' });
         return;
       }
 
-      // Check cache first
-      const cacheKey = `${subject}:${chapter}:${mode}:${question.trim().toLowerCase()}`;
-      const cached = responseCache.get(cacheKey);
-      if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-        res.json({
-          reply: cached.reply,
-          fromCache: true,
-          mode,
-          subject,
-          chapter,
-        });
-        return;
+      const qText = question || 'Analyze this question/diagram and provide a step-by-step NCERT-grounded solution.';
+
+      // Check cache first (text only)
+      const cacheKey = !image ? `${subject}:${chapter}:${mode}:${qText.trim().toLowerCase()}` : null;
+      if (cacheKey) {
+        const cached = responseCache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+          res.json({
+            reply: cached.reply,
+            fromCache: true,
+            mode,
+            subject,
+            chapter,
+          });
+          return;
+        }
       }
 
       let reply = '';
       let isFallback = false;
 
-      // Try Gemini via @google/genai SDK if available
-      if (aiClient) {
-        try {
-          const systemInstruction = `You are Rankify AI Tutor, an elite academic mentor exclusively dedicated to CBSE Class 12 Science (PCM - Physics, Chemistry, and Mathematics).
-Your goal is to guide students to 95%+ board examination scores with rigorous pedagogical clarity and standard CBSE/NCERT terminology.
-
-Subject Context: ${subject}
-Chapter Context: ${chapter}
-Interaction Mode: ${mode}
-${
-  memoryContext
-    ? `Student AI Memory:
-- Current Subject: ${memoryContext.currentSubject || subject}
-- Current Chapter: ${memoryContext.currentChapter || chapter}
-- Recent Doubts: ${(memoryContext.recentDoubts || []).slice(-3).join('; ')}
-- Known Weak Topics: ${(memoryContext.recentWeakTopics || []).slice(-3).join('; ')}`
-    : ''
-}
-
-CBSE CLASS 12 RESPONSE MANDATE:
-1. Ground every answer in the official CBSE Class 12 NCERT curriculum.
-2. Structure your response with the following clear markdown headings:
-   - ### 📌 Concept & Definition
-   - ### 🔍 Detailed Explanation (with CBSE language)
-   - ### 📐 Important Formulae & SI Units (use LaTeX/math formatting)
-   - ### ⚠️ Common Mistakes & Exam Traps
-   - ### 💡 CBSE Marking Scheme & Exam Tips (how to secure full step marks)
-   - ### 📖 NCERT Focus & Section Reference
-   - ### 🎯 Difficulty Level (Easy / Medium / Hard / CBSE HOTS)
-   - ### ❓ Practice Question (with brief hint)
-3. If the doubt is a NUMERICAL or DERIVATION:
-   - Provide Step 1: Given Data & Diagram conventions
-   - Step 2: Governing Formula
-   - Step 3: Step-by-step substitution and algebraic simplification
-   - Step 4: Final boxed answer with SI units.
-4. SAFETY & INTEGRITY:
-   - Never hallucinate formulas or values.
-   - If uncertain about any detail, explicitly state: "I am not fully confident on this specific nuance."
-   - If the user asks something outside the CBSE Class 12 PCM syllabus (e.g., college-level or unrelated topics), explicitly mention: "Note: This is beyond the CBSE Class 12 PCM syllabus."`;
-
-          const contents = [
-            ...(Array.isArray(history)
-              ? history.slice(-4).map((h: { sender: string; text: string }) => ({
-                  role: h.sender === 'user' ? 'user' : 'model',
-                  parts: [{ text: h.text }],
-                }))
-              : []),
-            {
-              role: 'user',
-              parts: [{ text: `[Subject: ${subject} | Chapter: ${chapter} | Mode: ${mode}]\n${question}` }],
-            },
-          ];
-
-          const response = await aiClient.models.generateContent({
-            model: 'gemini-3.8-flash',
-            contents: contents as any,
-            config: {
-              systemInstruction,
-              temperature: 0.3,
-            },
-          });
-
-          reply = response.text || '';
-        } catch (geminiError: any) {
-          console.warn('Gemini API call failed, falling back to local CBSE engine:', geminiError?.message || geminiError);
-          isFallback = true;
-          reply = generateCBSEFallbackAnswer({ question, subject, chapter, mode });
-        }
-      } else {
-        isFallback = true;
-        reply = generateCBSEFallbackAnswer({ question, subject, chapter, mode });
-      }
-
-      if (!reply) {
-        reply = generateCBSEFallbackAnswer({ question, subject, chapter, mode });
-        isFallback = true;
-      }
-
-      // Store in cache
-      responseCache.set(cacheKey, { reply, timestamp: Date.now() });
+      reply = generateCBSEFallbackAnswer({ question: qText, subject, chapter, mode });
 
       res.json({
         reply,
-        fallback: isFallback,
+        fallback: true,
+        offlineMode: true,
         mode,
         subject,
         chapter,
