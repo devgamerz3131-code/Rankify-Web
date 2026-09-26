@@ -18,6 +18,7 @@ import { ChatInput } from '../components/ChatInput';
 import { EmptyState } from '../components/EmptyState';
 import { SmartSuggestions } from '../components/SmartSuggestions';
 import { PromptBoostersBar } from '../components/PromptBoostersBar';
+import { FunFeaturesBar } from '../components/FunFeaturesBar';
 
 export const RankifyAiScreen: React.FC = () => {
   const {
@@ -28,15 +29,18 @@ export const RankifyAiScreen: React.FC = () => {
     searchQuery,
     activeFilter,
     activeBooster,
+    promptOptions,
     filteredConversations,
     startNewConversation,
     selectConversation,
     deleteConversation,
+    renameConversation,
     togglePin,
     clearAllConversations,
     submitQuery,
     regeneratePrompt,
     toggleBooster,
+    updatePromptOptions,
     copyPrompt,
     toggleFavorite,
     handleOpenChatGPT,
@@ -86,6 +90,7 @@ export const RankifyAiScreen: React.FC = () => {
           onSelect={selectConversation}
           onNewChat={startNewConversation}
           onDelete={deleteConversation}
+          onRename={renameConversation}
           onTogglePin={togglePin}
           onClearAll={clearAllConversations}
         />
@@ -119,6 +124,7 @@ export const RankifyAiScreen: React.FC = () => {
                 onSelect={selectConversation}
                 onNewChat={startNewConversation}
                 onDelete={deleteConversation}
+                onRename={renameConversation}
                 onTogglePin={togglePin}
                 onClearAll={clearAllConversations}
                 onCloseMobile={() => setIsMobileSidebarOpen(false)}
@@ -130,7 +136,7 @@ export const RankifyAiScreen: React.FC = () => {
 
       {/* 3. Main Workspace / Thread */}
       <div className="flex-1 flex flex-col h-full min-w-0 bg-background/50">
-        {/* Workspace Header */}
+        {/* Workspace Header (ChatGPT + Notion + Arc Browser minimal aesthetic) */}
         <div className="h-14 px-4 sm:px-6 border-b border-slate-200/80 dark:border-white/10 flex items-center justify-between shrink-0 bg-card/40 backdrop-blur-md">
           <div className="flex items-center gap-3 min-w-0">
             {/* Mobile menu trigger */}
@@ -150,7 +156,7 @@ export const RankifyAiScreen: React.FC = () => {
                 </div>
               )}
               <h1 className="font-extrabold text-sm sm:text-base text-foreground truncate">
-                {currentConversation?.title || 'Rankify AI Personal Study Coach'}
+                {currentConversation?.title || 'Rankify AI Study Coach'}
               </h1>
               {currentConversation?.detectedChapter && (
                 <span className="hidden lg:inline-flex text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/40 truncate max-w-[200px]">
@@ -161,10 +167,15 @@ export const RankifyAiScreen: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Fun Features Bar Strip (Challenge, Lucky Question, Motivation, Daily Tip) */}
+            <div className="hidden lg:flex items-center">
+              <FunFeaturesBar onAskPrompt={submitQuery} />
+            </div>
+
             {/* Offline Safe Tag */}
             <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold border border-emerald-500/20">
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Personal Coach Active</span>
+              <span>Coach Active</span>
             </div>
 
             {/* Header New Chat Button */}
@@ -194,7 +205,12 @@ export const RankifyAiScreen: React.FC = () => {
           </div>
         </div>
 
-        {/* Smart Suggestions Bar (Recommended Today banner & 10 smart quick prompt buttons) */}
+        {/* Mobile Fun Features Strip */}
+        <div className="lg:hidden px-4 pt-2">
+          <FunFeaturesBar onAskPrompt={submitQuery} />
+        </div>
+
+        {/* Smart Suggestions Bar (Recommended Today banner & quick prompt suggestions) */}
         <SmartSuggestions
           currentChapter={currentConversation?.detectedChapter}
           currentSubject={currentConversation?.detectedSubject}
@@ -257,7 +273,7 @@ export const RankifyAiScreen: React.FC = () => {
           )}
         </div>
 
-        {/* Prompt Boosters Bar & Input Bar Dock */}
+        {/* Prompt Boosters Bar, Quick Actions & Input Dock */}
         <div className="p-3 sm:p-4 bg-card/70 backdrop-blur-md border-t border-slate-200/80 dark:border-white/10 shrink-0 space-y-2">
           {/* Prompt Boosters Bar */}
           <PromptBoostersBar
@@ -266,11 +282,13 @@ export const RankifyAiScreen: React.FC = () => {
             isLoading={isLoading}
           />
 
-          {/* Main Input Component */}
+          {/* Main Input Component (includes 11 Smart Quick Actions chips & Smart Prompt Options) */}
           <ChatInput
             onSend={submitQuery}
             isLoading={isLoading}
             activeChapterName={currentConversation?.detectedChapter?.name}
+            promptOptions={promptOptions}
+            onChangeOptions={updatePromptOptions}
           />
         </div>
       </div>

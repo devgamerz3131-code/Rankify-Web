@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, memo } from 'react';
 import {
   Plus,
   Search,
@@ -13,11 +13,14 @@ import {
   TrendingUp,
   Calendar,
   Pin,
+  Edit2,
+  Check,
 } from 'lucide-react';
 import { Conversation } from '../model/types';
 
 export type TimeFilterOption =
   | 'all'
+  | 'pinned'
   | 'today'
   | 'yesterday'
   | 'this_week'
@@ -34,6 +37,7 @@ interface ChatSidebarProps {
   onSelect: (id: string) => void;
   onNewChat: () => void;
   onDelete: (id: string) => void;
+  onRename?: (id: string, newTitle: string) => void;
   onTogglePin?: (id: string) => void;
   onClearAll: () => void;
   onCloseMobile?: () => void;
@@ -45,6 +49,7 @@ const FILTER_ITEMS: {
   icon: React.FC<{ className?: string }>;
 }[] = [
   { id: 'all', label: 'All', icon: Calendar },
+  { id: 'pinned', label: 'Pinned', icon: Pin },
   { id: 'today', label: 'Today', icon: Clock },
   { id: 'yesterday', label: 'Yesterday', icon: Clock },
   { id: 'this_week', label: 'This Week', icon: Calendar },
@@ -52,7 +57,7 @@ const FILTER_ITEMS: {
   { id: 'most_used', label: 'Most Used', icon: TrendingUp },
 ];
 
-export const ChatSidebar: React.FC<ChatSidebarProps> = ({
+export const ChatSidebarComponent: React.FC<ChatSidebarProps> = ({
   conversations,
   activeId,
   searchQuery,
@@ -62,10 +67,29 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   onSelect,
   onNewChat,
   onDelete,
+  onRename,
   onTogglePin,
   onClearAll,
   onCloseMobile,
 }) => {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+
+  const startEditing = (e: React.MouseEvent, conv: Conversation) => {
+    e.stopPropagation();
+    setEditingId(conv.id);
+    setEditTitle(conv.title);
+  };
+
+  const handleSaveRename = (e: React.MouseEvent | React.FormEvent, id: string) => {
+    e.stopPropagation();
+    if (e.preventDefault) e.preventDefault();
+    if (onRename && editTitle.trim()) {
+      onRename(id, editTitle.trim());
+    }
+    setEditingId(null);
+  };
+
   const getSubjectIcon = (subj?: string) => {
     switch (subj) {
       case 'Physics':
@@ -139,7 +163,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
           )}
         </div>
 
-        {/* Recent Prompts Category Chips: Today, Yesterday, This Week, Favorites, Most Used */}
+        {/* History Grouping Tabs: All, Pinned, Today, Yesterday, This Week, Favorites, Most Used */}
         {onFilterChange && (
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pt-1">
             {FILTER_ITEMS.map((item) => {
@@ -181,6 +205,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
             const hasFavorite =
               conv.isFavorite || conv.messages.some((m) => m.isFavorite);
             const isPinned = conv.pinned;
+            const isEditing = editingId === conv.id;
 
             return (
               <div
@@ -195,28 +220,54 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                     : 'text-muted-foreground hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:text-foreground border border-transparent'
                 }`}
               >
-                <div className="flex items-center gap-2.5 min-w-0 pr-12">
+                <div className="flex items-center gap-2.5 min-w-0 pr-14">
                   {getSubjectIcon(conv.detectedSubject)}
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      {isPinned && (
-                        <Pin className="w-3 h-3 text-purple-600 fill-purple-600 dark:text-purple-400 dark:fill-purple-400 shrink-0" />
-                      )}
-                      <p className="text-xs truncate">{conv.title}</p>
-                      {hasFavorite && (
-                        <Star className="w-3 h-3 text-amber-500 fill-amber-500 shrink-0" />
-                      )}
-                    </div>
-                    <p className="text-[10px] text-muted-foreground font-normal">
-                      {conv.messages.length}{' '}
-                      {conv.messages.length === 1 ? 'message' : 'messages'}
-                      {conv.detectedSubject ? ` • ${conv.detectedSubject}` : ''}
-                    </p>
+                  <div className="min-w-0 flex-1">
+                    {isEditing ? (
+                      <form
+                        onSubmit={(e) => handleSaveRename(e, conv.id)}
+                        className="flex items-center gap-1"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="text"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          autoFocus
+                          className="h-6 px-1.5 rounded-md bg-white dark:bg-slate-800 text-xs text-foreground border border-purple-500 focus:outline-hidden w-full font-medium"
+                        />
+                        <button
+                          type="submit"
+                          className="p-1 rounded text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                          title="Save"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                      </form>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-1.5">
+                          {isPinned && (
+                            <Pin className="w-3 h-3 text-purple-600 fill-purple-600 dark:text-purple-400 dark:fill-purple-400 shrink-0" />
+                          )}
+                          <p className="text-xs truncate">{conv.title}</p>
+                          {hasFavorite && (
+                            <Star className="w-3 h-3 text-amber-500 fill-amber-500 shrink-0" />
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground font-normal">
+                          {conv.messages.length}{' '}
+                          {conv.messages.length === 1 ? 'message' : 'messages'}
+                          {conv.detectedSubject ? ` • ${conv.detectedSubject}` : ''}
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
 
-                {/* Pin and Delete actions */}
-                <div className="flex items-center gap-1 shrink-0">
+                {/* Actions: Pin, Rename, Delete */}
+                <div className="flex items-center gap-0.5 shrink-0">
+                  {/* Pin action */}
                   {onTogglePin && (
                     <button
                       type="button"
@@ -231,10 +282,23 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                           : 'opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40'
                       }`}
                     >
-                      <Pin className="w-3.5 h-3.5" />
+                      <Pin className="w-3 h-3" />
                     </button>
                   )}
 
+                  {/* Rename action */}
+                  {onRename && (
+                    <button
+                      type="button"
+                      onClick={(e) => startEditing(e, conv)}
+                      title="Rename chat"
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-slate-200/60 dark:hover:bg-slate-700 transition-all cursor-pointer"
+                    >
+                      <Edit2 className="w-3 h-3" />
+                    </button>
+                  )}
+
+                  {/* Delete action */}
                   <button
                     type="button"
                     onClick={(e) => {
@@ -244,7 +308,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                     title="Delete chat"
                     className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-muted-foreground hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all cursor-pointer shrink-0"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-3 h-3" />
                   </button>
                 </div>
               </div>
@@ -272,3 +336,5 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
     </aside>
   );
 };
+
+export const ChatSidebar = memo(ChatSidebarComponent);

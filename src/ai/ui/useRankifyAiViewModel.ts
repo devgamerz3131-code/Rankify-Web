@@ -5,10 +5,16 @@ import {
   Message,
   PromptResult,
   PromptBooster,
+  SmartPromptOptions,
 } from '../model/types';
 import { chatRepository } from '../repository/chat-repository';
 import { generateStudyPrompt } from '../utils/prompt-engine';
-import { openChatGPT, openGemini, sharePrompt } from '../utils/external-ai';
+import {
+  openChatGPT,
+  openGemini,
+  sharePrompt,
+  triggerHapticFeedback,
+} from '../utils/external-ai';
 import { getSavedStudentContext } from '../utils/student-context';
 import { TimeFilterOption } from '../components/ChatSidebar';
 import { useNavigation } from '@/contexts/NavigationContext';
@@ -24,6 +30,7 @@ export interface RankifyAiViewModelState {
   searchQuery: string;
   activeFilter: TimeFilterOption;
   activeBooster: PromptBooster | null;
+  promptOptions: SmartPromptOptions;
   filteredConversations: Conversation[];
 }
 
@@ -31,11 +38,13 @@ export interface RankifyAiViewModelActions {
   startNewConversation: (title?: string) => Conversation;
   selectConversation: (id: string) => void;
   deleteConversation: (id: string) => void;
+  renameConversation: (id: string, newTitle: string) => void;
   togglePin: (id: string) => void;
   clearAllConversations: () => void;
   submitQuery: (query: string, boosterOverride?: PromptBooster) => Promise<void>;
   regeneratePrompt: (messageId: string) => Promise<void>;
   toggleBooster: (booster: PromptBooster) => void;
+  updatePromptOptions: (opts: Partial<SmartPromptOptions>) => void;
   copyPrompt: (text: string, messageId?: string) => Promise<boolean>;
   toggleFavorite: (messageId?: string) => void;
   handleOpenChatGPT: (promptText: string, messageId?: string) => Promise<void>;
@@ -65,6 +74,11 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeFilter, setActiveFilter] = useState<TimeFilterOption>('all');
   const [activeBooster, setActiveBooster] = useState<PromptBooster | null>(null);
+  const [promptOptions, setPromptOptions] = useState<SmartPromptOptions>({
+    level: 'Board Level',
+    depth: 'Default',
+    language: 'Auto',
+  });
 
   // Reload conversations from repository
   const refreshConversations = useCallback(() => {
@@ -126,6 +140,16 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
     [currentConversationId, refreshConversations]
   );
 
+  // Rename conversation
+  const renameConversation = useCallback(
+    (id: string, newTitle: string) => {
+      chatRepository.renameConversation(id, newTitle);
+      refreshConversations();
+      toast.success('Chat renamed ✏️', { duration: 2000 });
+    },
+    [refreshConversations]
+  );
+
   // Toggle pin conversation
   const togglePin = useCallback(
     (id: string) => {
@@ -144,6 +168,11 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
     setConversations([]);
     setCurrentConversationId(null);
     setGeneratedPrompt(null);
+  }, []);
+
+  // Update prompt options (Level, Depth, Language)
+  const updatePromptOptions = useCallback((opts: Partial<SmartPromptOptions>) => {
+    setPromptOptions((prev) => ({ ...prev, ...opts }));
   }, []);
 
   // Submit query: instantaneous synthesis, 0ms delay, no API calls, personalized
@@ -177,9 +206,14 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
 
       chatRepository.addMessage(targetConvId, userMessage);
 
-      // 2. Synthesize personalized prompt instantly with student data & active booster
+      // 2. Synthesize personalized prompt instantly with student data, options & active booster
       const boosterToUse = boosterOverride || activeBooster || undefined;
-      const promptRes = generateStudyPrompt(clean, boosterToUse);
+      const promptRes = generateStudyPrompt(
+        clean,
+        boosterToUse,
+        undefined,
+        promptOptions
+      );
       setGeneratedPrompt(promptRes);
 
       // 3. Assistant Prompt Message
@@ -198,9 +232,10 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
       chatRepository.addMessage(targetConvId, assistantMessage);
       refreshConversations();
 
-      // 4. Auto-copy prompt automatically as requested & display confirmation
+      // 4. Auto-copy prompt automatically with haptic feedback
       try {
         if (typeof navigator !== 'undefined' && navigator.clipboard) {
+          triggerHapticFeedback();
           await navigator.clipboard.writeText(promptRes.generatedPrompt);
           setCopiedMessageId(assistantMessage.id);
           toast.success('Prompt copied successfully', {
@@ -217,7 +252,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
 
       setIsLoading(false);
     },
-    [currentConversationId, activeBooster, refreshConversations]
+    [currentConversationId, activeBooster, promptOptions, refreshConversations]
   );
 
   // Toggle booster: updates booster and immediately re-boosts current message if available
@@ -241,7 +276,9 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
             lastAssistant.promptResult?.rawQuery || lastAssistant.content;
           const boostedPrompt = generateStudyPrompt(
             rawQuery,
-            nextBooster || undefined
+            nextBooster || undefined,
+            undefined,
+            promptOptions
           );
 
           setGeneratedPrompt(boostedPrompt);
@@ -254,7 +291,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
         }
       }
     },
-    [activeBooster, currentConversation, refreshConversations]
+    [activeBooster, currentConversation, promptOptions, refreshConversations]
   );
 
   // Regenerate prompt for a specific message (instantaneous)
@@ -269,7 +306,9 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
       const rawQuery = targetMsg.promptResult?.rawQuery || targetMsg.content;
       const freshPrompt = generateStudyPrompt(
         rawQuery,
-        activeBooster || undefined
+        activeBooster || undefined,
+        undefined,
+        promptOptions
       );
       setGeneratedPrompt(freshPrompt);
 
@@ -282,9 +321,10 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
       chatRepository.saveConversation(currentConversation);
       refreshConversations();
 
-      // Auto-copy newly regenerated prompt
+      // Auto-copy newly regenerated prompt with haptic feedback
       try {
         if (typeof navigator !== 'undefined' && navigator.clipboard) {
+          triggerHapticFeedback();
           await navigator.clipboard.writeText(freshPrompt.generatedPrompt);
           setCopiedMessageId(targetMsg.id);
           toast.success('Prompt copied', {
@@ -299,13 +339,14 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
 
       setIsLoading(false);
     },
-    [currentConversation, activeBooster, refreshConversations]
+    [currentConversation, activeBooster, promptOptions, refreshConversations]
   );
 
-  // Copy prompt to clipboard manually
+  // Copy prompt to clipboard manually with haptics
   const copyPrompt = useCallback(async (text: string, messageId?: string): Promise<boolean> => {
     try {
       if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        triggerHapticFeedback();
         await navigator.clipboard.writeText(text);
         if (messageId) {
           setCopiedMessageId(messageId);
@@ -420,15 +461,18 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
     searchQuery,
     activeFilter,
     activeBooster,
+    promptOptions,
     filteredConversations,
     startNewConversation,
     selectConversation,
     deleteConversation,
+    renameConversation,
     togglePin,
     clearAllConversations,
     submitQuery,
     regeneratePrompt,
     toggleBooster,
+    updatePromptOptions,
     copyPrompt,
     toggleFavorite,
     handleOpenChatGPT,

@@ -57,6 +57,28 @@ export type PromptBooster =
   | 'Numericals Only'
   | 'Formula Only';
 
+export type PromptLevelOption =
+  | 'Explain Like Beginner'
+  | 'Board Level'
+  | 'Topper Level';
+
+export type PromptDepthOption =
+  | 'Default'
+  | 'Very Detailed'
+  | 'Very Short';
+
+export type PromptLanguageOption =
+  | 'Auto'
+  | 'English'
+  | 'Hindi'
+  | 'Hinglish';
+
+export interface SmartPromptOptions {
+  level: PromptLevelOption;
+  depth: PromptDepthOption;
+  language: PromptLanguageOption;
+}
+
 export interface StudentContextInfo {
   name: string;
   classNumber: number;
@@ -111,8 +133,11 @@ export interface PromptResult {
   estimatedQuality: string;
   estimatedResponseLength: string;
   estimatedStudyTime: string;
+  estimatedReadingTime: string;
+  estimatedSolvingTime: string;
   promptLength: PromptLengthInfo;
   activeBooster?: PromptBooster;
+  promptOptions?: SmartPromptOptions;
   studentContext?: StudentContextInfo;
   generatedPrompt: string;
   bulletPoints: string[];

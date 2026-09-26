@@ -4,3 +4,4 @@ export * from './ChatSidebar';
 export * from './EmptyState';
 export * from './SmartSuggestions';
 export * from './PromptBoostersBar';
+export * from './FunFeaturesBar';

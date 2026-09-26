@@ -1,6 +1,19 @@
 import toast from 'react-hot-toast';
 
 /**
+ * Triggers lightweight tactile haptic feedback on supported mobile devices.
+ */
+export function triggerHapticFeedback(): void {
+  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+    try {
+      navigator.vibrate([15, 30]);
+    } catch {
+      // Safe fallback for browsers blocking vibration
+    }
+  }
+}
+
+/**
  * Safely opens an external URL in a new tab without using window.open,
  * complying with iFrame security constraints and sandbox rules.
  */
@@ -19,6 +32,7 @@ export function openExternalUrl(url: string): void {
  * Copies the prompt to clipboard and opens ChatGPT (app or web).
  */
 export async function openChatGPT(promptText: string): Promise<void> {
+  triggerHapticFeedback();
   try {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       await navigator.clipboard.writeText(promptText);
@@ -27,7 +41,7 @@ export async function openChatGPT(promptText: string): Promise<void> {
     // Clipboard write fallback handled gracefully
   }
 
-  toast.success('Prompt copied! Opening ChatGPT...', {
+  toast.success('Prompt copied! Continuing with ChatGPT...', {
     icon: '🚀',
     duration: 3000,
   });
@@ -36,7 +50,6 @@ export async function openChatGPT(promptText: string): Promise<void> {
   const queryParam = promptText.length < 1000 ? `?q=${encodeURIComponent(promptText)}` : '';
   const webUrl = `https://chatgpt.com${queryParam}`;
 
-  // If mobile user agent, attempt custom scheme or direct universal web link
   openExternalUrl(webUrl);
 }
 
@@ -44,6 +57,7 @@ export async function openChatGPT(promptText: string): Promise<void> {
  * Copies the prompt to clipboard and opens Gemini (app or web).
  */
 export async function openGemini(promptText: string): Promise<void> {
+  triggerHapticFeedback();
   try {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       await navigator.clipboard.writeText(promptText);
@@ -52,7 +66,7 @@ export async function openGemini(promptText: string): Promise<void> {
     // Clipboard write fallback handled gracefully
   }
 
-  toast.success('Prompt copied! Opening Gemini...', {
+  toast.success('Prompt copied! Continuing with Gemini...', {
     icon: '✨',
     duration: 3000,
   });

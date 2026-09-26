@@ -200,6 +200,20 @@ export class ChatRepository {
   }
 
   /**
+   * Renames a conversation title.
+   */
+  public renameConversation(conversationId: string, newTitle: string): boolean {
+    const all = this.getAllConversations();
+    const conv = all.find((c) => c.id === conversationId);
+    if (!conv) return false;
+
+    conv.title = newTitle.trim() || 'Study Session';
+    conv.updatedAt = Date.now();
+    this.saveAll(all);
+    return true;
+  }
+
+  /**
    * Filters conversations by timeline or category:
    * - all
    * - today
@@ -207,9 +221,10 @@ export class ChatRepository {
    * - this_week
    * - favorites
    * - most_used
+   * - pinned
    */
   public getFilteredConversations(
-    filterType: 'all' | 'today' | 'yesterday' | 'this_week' | 'favorites' | 'most_used',
+    filterType: 'all' | 'today' | 'yesterday' | 'this_week' | 'favorites' | 'most_used' | 'pinned',
     searchQuery: string = ''
   ): Conversation[] {
     let list = this.getAllConversations();
@@ -233,6 +248,8 @@ export class ChatRepository {
     const startOfWeek = startOfToday - 7 * 24 * 60 * 60 * 1000;
 
     switch (filterType) {
+      case 'pinned':
+        return list.filter((c) => c.pinned);
       case 'today':
         return list.filter((c) => c.updatedAt >= startOfToday);
       case 'yesterday':

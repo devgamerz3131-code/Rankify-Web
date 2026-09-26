@@ -8,6 +8,7 @@ import {
   DetectedSubject,
   PromptBooster,
   StudentContextInfo,
+  SmartPromptOptions,
 } from '../model/types';
 import {
   detectSubjectAndChapter,
@@ -174,6 +175,45 @@ function getBoosterDirective(booster?: PromptBooster): string[] {
 }
 
 /**
+ * Builds custom directives from SmartPromptOptions (Level, Depth, Language).
+ */
+function getSmartOptionsDirective(
+  options?: SmartPromptOptions,
+  studentFallbackLang: string = 'English'
+): string[] {
+  if (!options) return [];
+  const lines: string[] = [];
+
+  // 1. Level directive
+  if (options.level === 'Explain Like Beginner') {
+    lines.push('Pedagogical Level: Explain like I am a beginner with relatable analogies and intuitive zero-confusion examples.');
+  } else if (options.level === 'Topper Level') {
+    lines.push('Pedagogical Level: Topper Level (95%+ Target) - Include subtle board exam traps, HOTS problems, and rigorous justifications.');
+  } else if (options.level === 'Board Level') {
+    lines.push('Pedagogical Level: Standard CBSE Class 12 Board Level - Strict adherence to NCERT syllabus guidelines.');
+  }
+
+  // 2. Depth directive
+  if (options.depth === 'Very Detailed') {
+    lines.push('Depth: Comprehensive & Very Detailed - Break down all intermediate derivations, sub-concepts, and variations.');
+  } else if (options.depth === 'Very Short') {
+    lines.push('Depth: Ultra Concise & Crisp - Stick to high-yield bullet points, core formulas, and rapid memory triggers.');
+  }
+
+  // 3. Language directive
+  const activeLang = options.language === 'Auto' ? studentFallbackLang : options.language;
+  if (activeLang === 'Hindi') {
+    lines.push('Language Instruction: Explain primarily in clear, easy Hindi (Devanagari script with key English scientific terms in brackets).');
+  } else if (activeLang === 'Hinglish') {
+    lines.push('Language Instruction: Explain in conversational Hinglish (Hindi + English mix) so understanding feels intuitive, friendly, and memorable.');
+  } else if (activeLang === 'English') {
+    lines.push('Language Instruction: Use fluent, clear English matching CBSE board examination answer standards.');
+  }
+
+  return lines;
+}
+
+/**
  * Gets customized focus instructions according to question type and study intent.
  */
 function getTaskDirective(
@@ -218,18 +258,29 @@ function getTaskDirective(
 /**
  * Rankify AI Personal Study Coach Prompt Engine
  * Transforms any student doubt into an expert, personalized CBSE Class 12 study prompt.
- * Seamlessly integrates student progress, weak chapters, targets, and one-tap boosters.
+ * Seamlessly integrates student progress, weak chapters, targets, smart options, and one-tap boosters.
  * Zero external APIs. 100% offline synthesis.
  */
 export function generateStudyPrompt(
   userQuery: string,
   customBooster?: PromptBooster,
-  explicitStudentContext?: StudentContextInfo
+  explicitStudentContext?: StudentContextInfo,
+  promptOptions?: SmartPromptOptions
 ): PromptResult {
   const { subject, chapter } = detectSubjectAndChapter(userQuery);
   const questionType = detectQuestionType(userQuery);
   const intent = detectStudyIntent(userQuery);
-  const difficulty = detectDifficulty(userQuery);
+  let difficulty = detectDifficulty(userQuery);
+
+  // If promptOptions level overrides difficulty
+  if (promptOptions?.level === 'Explain Like Beginner') {
+    difficulty = 'Easy';
+  } else if (promptOptions?.level === 'Topper Level') {
+    difficulty = 'Challenge (95%+)';
+  } else if (promptOptions?.level === 'Board Level') {
+    difficulty = 'Board Level';
+  }
+
   const topic = extractTopicFromQuery(userQuery, chapter.name);
   const category = mapQuestionTypeToCategory(questionType);
 
@@ -241,6 +292,10 @@ export function generateStudyPrompt(
     chapter.name
   );
   const boosterDirectives = getBoosterDirective(customBooster);
+  const optionsDirectives = getSmartOptionsDirective(
+    promptOptions,
+    studentContext.preferredLanguage
+  );
   const taskDirective = getTaskDirective(topic, questionType, intent);
   const subjectPedagogy = getSubjectPedagogyRule(subject);
 
@@ -270,6 +325,7 @@ export function generateStudyPrompt(
     '',
     ...coachDirectives,
     '',
+    ...(optionsDirectives.length > 0 ? [...optionsDirectives, ''] : []),
     ...(boosterDirectives.length > 0 ? [...boosterDirectives, ''] : []),
     `Subject: ${subject}`,
     `Chapter: ${chapter.name}`,
@@ -313,16 +369,24 @@ export function generateStudyPrompt(
   // Estimated response length & study time calculations
   let estimatedResponseLength = '~1,800 - 2,500 words (Comprehensive Board Guide)';
   let estimatedStudyTime = '15 - 20 mins';
+  let estimatedReadingTime = '4 min read';
+  let estimatedSolvingTime = '12 min solve';
 
-  if (intent === 'Quick Revision' || questionType === 'Formula') {
-    estimatedResponseLength = '~1,000 - 1,400 words (Crisp High-Yield Points)';
-    estimatedStudyTime = '10 - 12 mins';
-  } else if (intent === 'Numerical Practice' || questionType === 'Derivation') {
-    estimatedResponseLength = '~2,200 - 3,000 words (In-Depth Step Working)';
+  if (promptOptions?.depth === 'Very Short' || intent === 'Quick Revision' || questionType === 'Formula') {
+    estimatedResponseLength = '~800 - 1,200 words (Crisp High-Yield Points)';
+    estimatedStudyTime = '8 - 10 mins';
+    estimatedReadingTime = '2 min read';
+    estimatedSolvingTime = '6 min solve';
+  } else if (promptOptions?.depth === 'Very Detailed' || intent === 'Numerical Practice' || questionType === 'Derivation') {
+    estimatedResponseLength = '~2,200 - 3,200 words (In-Depth Step Working)';
     estimatedStudyTime = '25 - 35 mins';
+    estimatedReadingTime = '6 min read';
+    estimatedSolvingTime = '20 min solve';
   } else if (intent === 'Sample Paper Help' || questionType === 'Competency Question') {
     estimatedResponseLength = '~2,000 - 2,800 words (Case Studies & Marking Scheme)';
     estimatedStudyTime = '20 - 30 mins';
+    estimatedReadingTime = '5 min read';
+    estimatedSolvingTime = '15 min solve';
   }
 
   return {
@@ -336,11 +400,14 @@ export function generateStudyPrompt(
     estimatedQuality: `${qualityScore} (Pedagogical CBSE Master Prompt)`,
     estimatedResponseLength,
     estimatedStudyTime,
+    estimatedReadingTime,
+    estimatedSolvingTime,
     promptLength: {
       chars: charCount,
       words: wordCount,
     },
     activeBooster: customBooster,
+    promptOptions,
     studentContext,
     generatedPrompt,
     bulletPoints: standardRequirements,
