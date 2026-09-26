@@ -9,7 +9,7 @@ import { useNavigation } from '@/contexts/NavigationContext';
 import { HomeScreenRevamped } from '@/features/home/HomeScreenRevamped';
 import { ActiveStudyEngineView } from '@/features/study/ActiveStudyEngineView';
 import { PracticeView } from '@/features/practice/PracticeView';
-import { AskAIView } from '@/features/ask-ai/AskAIView';
+import { RankifyAiScreen } from '@/ai';
 import { ProfileView } from '@/features/profile/ProfileView';
 import { syncEngine } from '@/services/sync-engine';
 import { backupRestoreService } from '@/services/backup-restore';
@@ -83,7 +83,7 @@ const AppRouter: React.FC = () => {
       case 'practice':
         return <PracticeView />;
       case 'ask-ai':
-        return <AskAIView />;
+        return <RankifyAiScreen />;
       case 'profile':
         return <ProfileView />;
       default:
