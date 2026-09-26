@@ -1,6 +1,18 @@
 export type MessageRole = 'user' | 'assistant' | 'system';
 
-export type DetectedSubject = 'Physics' | 'Chemistry' | 'Maths' | 'General CBSE';
+export type DetectedSubject = 'Physics' | 'Chemistry' | 'Mathematics' | 'General CBSE';
+
+export type QuestionType =
+  | 'Concept'
+  | 'Numerical'
+  | 'Derivation'
+  | 'Formula'
+  | 'PYQ'
+  | 'MCQ'
+  | 'Assertion Reason'
+  | 'Competency Question'
+  | 'Revision'
+  | 'Notes';
 
 export interface DetectedChapter {
   name: string;
@@ -17,16 +29,34 @@ export type PromptCategory =
   | 'numerical_problems'
   | 'revision_notes';
 
-export type PromptAction = 'copy' | 'regenerate' | 'delete' | 'export';
+export type PromptAction =
+  | 'copy'
+  | 'regenerate'
+  | 'delete'
+  | 'export'
+  | 'open_chatgpt'
+  | 'open_gemini'
+  | 'share'
+  | 'favorite';
+
+export interface PromptLengthInfo {
+  chars: number;
+  words: number;
+}
 
 export interface PromptResult {
   subject: DetectedSubject;
   chapter: DetectedChapter;
-  category: PromptCategory;
+  questionType: QuestionType;
+  difficulty: string;
+  promptLength: PromptLengthInfo;
+  estimatedQuality: string;
   generatedPrompt: string;
   bulletPoints: string[];
   rawQuery: string;
   generatedAt: number;
+  isFavorite?: boolean;
+  lastUsedAt?: number;
 }
 
 export interface Message {
@@ -36,6 +66,8 @@ export interface Message {
   content: string;
   timestamp: number;
   promptResult?: PromptResult;
+  isFavorite?: boolean;
+  lastUsedAt?: number;
 }
 
 export interface Conversation {
@@ -43,8 +75,11 @@ export interface Conversation {
   title: string;
   createdAt: number;
   updatedAt: number;
+  lastUsedAt?: number;
   messages: Message[];
   detectedSubject?: DetectedSubject;
   detectedChapter?: DetectedChapter;
   pinned?: boolean;
+  isFavorite?: boolean;
 }
+

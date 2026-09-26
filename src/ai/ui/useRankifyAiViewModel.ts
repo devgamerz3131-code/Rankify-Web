@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import toast from 'react-hot-toast';
 import { Conversation, Message, PromptResult } from '../model/types';
 import { chatRepository } from '../repository/chat-repository';
 import { generateStudyPrompt } from '../utils/prompt-engine';
+import { openChatGPT, openGemini, sharePrompt } from '../utils/external-ai';
 
 export interface RankifyAiViewModelState {
   conversations: Conversation[];
@@ -23,6 +25,10 @@ export interface RankifyAiViewModelActions {
   submitQuery: (query: string) => Promise<void>;
   regeneratePrompt: (messageId: string) => Promise<void>;
   copyPrompt: (text: string, messageId?: string) => Promise<boolean>;
+  toggleFavorite: (messageId?: string) => void;
+  handleOpenChatGPT: (promptText: string, messageId?: string) => Promise<void>;
+  handleOpenGemini: (promptText: string, messageId?: string) => Promise<void>;
+  handleShare: (promptText: string, subject: string, chapter: string) => Promise<void>;
   setSearchQuery: (query: string) => void;
 }
 
@@ -139,7 +145,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
 
       const now = Date.now();
 
-      // 1. User Message
+      // 1. User Message (Question)
       const userMessage: Message = {
         id: `msg_user_${now}_${Math.random().toString(36).substring(2, 6)}`,
         conversationId: targetConvId,
@@ -165,10 +171,30 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
         content: promptRes.generatedPrompt,
         timestamp: Date.now(),
         promptResult: promptRes,
+        isFavorite: false,
+        lastUsedAt: Date.now(),
       };
 
       chatRepository.addMessage(targetConvId, assistantMessage);
       refreshConversations();
+
+      // 4. Auto-copy prompt automatically as requested & display confirmation
+      try {
+        if (typeof navigator !== 'undefined' && navigator.clipboard) {
+          await navigator.clipboard.writeText(promptRes.generatedPrompt);
+          setCopiedMessageId(assistantMessage.id);
+          toast.success('Prompt copied successfully', {
+            icon: '📋',
+            duration: 2500,
+          });
+          setTimeout(() => {
+            setCopiedMessageId(null);
+          }, 3000);
+        }
+      } catch {
+        // Safe clipboard fallback
+      }
+
       setIsLoading(false);
     },
     [currentConversationId, refreshConversations]
@@ -191,30 +217,98 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
       targetMsg.content = freshPrompt.generatedPrompt;
       targetMsg.promptResult = freshPrompt;
       targetMsg.timestamp = Date.now();
+      targetMsg.lastUsedAt = Date.now();
 
       chatRepository.saveConversation(currentConversation);
       refreshConversations();
+
+      // Auto-copy newly regenerated prompt
+      try {
+        if (typeof navigator !== 'undefined' && navigator.clipboard) {
+          await navigator.clipboard.writeText(freshPrompt.generatedPrompt);
+          setCopiedMessageId(targetMsg.id);
+          toast.success('Prompt copied successfully', {
+            icon: '📋',
+            duration: 2500,
+          });
+          setTimeout(() => setCopiedMessageId(null), 3000);
+        }
+      } catch {
+        // Safe clipboard fallback
+      }
+
       setIsLoading(false);
     },
     [currentConversation, refreshConversations]
   );
 
-  // Copy prompt to clipboard
+  // Copy prompt to clipboard manually
   const copyPrompt = useCallback(async (text: string, messageId?: string): Promise<boolean> => {
     try {
       if (typeof navigator !== 'undefined' && navigator.clipboard) {
         await navigator.clipboard.writeText(text);
         if (messageId) {
           setCopiedMessageId(messageId);
+          if (currentConversationId) {
+            chatRepository.updateLastUsed(currentConversationId, messageId);
+          }
           setTimeout(() => setCopiedMessageId(null), 2500);
         }
+        toast.success('Prompt copied successfully', {
+          icon: '📋',
+          duration: 2500,
+        });
         return true;
       }
       return false;
     } catch {
+      toast.error('Failed to copy to clipboard');
       return false;
     }
-  }, []);
+  }, [currentConversationId]);
+
+  // Toggle favorite on prompt or conversation
+  const toggleFavorite = useCallback(
+    (messageId?: string) => {
+      if (!currentConversationId) return;
+      const newState = chatRepository.toggleFavorite(currentConversationId, messageId);
+      refreshConversations();
+      toast.success(newState ? 'Added to favorites ⭐' : 'Removed from favorites', {
+        duration: 2000,
+      });
+    },
+    [currentConversationId, refreshConversations]
+  );
+
+  // Open ChatGPT handler
+  const handleOpenChatGPT = useCallback(
+    async (promptText: string, messageId?: string) => {
+      if (currentConversationId && messageId) {
+        chatRepository.updateLastUsed(currentConversationId, messageId);
+      }
+      await openChatGPT(promptText);
+    },
+    [currentConversationId]
+  );
+
+  // Open Gemini handler
+  const handleOpenGemini = useCallback(
+    async (promptText: string, messageId?: string) => {
+      if (currentConversationId && messageId) {
+        chatRepository.updateLastUsed(currentConversationId, messageId);
+      }
+      await openGemini(promptText);
+    },
+    [currentConversationId]
+  );
+
+  // Share handler
+  const handleShare = useCallback(
+    async (promptText: string, subject: string, chapter: string) => {
+      await sharePrompt(promptText, subject, chapter);
+    },
+    []
+  );
 
   // Initialize with a blank conversation if completely empty on first launch
   useEffect(() => {
@@ -242,6 +336,11 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
     submitQuery,
     regeneratePrompt,
     copyPrompt,
+    toggleFavorite,
+    handleOpenChatGPT,
+    handleOpenGemini,
+    handleShare,
     setSearchQuery,
   };
 }
+

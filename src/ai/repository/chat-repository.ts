@@ -127,6 +127,59 @@ export class ChatRepository {
   }
 
   /**
+   * Toggles favorite status on a message or entire conversation.
+   */
+  public toggleFavorite(conversationId: string, messageId?: string): boolean {
+    const all = this.getAllConversations();
+    const conv = all.find((c) => c.id === conversationId);
+    if (!conv) return false;
+
+    let newFavState = false;
+
+    if (messageId) {
+      const msg = conv.messages.find((m) => m.id === messageId);
+      if (msg) {
+        msg.isFavorite = !msg.isFavorite;
+        if (msg.promptResult) {
+          msg.promptResult.isFavorite = msg.isFavorite;
+        }
+        newFavState = msg.isFavorite;
+      }
+    } else {
+      conv.isFavorite = !conv.isFavorite;
+      newFavState = !!conv.isFavorite;
+    }
+
+    conv.updatedAt = Date.now();
+    this.saveAll(all);
+    return newFavState;
+  }
+
+  /**
+   * Updates last used timestamp on conversation or prompt.
+   */
+  public updateLastUsed(conversationId: string, messageId?: string): void {
+    const all = this.getAllConversations();
+    const conv = all.find((c) => c.id === conversationId);
+    if (!conv) return;
+
+    const now = Date.now();
+    conv.lastUsedAt = now;
+
+    if (messageId) {
+      const msg = conv.messages.find((m) => m.id === messageId);
+      if (msg) {
+        msg.lastUsedAt = now;
+        if (msg.promptResult) {
+          msg.promptResult.lastUsedAt = now;
+        }
+      }
+    }
+
+    this.saveAll(all);
+  }
+
+  /**
    * Search conversations by title or message content.
    */
   public searchConversations(query: string): Conversation[] {

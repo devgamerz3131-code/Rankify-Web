@@ -32,6 +32,10 @@ export const RankifyAiScreen: React.FC = () => {
     submitQuery,
     regeneratePrompt,
     copyPrompt,
+    toggleFavorite,
+    handleOpenChatGPT,
+    handleOpenGemini,
+    handleShare,
     setSearchQuery,
   } = useRankifyAiViewModel();
 
@@ -53,6 +57,7 @@ export const RankifyAiScreen: React.FC = () => {
         return <Zap className="w-4 h-4 text-blue-500" />;
       case 'Chemistry':
         return <Atom className="w-4 h-4 text-emerald-500" />;
+      case 'Mathematics':
       case 'Maths':
         return <Calculator className="w-4 h-4 text-purple-500" />;
       default:
@@ -189,6 +194,26 @@ export const RankifyAiScreen: React.FC = () => {
                   isCopied={copiedMessageId === msg.id}
                   onCopy={handleCopy}
                   onRegenerate={msg.role === 'assistant' ? regeneratePrompt : undefined}
+                  onOpenChatGPT={
+                    msg.role === 'assistant'
+                      ? (text, id) => handleOpenChatGPT(text, id)
+                      : undefined
+                  }
+                  onOpenGemini={
+                    msg.role === 'assistant'
+                      ? (text, id) => handleOpenGemini(text, id)
+                      : undefined
+                  }
+                  onShare={
+                    msg.role === 'assistant'
+                      ? (text, subj, chap) => handleShare(text, subj, chap)
+                      : undefined
+                  }
+                  onToggleFavorite={
+                    msg.role === 'assistant'
+                      ? (id) => toggleFavorite(id)
+                      : undefined
+                  }
                   isRegenerating={isLoading}
                 />
               ))}

@@ -31,6 +31,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
         return <Zap className="w-3.5 h-3.5 text-blue-500" />;
       case 'Chemistry':
         return <Atom className="w-3.5 h-3.5 text-emerald-500" />;
+      case 'Mathematics':
       case 'Maths':
         return <Calculator className="w-3.5 h-3.5 text-purple-500" />;
       default:

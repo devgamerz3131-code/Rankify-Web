@@ -1,4 +1,4 @@
-import { DetectedSubject, DetectedChapter } from '../model/types';
+import { DetectedSubject, DetectedChapter, QuestionType } from '../model/types';
 
 interface ChapterMetadata {
   name: string;
@@ -374,7 +374,7 @@ const CHAPTER_CATALOG: ChapterMetadata[] = [
   // Maths
   {
     name: 'Relations and Functions',
-    subject: 'Maths',
+    subject: 'Mathematics',
     keywords: [
       'relations and functions',
       'equivalence relation',
@@ -388,7 +388,7 @@ const CHAPTER_CATALOG: ChapterMetadata[] = [
   },
   {
     name: 'Inverse Trigonometric Functions',
-    subject: 'Maths',
+    subject: 'Mathematics',
     keywords: [
       'inverse trigonometric',
       'itf',
@@ -400,7 +400,7 @@ const CHAPTER_CATALOG: ChapterMetadata[] = [
   },
   {
     name: 'Matrices',
-    subject: 'Maths',
+    subject: 'Mathematics',
     keywords: [
       'matrices',
       'matrix multiplication',
@@ -412,7 +412,7 @@ const CHAPTER_CATALOG: ChapterMetadata[] = [
   },
   {
     name: 'Determinants',
-    subject: 'Maths',
+    subject: 'Mathematics',
     keywords: [
       'determinants',
       'minors',
@@ -426,7 +426,7 @@ const CHAPTER_CATALOG: ChapterMetadata[] = [
   },
   {
     name: 'Continuity and Differentiability',
-    subject: 'Maths',
+    subject: 'Mathematics',
     keywords: [
       'continuity',
       'differentiability',
@@ -439,7 +439,7 @@ const CHAPTER_CATALOG: ChapterMetadata[] = [
   },
   {
     name: 'Applications of Derivatives',
-    subject: 'Maths',
+    subject: 'Mathematics',
     keywords: [
       'applications of derivatives',
       'aod',
@@ -452,7 +452,7 @@ const CHAPTER_CATALOG: ChapterMetadata[] = [
   },
   {
     name: 'Integrals',
-    subject: 'Maths',
+    subject: 'Mathematics',
     keywords: [
       'integrals',
       'integration',
@@ -466,7 +466,7 @@ const CHAPTER_CATALOG: ChapterMetadata[] = [
   },
   {
     name: 'Applications of Integrals',
-    subject: 'Maths',
+    subject: 'Mathematics',
     keywords: [
       'applications of integrals',
       'aoi',
@@ -477,7 +477,7 @@ const CHAPTER_CATALOG: ChapterMetadata[] = [
   },
   {
     name: 'Differential Equations',
-    subject: 'Maths',
+    subject: 'Mathematics',
     keywords: [
       'differential equations',
       'order and degree',
@@ -489,7 +489,7 @@ const CHAPTER_CATALOG: ChapterMetadata[] = [
   },
   {
     name: 'Vector Algebra',
-    subject: 'Maths',
+    subject: 'Mathematics',
     keywords: [
       'vector algebra',
       'dot product',
@@ -503,7 +503,7 @@ const CHAPTER_CATALOG: ChapterMetadata[] = [
   },
   {
     name: 'Three Dimensional Geometry',
-    subject: 'Maths',
+    subject: 'Mathematics',
     keywords: [
       'three dimensional geometry',
       '3d geometry',
@@ -515,7 +515,7 @@ const CHAPTER_CATALOG: ChapterMetadata[] = [
   },
   {
     name: 'Linear Programming',
-    subject: 'Maths',
+    subject: 'Mathematics',
     keywords: [
       'linear programming',
       'lpp',
@@ -527,7 +527,7 @@ const CHAPTER_CATALOG: ChapterMetadata[] = [
   },
   {
     name: 'Probability',
-    subject: 'Maths',
+    subject: 'Mathematics',
     keywords: [
       'probability',
       'conditional probability',
@@ -609,10 +609,10 @@ export function detectSubjectAndChapter(query: string): {
 
   if (clean.includes('math') || clean.includes('calculus') || clean.includes('integral') || clean.includes('matrix') || clean.includes('probability')) {
     return {
-      subject: 'Maths',
+      subject: 'Mathematics',
       chapter: {
         name: 'Integrals',
-        subject: 'Maths',
+        subject: 'Mathematics',
         standardConfidence: 40,
       },
     };
@@ -628,3 +628,136 @@ export function detectSubjectAndChapter(query: string): {
     },
   };
 }
+
+/**
+ * Detects question type automatically from the student's doubt.
+ * Categories:
+ * - Concept
+ * - Numerical
+ * - Derivation
+ * - Formula
+ * - PYQ
+ * - MCQ
+ * - Assertion Reason
+ * - Competency Question
+ * - Revision
+ * - Notes
+ */
+export function detectQuestionType(query: string): QuestionType {
+  const q = query.toLowerCase().trim();
+
+  // 1. Assertion Reason
+  if (
+    q.includes('assertion') ||
+    q.includes('reason') ||
+    q.includes('assertion-reason') ||
+    q.includes('statement 1') ||
+    q.includes('statement 2') ||
+    /\ba\/r\b/.test(q)
+  ) {
+    return 'Assertion Reason';
+  }
+
+  // 2. MCQ
+  if (
+    q.includes('mcq') ||
+    q.includes('multiple choice') ||
+    q.includes('choose the correct') ||
+    q.includes('options') ||
+    q.includes('objective question')
+  ) {
+    return 'MCQ';
+  }
+
+  // 3. Competency Question / Case-Based
+  if (
+    q.includes('competency') ||
+    q.includes('case study') ||
+    q.includes('case-based') ||
+    q.includes('case based') ||
+    q.includes('passage based') ||
+    q.includes('source based') ||
+    q.includes('application based') ||
+    q.includes('real life')
+  ) {
+    return 'Competency Question';
+  }
+
+  // 4. Derivation
+  if (
+    q.includes('derivation') ||
+    q.includes('derive') ||
+    q.includes('proof') ||
+    q.includes('prove that') ||
+    q.includes('show that') ||
+    q.includes('expression for')
+  ) {
+    return 'Derivation';
+  }
+
+  // 5. Numerical
+  if (
+    q.includes('numerical') ||
+    q.includes('calculate') ||
+    q.includes('solve for') ||
+    q.includes('compute') ||
+    q.includes('find the value') ||
+    q.includes('problem') ||
+    q.includes('numerical examples')
+  ) {
+    return 'Numerical';
+  }
+
+  // 6. Formula
+  if (
+    q.includes('formula') ||
+    q.includes('formulae') ||
+    q.includes('equation') ||
+    q.includes('formula sheet') ||
+    q.includes('units') ||
+    q.includes('dimensions')
+  ) {
+    return 'Formula';
+  }
+
+  // 7. PYQ
+  if (
+    q.includes('pyq') ||
+    q.includes('previous year') ||
+    q.includes('board question') ||
+    q.includes('past paper') ||
+    q.includes('delhi board') ||
+    q.includes('repeated question') ||
+    q.includes('frequently asked')
+  ) {
+    return 'PYQ';
+  }
+
+  // 8. Revision
+  if (
+    q.includes('revision') ||
+    q.includes('revise') ||
+    q.includes('quick revision') ||
+    q.includes('one shot') ||
+    q.includes('mind map') ||
+    q.includes('summary') ||
+    q.includes('cheat sheet')
+  ) {
+    return 'Revision';
+  }
+
+  // 9. Notes
+  if (
+    q.includes('notes') ||
+    q.includes('short notes') ||
+    q.includes('handwritten') ||
+    q.includes('key points') ||
+    q.includes('bullet points')
+  ) {
+    return 'Notes';
+  }
+
+  // Default Concept
+  return 'Concept';
+}
+

@@ -22,7 +22,7 @@ const SUGGESTIONS = [
     badgeColor: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
   },
   {
-    subject: 'Maths',
+    subject: 'Mathematics',
     title: 'Explain Integrals',
     desc: 'Integration by parts, substitution, board proofs & formulas',
     icon: Calculator,
