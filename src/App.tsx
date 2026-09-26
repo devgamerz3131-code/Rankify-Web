@@ -11,6 +11,7 @@ import { ActiveStudyEngineView } from '@/features/study/ActiveStudyEngineView';
 import { PracticeView } from '@/features/practice/PracticeView';
 import { ProfileView } from '@/features/profile/ProfileView';
 import { RankifyAiScreen } from '@/ai';
+import { StudyJourneyFlow } from '@/features/smartplan/StudyJourneyFlow';
 import { syncEngine } from '@/services/sync-engine';
 import { backupRestoreService } from '@/services/backup-restore';
 import { remoteConfig } from '@/services/remote-config';
@@ -21,6 +22,20 @@ const AppRouter: React.FC = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { activeTab } = useNavigation();
   const [isMaintenance, setIsMaintenance] = useState(() => remoteConfig.isMaintenanceActive());
+  const [journeyCompleted, setJourneyCompleted] = useState<boolean>(() => {
+    if (!user?.uid) return false;
+    const cachedJourney = syncEngine.getLocalCache<boolean>('study_journey_completed', user.uid);
+    return cachedJourney === true || (user as any)?.studyJourneyCompleted === true;
+  });
+
+  useEffect(() => {
+    if (user?.uid) {
+      const cached = syncEngine.getLocalCache<boolean>('study_journey_completed', user.uid);
+      if (cached === true || (user as any)?.studyJourneyCompleted === true) {
+        setJourneyCompleted(true);
+      }
+    }
+  }, [user]);
 
   useEffect(() => {
     return remoteConfig.subscribe((cfg) => {
@@ -70,6 +85,13 @@ const AppRouter: React.FC = () => {
 
   if (!isOnboardingCompleted) {
     return <OnboardingContainer />;
+  }
+
+  // 4b. First Time User Flow:
+  // For new users only, after onboarding:
+  // Show: "Let's understand your study journey" -> Wait animation 2-3s -> Open Home Screen
+  if (!journeyCompleted) {
+    return <StudyJourneyFlow onComplete={() => setJourneyCompleted(true)} />;
   }
 
   // 5. Authenticated & Onboarded: Render Dynamic Tab Views

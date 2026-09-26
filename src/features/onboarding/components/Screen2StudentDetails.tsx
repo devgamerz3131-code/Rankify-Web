@@ -28,11 +28,15 @@ export const Screen2StudentDetails: React.FC = () => {
     <div className="max-w-2xl mx-auto py-2 sm:py-6 px-4">
       {/* Header */}
       <div className="text-center mb-8">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-300 text-xs font-bold mb-3 border border-purple-500/20">
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Rankify SmartPlan Initialization</span>
+        </div>
         <h2 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
-          CBSE Class 12 PCM Setup
+          Let's understand your study journey
         </h2>
-        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-          Lock in your study routine and board exam target for the official 2026–2027 curriculum.
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-lg mx-auto">
+          Tell us about your preparation level, daily available study hours, strong and weak subjects, and target goal to build your personalized roadmap.
         </p>
       </div>
 

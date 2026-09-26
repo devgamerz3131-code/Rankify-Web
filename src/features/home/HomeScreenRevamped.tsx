@@ -40,6 +40,8 @@ import { analytics } from '@/services/analytics';
 import { achievementsService } from '@/services/achievements-service';
 import { ShareCardModal } from '@/components/common/ShareCardModal';
 import { Share2 } from 'lucide-react';
+import { RankifySmartPlanCard } from './RankifySmartPlanCard';
+import { StudyJourneyFlow } from '@/features/smartplan/StudyJourneyFlow';
 
 export interface TaskItem {
   id: string;
@@ -47,6 +49,7 @@ export interface TaskItem {
   subjectName: string;
   chapterName: string;
   allocatedMinutes: number;
+  difficulty?: 'Easy' | 'Medium' | 'Hard' | 'Board Level' | 'Topper Level' | 'Foundation' | string;
   isCompleted: boolean;
   status?: 'pending' | 'completed' | 'skipped';
 }
@@ -231,6 +234,8 @@ export const HomeScreenRevamped: React.FC = () => {
   const [hasCelebratedToday, setHasCelebratedToday] = useState(false);
   const [showCelebrationBanner, setShowCelebrationBanner] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showRecalibrateModal, setShowRecalibrateModal] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   // 1. DAILY RESET ENGINE (Section 7)
   // Every midnight Today's progress resets to 0%. Overall progress NEVER resets.
@@ -599,48 +604,7 @@ export const HomeScreenRevamped: React.FC = () => {
         <div className="absolute -right-20 -bottom-20 w-80 h-80 rounded-full bg-purple-500/20 blur-3xl pointer-events-none" />
       </div>
 
-      {/* 2. Today's Progress Bar Card (Resets every midnight) */}
-      <Card className="p-5 sm:p-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-slate-200/80 dark:border-white/10 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-bold text-base text-foreground">Today's Progress (Daily Reset)</h3>
-              <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-300">
-                {progressPercent}% Today
-              </span>
-              <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-muted-foreground">
-                Overall Syllabus: {overallCoverage}%
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Today's targets reset every midnight. Overall Class 12 PCM syllabus progress is permanent.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleAddNewTask}
-              className="text-xs font-semibold gap-1.5 cursor-pointer"
-            >
-              <PlusCircle className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-              <span>Add Study Target</span>
-            </Button>
-          </div>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="h-3.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-200 dark:border-slate-700/60 shadow-inner">
-          <motion.div
-            className="h-full bg-gradient-to-r from-purple-600 via-indigo-600 to-emerald-500 rounded-full"
-            style={{ width: `${progressPercent}%` }}
-            transition={{ ease: 'easeOut', duration: 0.5 }}
-          />
-        </div>
-      </Card>
-
-      {/* 3. Mission Completed Celebration Banner */}
+      {/* 2. Mission Completed Celebration Banner (Triggered when 100% of daily tasks are finished) */}
       <AnimatePresence>
         {showCelebrationBanner && (
           <motion.div
@@ -708,158 +672,24 @@ export const HomeScreenRevamped: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* 4. Today's Active Chapters Ribbon */}
-      <div className="p-4 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-white/10 backdrop-blur-xl shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <BookOpen className="w-4 h-4 text-purple-600" />
-          <span className="text-xs font-bold text-foreground">Today's Focus Chapters:</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {planState.todaysChapters.map((ch, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() =>
-                navigateToAi({
-                  chapter: ch,
-                  difficulty: 'Board Level',
-                  questionType: 'Concept',
-                  query: `Explain ${ch} step by step for CBSE Boards`,
-                })
-              }
-              title="Open AI Prompt Generator for this chapter"
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/20 cursor-pointer transition-colors"
-            >
-              <Sparkles className="w-3 h-3 text-purple-500" />
-              <span>{ch}</span>
-            </button>
-          ))}
-          <span className="text-xs font-mono font-semibold text-muted-foreground ml-1">
-            Goal: {planState.todaysQuestions} Questions
-          </span>
-        </div>
-      </div>
-
-      {/* 5. Auto Task Engine: Daily Tasks System */}
-      <Card className="p-5 sm:p-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-slate-200/80 dark:border-white/10 shadow-xs space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-base font-bold flex items-center gap-2">
-              <Zap className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-              <span>Today's Actionable Tasks</span>
-            </CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Completing a task instantly updates your dashboard, statistics, and chapter completion without refreshing.
-            </p>
-          </div>
-          <span className="text-xs font-semibold text-purple-600 dark:text-purple-400 font-mono">
-            {completedCount} of {totalTasks} Completed
-          </span>
-        </div>
-
-        <div className="space-y-3">
-          {tasks.map((task) => {
-            const isDone = task.isCompleted || task.status === 'completed';
-            const isSkipped = task.status === 'skipped';
-
-            return (
-              <div
-                key={task.id}
-                className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                  isDone
-                    ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-500/30 line-through opacity-75'
-                    : isSkipped
-                    ? 'bg-slate-100/50 dark:bg-slate-800/20 border-slate-300 dark:border-slate-800 opacity-60'
-                    : 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-200/80 dark:border-white/5 hover:border-purple-500/40 shadow-xs'
-                }`}
-              >
-                <div className="flex items-start sm:items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => !isDone && handleCompleteTask(task.id)}
-                    className={`w-6 h-6 rounded-lg border flex items-center justify-center transition shrink-0 cursor-pointer mt-0.5 sm:mt-0 ${
-                      isDone
-                        ? 'bg-emerald-600 border-emerald-600 text-white'
-                        : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 hover:border-purple-500'
-                    }`}
-                  >
-                    {isDone && <CheckCircle2 className="w-4 h-4" />}
-                  </button>
-
-                  <div>
-                    <div className="font-bold text-xs sm:text-sm text-foreground">
-                      {task.taskTitle}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground flex flex-wrap items-center gap-2 mt-0.5">
-                      <span className="font-semibold text-purple-600 dark:text-purple-400">
-                        {task.subjectName}
-                      </span>
-                      <span>•</span>
-                      <span>{task.chapterName}</span>
-                      <span>•</span>
-                      <span className="font-mono">{task.allocatedMinutes} mins</span>
-                    </div>
-                  </div>
-                </div>
-
-                {!isDone && !isSkipped && (
-                  <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        navigateToAi({
-                          subject: task.subjectName,
-                          chapter: task.chapterName,
-                          difficulty: 'Board Level',
-                          questionType: 'Concept',
-                          query: `Explain ${task.chapterName} with key formulas and derivations for today's task`,
-                        })
-                      }
-                      className="text-xs h-8 px-2.5 rounded-xl font-bold border-purple-500/30 text-purple-600 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 cursor-pointer shadow-xs"
-                      title="Ask AI Coach about this task"
-                    >
-                      <Sparkles className="w-3.5 h-3.5 mr-1 text-purple-500" />
-                      <span>Ask AI</span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleSkipTask(task.id)}
-                      className="text-[11px] h-8 px-2.5 text-muted-foreground hover:text-foreground cursor-pointer"
-                    >
-                      <SkipForward className="w-3.5 h-3.5 mr-1" />
-                      <span>Skip</span>
-                    </Button>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => handleCompleteTask(task.id)}
-                      className="text-xs h-8 px-3.5 rounded-xl font-bold bg-purple-600 hover:bg-purple-500 text-white cursor-pointer shadow-sm shadow-purple-600/30"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                      <span>Complete</span>
-                    </Button>
-                  </div>
-                )}
-
-                {isDone && (
-                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 self-end sm:self-center">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Completed</span>
-                  </span>
-                )}
-
-                {isSkipped && (
-                  <span className="text-xs text-muted-foreground italic self-end sm:self-center">
-                    Skipped
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </Card>
+      {/* 3. RANKIFY SMARTPLAN: Personalized AI-Powered Study Planning Section (Core Top Section) */}
+      <RankifySmartPlanCard
+        plan={contextPlan}
+        tasks={tasks}
+        overallCoverage={overallCoverage}
+        progressPercent={progressPercent}
+        completedTasksCount={completedCount}
+        totalTasksCount={totalTasks}
+        weakChapters={planState.weakChapters}
+        chaptersList={chaptersList}
+        onCompleteTask={handleCompleteTask}
+        onSkipTask={handleSkipTask}
+        onAddNewTask={handleAddNewTask}
+        onNavigateToAi={navigateToAi}
+        onOpenStudyTab={() => setActiveTab('study')}
+        onRegeneratePlan={() => setShowRecalibrateModal(true)}
+        isRegenerating={isRegenerating}
+      />
 
       {/* 6. Dynamic Diagnostics: Weakest vs Strongest Chapter + Needs Focus Rebalancer */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -1190,6 +1020,33 @@ export const HomeScreenRevamped: React.FC = () => {
         daysToExam={daysRemaining}
         targetScore={profileData.targetPercentage || 95}
       />
+
+      {/* Recalibrate Study Roadmap Modal */}
+      {showRecalibrateModal && (
+        <StudyJourneyFlow
+          isModal
+          onComplete={() => {
+            setShowRecalibrateModal(false);
+            if (user?.uid) {
+              const cachedPlan = syncEngine.getLocalCache<any>('active_study_plan', user.uid);
+              if (cachedPlan) {
+                if (cachedPlan.dailyTasks?.length) {
+                  setTasks(cachedPlan.dailyTasks);
+                }
+                setPlanState((prev) => ({
+                  ...prev,
+                  todaysMission: cachedPlan.todaysMission || prev.todaysMission,
+                  todaysChapters: cachedPlan.todaysChapters || prev.todaysChapters,
+                  focusTopic: cachedPlan.focusTopic || prev.focusTopic,
+                  weakChapters: cachedPlan.weakChapters || prev.weakChapters,
+                  accuracy: cachedPlan.accuracy || prev.accuracy,
+                }));
+              }
+            }
+          }}
+          onCancel={() => setShowRecalibrateModal(false)}
+        />
+      )}
     </div>
   );
 };
