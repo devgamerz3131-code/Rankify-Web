@@ -2,7 +2,7 @@
   "id": "/",
   "name": "Rankify - CBSE Learning & Practice Platform",
   "short_name": "Rankify",
-  "description": "Production-ready educational platform for CBSE students with personalized study, practice, and AI assistance.",
+  "description": "Production-ready educational platform for CBSE students with personalized study, practice, and syllabus tracking.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

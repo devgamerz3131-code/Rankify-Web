@@ -420,7 +420,7 @@ export const HomeScreenRevamped: React.FC = () => {
       const { focusChapters, graduatedChapters } = rebalanceNeedsFocus(currentSnapshot);
       if (graduatedChapters.length > 0) {
         toast.success(
-          `Mastery achieved! ${graduatedChapters[0]} graduated from Needs Focus. AI rebalanced syllabus priorities.`,
+          `Mastery achieved! ${graduatedChapters[0]} graduated from Needs Focus. Syllabus priorities updated.`,
           { duration: 4000, icon: '🎓' }
         );
       }
@@ -479,13 +479,13 @@ export const HomeScreenRevamped: React.FC = () => {
     );
   };
 
-  const handleAskNewTask = () => {
+  const handleAddNewTask = () => {
     if (!user?.uid) return;
     const targetChapter = planState.weakestChapter || 'Electromagnetic Induction';
 
     const newTask: TaskItem = {
       id: `task_${Date.now()}`,
-      taskTitle: `AI Extra Target: Advanced Exemplar Drills in ${targetChapter}`,
+      taskTitle: `Extra Target: Advanced Exemplar Drills in ${targetChapter}`,
       subjectName: 'Physics',
       chapterName: targetChapter,
       allocatedMinutes: 45,
@@ -496,7 +496,7 @@ export const HomeScreenRevamped: React.FC = () => {
     const nextTasks = [...tasks, newTask];
     setTasks(nextTasks);
     setShowCelebrationBanner(false);
-    toast.success('Generated fresh AI challenge task!', { icon: '✨' });
+    toast.success('Generated fresh challenge task!', { icon: '✨' });
 
     syncEngine.queueSync(
       user.uid,
@@ -621,11 +621,11 @@ export const HomeScreenRevamped: React.FC = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleAskNewTask}
+              onClick={handleAddNewTask}
               className="text-xs font-semibold gap-1.5 cursor-pointer"
             >
               <PlusCircle className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-              <span>Ask for New Task</span>
+              <span>Add Study Target</span>
             </Button>
           </div>
         </div>
@@ -673,11 +673,11 @@ export const HomeScreenRevamped: React.FC = () => {
               </button>
 
               <button
-                onClick={handleAskNewTask}
+                onClick={handleAddNewTask}
                 className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-md cursor-pointer flex items-center gap-1.5 transition-colors"
               >
                 <PlusCircle className="w-3.5 h-3.5" />
-                <span>Generate More Tasks</span>
+                <span>Add More Tasks</span>
               </button>
 
               <button
@@ -840,7 +840,7 @@ export const HomeScreenRevamped: React.FC = () => {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-rose-500" />
-                <h3 className="font-bold text-sm text-foreground">Needs Focus (Dynamic AI Rebalance)</h3>
+                <h3 className="font-bold text-sm text-foreground">Needs Focus (Priority Chapters)</h3>
               </div>
               <span className="text-[11px] font-bold text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20">
                 Rotates on 80%+ Accuracy

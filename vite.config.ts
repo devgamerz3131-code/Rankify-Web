@@ -16,7 +16,7 @@ export default defineConfig(() => {
           id: '/',
           name: 'Rankify - CBSE Learning & Practice Platform',
           short_name: 'Rankify',
-          description: 'Production-ready educational platform for CBSE students with personalized study, practice, and AI assistance.',
+          description: 'Production-ready educational platform for CBSE students with personalized study, practice, and syllabus tracking.',
           theme_color: '#7c3aed',
           background_color: '#ffffff',
           display: 'standalone',
@@ -45,10 +45,12 @@ export default defineConfig(() => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+          cleanupOutdatedCaches: true,
+          clientsClaim: true,
+          skipWaiting: true,
         },
         devOptions: {
-          enabled: true,
-          type: 'module',
+          enabled: false,
         },
       }),
     ],

@@ -723,10 +723,10 @@ export const AdminDashboardView: React.FC = () => {
             <div className="p-5 rounded-3xl bg-card/60 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-1">
               <div className="flex items-center gap-2 text-xs text-blue-600 font-bold uppercase tracking-wider">
                 <Sparkles className="w-4 h-4" />
-                <span>AI Doubts Resolved</span>
+                <span>PYQ Questions Solved</span>
               </div>
               <div className="text-2xl font-black text-blue-600 font-mono">34,120</div>
-              <p className="text-[11px] text-muted-foreground">Zero hallucination rate verified</p>
+              <p className="text-[11px] text-muted-foreground">Official CBSE answer key verified</p>
             </div>
 
             <div className="p-5 rounded-3xl bg-card/60 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-1">

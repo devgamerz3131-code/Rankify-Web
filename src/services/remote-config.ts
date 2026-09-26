@@ -71,7 +71,7 @@ export const DEFAULT_REMOTE_CONFIG: RemoteConfigState = {
   },
   aiAvailability: {
     enabled: true,
-    notice: 'AI Doubt Engine operates with zero hallucinations on Physics, Chemistry, and Maths.',
+    notice: 'Rankify study engine is active across Physics, Chemistry, and Maths.',
     dailyQuotaFree: 100,
   },
   features: {

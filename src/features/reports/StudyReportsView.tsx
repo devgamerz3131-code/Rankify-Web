@@ -117,10 +117,10 @@ export const StudyReportsView: React.FC<{ onClose?: () => void }> = ({ onClose }
         <div className="p-4 rounded-2xl bg-card/60 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-1">
           <span className="text-xs text-muted-foreground font-semibold flex items-center gap-1.5">
             <Sparkles className="w-4 h-4 text-amber-500" />
-            AI Doubts Cleared
+            Practice Questions Mastered
           </span>
           <div className="text-2xl font-black text-amber-500 font-mono">{aiDoubtsCount}</div>
-          <p className="text-[10px] text-muted-foreground">Concept inquiries resolved</p>
+          <p className="text-[10px] text-muted-foreground">CBSE questions solved</p>
         </div>
       </div>
 

@@ -66,7 +66,7 @@ export const SettingsView: React.FC = () => {
   const handleClearCache = () => {
     try {
       localStorage.removeItem('rankify_ai_session_memory');
-      toast.success('Local AI & response caches cleared safely!');
+      toast.success('Local application & response caches cleared safely!');
     } catch {
       toast.error('Failed to clear local cache');
     }
@@ -268,7 +268,7 @@ export const SettingsView: React.FC = () => {
             <span>Cloud Backup & Academic State Restoration</span>
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Seamlessly synchronize your 37-chapter progress, daily tasks, notes, and AI preferences.
+            Seamlessly synchronize your 37-chapter progress, daily tasks, notes, and study preferences.
           </p>
         </div>
 
@@ -396,7 +396,7 @@ export const SettingsView: React.FC = () => {
             className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-foreground text-xs font-bold border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 cursor-pointer"
           >
             <Trash2 className="w-3.5 h-3.5 text-amber-500" />
-            <span>Clear Local AI Cache</span>
+            <span>Clear Local App Cache</span>
           </button>
 
           <button
@@ -422,7 +422,7 @@ export const SettingsView: React.FC = () => {
         </div>
 
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Rankify is an intelligent study OS built exclusively for CBSE Class 12 Science students. Powered by real-time syllabus tracking, persistent Firebase cloud sync, and server-side Gemini AI tutoring for 95%+ board examination results.
+          Rankify is an intelligent study OS built exclusively for CBSE Class 12 Science students. Powered by real-time syllabus tracking, persistent Firebase cloud sync, and structured NCERT revision systems for 95%+ board examination results.
         </p>
 
         <div className="flex flex-wrap items-center gap-3 pt-2">

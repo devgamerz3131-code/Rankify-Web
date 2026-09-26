@@ -17,7 +17,7 @@ export type StandardAnalyticsEvent =
   | 'task_completed'
   | 'revision_completed'
   | 'chapter_completed'
-  | 'ai_tutor_used'
+  | 'practice_question_used'
   | 'question_asked'
   | 'music_opened'
   | 'song_unlocked'
@@ -195,8 +195,8 @@ class AnalyticsService {
     });
   }
 
-  public trackAIQuestion(subject: string, chapter: string, mode: string) {
-    this.track('ai_tutor_used', {
+  public trackQuestion(subject: string, chapter: string, mode: string) {
+    this.track('practice_question_used', {
       subject,
       chapter,
       mode,
