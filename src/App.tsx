@@ -10,6 +10,7 @@ import { HomeScreenRevamped } from '@/features/home/HomeScreenRevamped';
 import { ActiveStudyEngineView } from '@/features/study/ActiveStudyEngineView';
 import { PracticeView } from '@/features/practice/PracticeView';
 import { ProfileView } from '@/features/profile/ProfileView';
+import { RankifyAiScreen } from '@/ai';
 import { syncEngine } from '@/services/sync-engine';
 import { backupRestoreService } from '@/services/backup-restore';
 import { remoteConfig } from '@/services/remote-config';
@@ -81,6 +82,8 @@ const AppRouter: React.FC = () => {
         return <ActiveStudyEngineView />;
       case 'practice':
         return <PracticeView />;
+      case 'ai':
+        return <RankifyAiScreen />;
       case 'profile':
         return <ProfileView />;
       default:

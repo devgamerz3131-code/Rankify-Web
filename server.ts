@@ -24,6 +24,27 @@ async function startServer() {
     });
   });
 
+  // Handle lingering service worker requests from previous sessions gracefully
+  app.get(['/dev-sw.js', '/sw.js'], (_req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'application/javascript');
+    res.send(`
+      self.addEventListener('install', () => self.skipWaiting());
+      self.addEventListener('activate', (event) => {
+        event.waitUntil(
+          self.registration.unregister().then(() => {
+            return self.clients.matchAll();
+          }).then((clients) => {
+            clients.forEach((client) => {
+              if (client.url && 'navigate' in client) {
+                client.navigate(client.url);
+              }
+            });
+          })
+        );
+      });
+    `);
+  });
+
   // Dev / Production Vite handling
   if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.resolve(__dirname, 'dist')));

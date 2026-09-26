@@ -130,6 +130,16 @@ class CrashReporter {
     });
 
     window.addEventListener('unhandledrejection', (event) => {
+      const reasonMsg = String(event.reason?.message || event.reason || '');
+      if (
+        reasonMsg.includes('ServiceWorker') ||
+        reasonMsg.includes('dev-sw') ||
+        reasonMsg.includes('unsupported MIME type')
+      ) {
+        event.preventDefault?.();
+        return;
+      }
+
       this.reportError(
         event.reason || new Error('Unhandled Promise Rejection'),
         'network',

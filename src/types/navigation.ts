@@ -1,6 +1,6 @@
 import { ComponentType } from 'react';
 
-export type NavRoute = 'home' | 'study' | 'practice' | 'progress' | 'profile';
+export type NavRoute = 'home' | 'study' | 'practice' | 'progress' | 'profile' | 'ai';
 
 export interface NavItem {
   id: NavRoute;

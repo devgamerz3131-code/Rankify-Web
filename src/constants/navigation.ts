@@ -1,4 +1,4 @@
-import { Home, BookOpen, Target, TrendingUp, User } from '@/icons';
+import { Home, BookOpen, Target, TrendingUp, User, Sparkles } from '@/icons';
 import { NavItem } from '@/types/navigation';
 
 export const NAV_ITEMS: NavItem[] = [
@@ -19,6 +19,13 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Practice',
     path: '/practice',
     icon: Target,
+  },
+  {
+    id: 'ai',
+    label: 'Rankify AI',
+    path: '/ai',
+    icon: Sparkles,
+    badge: 'Prompt Engine',
   },
   {
     id: 'progress',
