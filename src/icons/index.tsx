@@ -44,6 +44,7 @@ export {
   EyeOff,
   WifiOff,
   RefreshCw,
+  Video,
 } from 'lucide-react';
 
 export const RankifyLogo: React.FC<{ className?: string; size?: number }> = ({

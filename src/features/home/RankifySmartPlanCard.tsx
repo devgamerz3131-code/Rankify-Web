@@ -191,7 +191,7 @@ export const RankifySmartPlanCard: React.FC<RankifySmartPlanCardProps> = ({
                 className="h-8 text-xs font-bold gap-1.5 rounded-xl border-purple-500/30 text-purple-600 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 cursor-pointer shadow-2xs"
               >
                 <Layers className="w-3.5 h-3.5" />
-                <span>Full SmartPlan</span>
+                <span>Rankify Smart Engine</span>
                 <ChevronRight className="w-3.5 h-3.5" />
               </Button>
             )}
@@ -199,113 +199,129 @@ export const RankifySmartPlanCard: React.FC<RankifySmartPlanCardProps> = ({
         </div>
 
         {/* 5 Core Metrics Grid (Mandatory by Brief):
-            1. Today's Goal
-            2. Current Focus Chapter
-            3. Pending Tasks
-            4. Progress %
-            5. Next Recommended Topic */}
+            1. 🔥 Today's Mission
+            2. ⏳ Estimated Time
+            3. 📚 Current Chapter
+            4. ⭐ Next Reward
+            5. 📈 Daily Progress */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mt-5">
-          {/* 1. Today's Goal */}
-          <div className="col-span-2 lg:col-span-1 p-3.5 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/5 shadow-xs">
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-purple-600 dark:text-purple-400">
-              <Target className="w-3.5 h-3.5" />
-              <span>Today's Goal</span>
+          {/* 1. 🔥 Today's Mission */}
+          <div className="col-span-2 lg:col-span-1 p-3.5 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/5 shadow-xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-purple-600 dark:text-purple-400">
+                <Target className="w-3.5 h-3.5" />
+                <span>🔥 Today's Mission</span>
+              </div>
+              <div className="text-xs sm:text-sm font-extrabold text-foreground truncate mt-1.5" title={todaysGoalTitle}>
+                {todaysGoalTitle}
+              </div>
             </div>
-            <div className="text-xs sm:text-sm font-extrabold text-foreground truncate mt-1" title={todaysGoalTitle}>
-              {todaysGoalTitle}
-            </div>
-            <div className="text-[10px] text-muted-foreground mt-0.5">
+            <div className="text-[10px] text-muted-foreground mt-1">
               Goal: {plan?.todaysQuestions || 25} Practice Questions
             </div>
           </div>
 
-          {/* 2. Current Focus Chapter */}
-          <div className="p-3.5 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/5 shadow-xs">
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-blue-600 dark:text-blue-400">
-              <Compass className="w-3.5 h-3.5" />
-              <span>Current Focus</span>
+          {/* 2. ⏳ Estimated Time */}
+          <div className="p-3.5 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/5 shadow-xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                <Clock className="w-3.5 h-3.5" />
+                <span>⏳ Estimated Time</span>
+              </div>
+              <div className="text-xs sm:text-sm font-extrabold font-mono text-foreground mt-1.5">
+                {plan?.estimatedTimeMins || tasks.reduce((sum, t) => sum + t.allocatedMinutes, 0)} Mins
+              </div>
             </div>
-            <div className="text-xs sm:text-sm font-extrabold text-foreground truncate mt-1" title={currentFocusChapter}>
-              {currentFocusChapter}
+            <div className="text-[10px] text-muted-foreground mt-1">
+              {pendingTasksCount} of {totalTasksCount} tasks left
             </div>
-            <div className="text-[10px] text-muted-foreground mt-0.5 truncate">
+          </div>
+
+          {/* 3. 📚 Current Chapter */}
+          <div className="p-3.5 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/5 shadow-xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-blue-600 dark:text-blue-400">
+                <Compass className="w-3.5 h-3.5" />
+                <span>📚 Current Chapter</span>
+              </div>
+              <div className="text-xs sm:text-sm font-extrabold text-foreground truncate mt-1.5" title={currentFocusChapter}>
+                {currentFocusChapter}
+              </div>
+            </div>
+            <div className="text-[10px] text-muted-foreground mt-1 truncate">
               {plan?.todaysChapters?.join(', ') || 'Class 12 Core'}
             </div>
           </div>
 
-          {/* 3. Pending Tasks */}
-          <div className="p-3.5 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/5 shadow-xs">
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-600 dark:text-amber-400">
-              <Clock className="w-3.5 h-3.5" />
-              <span>Pending Tasks</span>
-            </div>
-            <div className="text-xs sm:text-sm font-extrabold font-mono text-foreground mt-1">
-              {pendingTasksCount} of {totalTasksCount} Remaining
-            </div>
-            <div className="text-[10px] text-muted-foreground mt-0.5">
-              {completedTasksCount} finished today
-            </div>
-          </div>
-
-          {/* 4. Progress % */}
-          <div className="p-3.5 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/5 shadow-xs">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                <TrendingUp className="w-3.5 h-3.5" />
-                <span>Today's Progress</span>
-              </div>
-              <span className="text-xs font-black font-mono text-emerald-600 dark:text-emerald-400">
-                {progressPercent}%
-              </span>
-            </div>
-            {/* Mini Progress bar */}
-            <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden mt-2">
-              <div
-                className="h-full bg-gradient-to-r from-purple-600 to-emerald-500 rounded-full transition-all duration-500"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-            <div className="text-[10px] text-muted-foreground mt-1.5 flex items-center justify-between font-mono">
-              <span>Overall: {overallCoverage}%</span>
-              <span>Streak: {plan?.studyStreak || 1}d</span>
-            </div>
-          </div>
-
-          {/* 5. Next Recommended Topic */}
+          {/* 4. ⭐ Next Reward */}
           <div className="p-3.5 rounded-2xl bg-purple-500/10 dark:bg-purple-950/40 border border-purple-500/25 shadow-xs flex flex-col justify-between">
             <div>
               <div className="flex items-center gap-1.5 text-[11px] font-bold text-purple-700 dark:text-purple-300">
                 <Sparkles className="w-3.5 h-3.5 text-purple-500" />
-                <span>Next Recommended</span>
+                <span>⭐ Next Reward</span>
               </div>
-              <div className="text-xs sm:text-sm font-extrabold text-foreground truncate mt-1" title={nextRecommendedTopic.title}>
-                {nextRecommendedTopic.title}
-              </div>
-              <div className="text-[10px] text-purple-600 dark:text-purple-300 font-semibold truncate mt-0.5">
-                {nextRecommendedTopic.subject} • {nextRecommendedTopic.reason}
+              <div className="text-xs sm:text-sm font-extrabold text-foreground truncate mt-1.5" title={plan?.nextReward || 'Double XP + Topper Badge'}>
+                {plan?.nextReward || 'Double XP + Topper Badge'}
               </div>
             </div>
+            <div className="text-[10px] text-purple-600 dark:text-purple-300 font-semibold truncate mt-1">
+              Based on Daily Goals
+            </div>
+          </div>
 
-            {onNavigateToAi && (
-              <button
-                type="button"
-                onClick={() =>
-                  onNavigateToAi({
-                    subject: nextRecommendedTopic.subject,
-                    chapter: nextRecommendedTopic.title,
-                    difficulty: 'Board Level',
-                    questionType: 'Concept',
-                    query: `Explain ${nextRecommendedTopic.title} step by step for CBSE Boards`,
-                  })
-                }
-                className="text-[10px] font-bold text-purple-600 dark:text-purple-300 hover:text-purple-700 flex items-center gap-1 mt-2 cursor-pointer transition-colors"
-              >
-                <span>Generate Study Prompt</span>
-                <ArrowRight className="w-3 h-3" />
-              </button>
-            )}
+          {/* 5. 📈 Daily Progress */}
+          <div className="p-3.5 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/5 shadow-xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  <span>📈 Daily Progress</span>
+                </div>
+                <span className="text-xs font-black font-mono text-emerald-600 dark:text-emerald-400">
+                  {progressPercent}%
+                </span>
+              </div>
+              {/* Mini Progress bar */}
+              <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden mt-2">
+                <div
+                  className="h-full bg-gradient-to-r from-purple-600 to-emerald-500 rounded-full transition-all duration-500"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+            </div>
+            <div className="text-[10px] text-muted-foreground mt-1 flex items-center justify-between font-mono">
+              <span>Syllabus: {overallCoverage}%</span>
+              <span>Streak: {plan?.studyStreak || 1}d</span>
+            </div>
           </div>
         </div>
+
+        {/* Smart Recommendations Banner */}
+        {plan?.recommendations && plan.recommendations.length > 0 && (
+          <div className="mt-4 p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative overflow-hidden z-10">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                <Sparkles className="w-4 h-4 animate-pulse" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block">
+                  Smart Recommendations
+                </span>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-0.5">
+                  {plan.recommendations.map((rec, rIdx) => (
+                    <span key={rIdx} className="text-xs text-foreground/90 font-semibold flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                      <span>{rec}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <span className="text-[10px] font-mono font-bold text-indigo-500 bg-indigo-500/10 px-2 py-0.5 rounded-full shrink-0">
+              Personalized
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Tabs Strip: Daily Tasks | Weekly Targets | Weak Chapters | Revision Suggestions */}
@@ -475,7 +491,7 @@ export const RankifySmartPlanCard: React.FC<RankifySmartPlanCardProps> = ({
                         </Button>
 
                         <Button
-                          variant="default"
+                          variant="primary"
                           size="sm"
                           onClick={() => onCompleteTask(task.id)}
                           className="text-xs h-8 px-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold cursor-pointer shadow-md shadow-purple-600/20"

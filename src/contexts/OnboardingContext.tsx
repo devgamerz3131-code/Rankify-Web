@@ -48,6 +48,7 @@ interface OnboardingContextType extends OnboardingState {
   startAIPlanGeneration: (fastTrack?: boolean) => Promise<void>;
   completeOnboarding: () => Promise<void>;
   saveCurrentStateToCache: () => void;
+  setAiStudyPlan: (plan: AIStudyPlan | null) => void;
 }
 
 const DEFAULT_DETAILS: StudentDetails = {
@@ -675,6 +676,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       startAIPlanGeneration,
       completeOnboarding,
       saveCurrentStateToCache,
+      setAiStudyPlan,
     }),
     [
       currentScreen,
@@ -706,6 +708,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       startAIPlanGeneration,
       completeOnboarding,
       saveCurrentStateToCache,
+      setAiStudyPlan,
     ]
   );
 

@@ -114,9 +114,9 @@ const LEARNING_STYLES: { id: LearningStyleType; label: string; desc: string; ico
     icon: Zap,
   },
   {
-    id: 'Flashcards',
+    id: 'Mixed',
     label: 'Formula Sheets & Active Recall',
-    desc: 'Rapid formula recitation, named reactions, and fast memory hacks.',
+    desc: 'Formula recitation, named reactions, and fast memory hacks.',
     icon: Sparkles,
   },
 ];
@@ -143,7 +143,7 @@ export const StudyJourneyFlow: React.FC<StudyJourneyFlowProps> = ({
     upcomingExam,
     chapterProgressMap,
     learningStyle: contextLearningStyle,
-    updateLearningStyle,
+    setLearningStyle: updateLearningStyle,
     revisionStyle,
     setAiStudyPlan,
   } = useOnboarding();

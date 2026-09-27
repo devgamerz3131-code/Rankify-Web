@@ -1,4 +1,4 @@
-import { Home, BookOpen, Target, TrendingUp, User, Sparkles } from '@/icons';
+import { Home, BookOpen, Target, TrendingUp, User, Sparkles, Video } from '@/icons';
 import { NavItem } from '@/types/navigation';
 
 export const NAV_ITEMS: NavItem[] = [
@@ -9,8 +9,15 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Home,
   },
   {
+    id: 'lecturelab',
+    label: 'LectureLab',
+    path: '/lecturelab',
+    icon: Video,
+    badge: 'Premium',
+  },
+  {
     id: 'study',
-    label: 'Study',
+    label: 'Rankify Smart Engine',
     path: '/study',
     icon: BookOpen,
   },

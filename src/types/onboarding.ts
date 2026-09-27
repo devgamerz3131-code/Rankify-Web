@@ -203,6 +203,9 @@ export interface AIStudyPlan {
   difficultyRating: 'Balanced' | 'High Intensity' | 'Rigorous' | 'Foundation';
   generatedAt: string;
   summary: string;
+  recommendations?: string[];
+  nextReward?: string;
+  estimatedTimeMins?: number;
 }
 
 export interface OnboardingState {

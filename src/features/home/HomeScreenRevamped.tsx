@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { useAuth } from '@/hooks/use-auth';
 import { useOnboarding } from '@/contexts/OnboardingContext';
@@ -33,6 +33,10 @@ import {
   Activity,
   Layers,
   Check,
+  Video,
+  Play,
+  Bookmark,
+  ChevronRight,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ProgressPercentage } from '@/types/onboarding';
@@ -42,6 +46,7 @@ import { ShareCardModal } from '@/components/common/ShareCardModal';
 import { Share2 } from 'lucide-react';
 import { RankifySmartPlanCard } from './RankifySmartPlanCard';
 import { StudyJourneyFlow } from '@/features/smartplan/StudyJourneyFlow';
+import { LectureAnalysis } from '@/features/lecturelab/LectureLabView';
 
 export interface TaskItem {
   id: string;
@@ -51,7 +56,7 @@ export interface TaskItem {
   allocatedMinutes: number;
   difficulty?: 'Easy' | 'Medium' | 'Hard' | 'Board Level' | 'Topper Level' | 'Foundation' | string;
   isCompleted: boolean;
-  status?: 'pending' | 'completed' | 'skipped';
+  status: 'pending' | 'completed' | 'skipped';
 }
 
 export interface StudyStatistics {
@@ -230,6 +235,45 @@ export const HomeScreenRevamped: React.FC = () => {
   const [examDateStr, setExamDateStr] = useState<string>(
     contextExam.examDate || new Date(new Date().setMonth(new Date().getMonth() + 2)).toISOString().split('T')[0]
   );
+
+  // LectureLab States
+  const [lastLecture, setLastLecture] = useState<LectureAnalysis | null>(null);
+  const [recentlySaved, setRecentlySaved] = useState<LectureAnalysis | null>(null);
+
+  // Fetch LectureLab History
+  useEffect(() => {
+    if (!user?.uid) return;
+    const uid = user.uid;
+
+    // Load last analyzed
+    const cachedLast = syncEngine.getLocalCache<LectureAnalysis>('lecturelab_last_analyzed', uid);
+    if (cachedLast) setLastLecture(cachedLast);
+
+    // Fetch recently saved from library
+    const fetchRecentSaved = async () => {
+      try {
+        const q = collection(db, 'users', uid, 'lecturelab_analyses');
+        const snap = await getDocs(q);
+        const list: LectureAnalysis[] = [];
+        snap.forEach((doc) => {
+          list.push(doc.data() as LectureAnalysis);
+        });
+        if (list.length > 0) {
+          // Sort by savedAt desc and get first
+          list.sort((a, b) => {
+            const dateA = a.savedAt ? new Date(a.savedAt).getTime() : 0;
+            const dateB = b.savedAt ? new Date(b.savedAt).getTime() : 0;
+            return dateB - dateA;
+          });
+          setRecentlySaved(list[0]);
+        }
+      } catch (e) {
+        console.warn('Failed to load recent saved lecture for Home Screen:', e);
+      }
+    };
+
+    fetchRecentSaved();
+  }, [user?.uid]);
 
   const [hasCelebratedToday, setHasCelebratedToday] = useState(false);
   const [showCelebrationBanner, setShowCelebrationBanner] = useState(false);
@@ -690,6 +734,129 @@ export const HomeScreenRevamped: React.FC = () => {
         onRegeneratePlan={() => setShowRecalibrateModal(true)}
         isRegenerating={isRegenerating}
       />
+
+      {/* 4. LECTURELAB SECTION: Premium AI-Sourced Lecture Synthesizer */}
+      <div className="p-5 sm:p-6 rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl shadow-xs space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Video className="w-5 h-5 text-indigo-500" />
+            <h3 className="font-extrabold text-sm sm:text-base text-foreground flex items-center gap-1.5">
+              <span>LectureLab Premium</span>
+              <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                AI Video Analyzer
+              </span>
+            </h3>
+          </div>
+          <button
+            onClick={() => setActiveTab('lecturelab')}
+            className="text-xs text-indigo-600 dark:text-indigo-400 font-extrabold hover:underline cursor-pointer flex items-center gap-1"
+          >
+            <span>Open LectureLab</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Quick Analyze Button */}
+          <div className="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/15 flex flex-col justify-between space-y-3">
+            <div>
+              <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block">
+                Quick Analysis
+              </span>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Paste any Class 12 YouTube video link to instantly synthesize summaries, formula guides, and board-level MCQs.
+              </p>
+            </div>
+            <button
+              onClick={() => setActiveTab('lecturelab')}
+              className="w-full h-9 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Quick Analyze</span>
+            </button>
+          </div>
+
+          {/* Continue Last Lecture Block */}
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 flex flex-col justify-between space-y-3">
+            <div>
+              <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider block">
+                Continue Last Lecture
+              </span>
+              {lastLecture ? (
+                <div className="flex items-start gap-2.5 mt-2.5">
+                  <div className="w-16 h-10 rounded-lg overflow-hidden shrink-0 bg-slate-100 dark:bg-slate-950 border border-slate-200/50 dark:border-white/5 relative">
+                    <img src={lastLecture.thumbnailUrl} alt="Thumbnail" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h5 className="text-xs font-extrabold text-foreground truncate leading-snug">{lastLecture.title}</h5>
+                    <span className="text-[9px] text-muted-foreground font-mono block mt-0.5 truncate">{lastLecture.duration} • {lastLecture.detectedSubject}</span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  No lectures analyzed yet. Start by analyzing your first board-exam lecture.
+                </p>
+              )}
+            </div>
+            {lastLecture ? (
+              <button
+                onClick={() => setActiveTab('lecturelab')}
+                className="w-full h-9 rounded-xl border border-slate-200/80 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-950 text-foreground text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              >
+                <Play className="w-3 h-3 text-indigo-500 fill-indigo-500" />
+                <span>Resume Lecture</span>
+              </button>
+            ) : (
+              <button
+                disabled
+                className="w-full h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-muted-foreground text-xs font-bold flex items-center justify-center gap-1.5 opacity-50"
+              >
+                <span>No Session Active</span>
+              </button>
+            )}
+          </div>
+
+          {/* Recently Saved Lecture Block */}
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 flex flex-col justify-between space-y-3">
+            <div>
+              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
+                Recently Saved Lecture
+              </span>
+              {recentlySaved ? (
+                <div className="flex items-start gap-2.5 mt-2.5">
+                  <div className="w-16 h-10 rounded-lg overflow-hidden shrink-0 bg-slate-100 dark:bg-slate-950 border border-slate-200/50 dark:border-white/5 relative">
+                    <img src={recentlySaved.thumbnailUrl} alt="Thumbnail" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h5 className="text-xs font-extrabold text-foreground truncate leading-snug">{recentlySaved.title}</h5>
+                    <span className="text-[9px] text-muted-foreground font-mono block mt-0.5 truncate">{recentlySaved.duration} • {recentlySaved.detectedSubject}</span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  Your lecture library is currently empty. Save an analyzed video to build your archive.
+                </p>
+              )}
+            </div>
+            {recentlySaved ? (
+              <button
+                onClick={() => setActiveTab('lecturelab')}
+                className="w-full h-9 rounded-xl border border-slate-200/80 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-950 text-foreground text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              >
+                <Bookmark className="w-3 h-3 text-emerald-500 fill-emerald-500" />
+                <span>Open Saved Lecture</span>
+              </button>
+            ) : (
+              <button
+                disabled
+                className="w-full h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-muted-foreground text-xs font-bold flex items-center justify-center gap-1.5 opacity-50"
+              >
+                <span>No Saved Items</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* 6. Dynamic Diagnostics: Weakest vs Strongest Chapter + Needs Focus Rebalancer */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

@@ -12,6 +12,7 @@ import { PracticeView } from '@/features/practice/PracticeView';
 import { ProfileView } from '@/features/profile/ProfileView';
 import { RankifyAiScreen } from '@/ai';
 import { StudyJourneyFlow } from '@/features/smartplan/StudyJourneyFlow';
+import { LectureLabView } from '@/features/lecturelab/LectureLabView';
 import { syncEngine } from '@/services/sync-engine';
 import { backupRestoreService } from '@/services/backup-restore';
 import { remoteConfig } from '@/services/remote-config';
@@ -99,6 +100,8 @@ const AppRouter: React.FC = () => {
     switch (activeTab) {
       case 'home':
         return <HomeScreenRevamped />;
+      case 'lecturelab':
+        return <LectureLabView />;
       case 'study':
       case 'progress':
         return <ActiveStudyEngineView />;
