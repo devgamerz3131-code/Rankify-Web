@@ -16,7 +16,7 @@ export const Sidebar: React.FC = () => {
           Curriculum & Tools
         </div>
 
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.filter((item) => item.id !== 'admin' || user?.role === 'admin').map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
 
@@ -34,6 +34,17 @@ export const Sidebar: React.FC = () => {
                 <Icon className={`h-4 w-4 ${isActive ? 'text-white' : 'text-muted-foreground'}`} />
                 <span>{item.label}</span>
               </div>
+              {item.badge && (
+                <span
+                  className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
+                    isActive
+                      ? 'bg-white/20 text-white'
+                      : 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
+                  }`}
+                >
+                  {item.badge}
+                </span>
+              )}
             </button>
           );
         })}

@@ -1,4 +1,4 @@
-import { Home, BookOpen, Target, TrendingUp, User, Sparkles, Video } from '@/icons';
+import { Home, Compass, BookOpen, Target, TrendingUp, User, Sparkles, Video, Settings, Shield, Bookmark, Award, Brain, BrainCircuit, History, RotateCcw, Zap } from '@/icons';
 import { NavItem } from '@/types/navigation';
 
 export const NAV_ITEMS: NavItem[] = [
@@ -9,11 +9,67 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Home,
   },
   {
-    id: 'lecturelab',
-    label: 'LectureLab',
-    path: '/lecturelab',
-    icon: Video,
-    badge: 'Premium',
+    id: 'command',
+    label: 'Command Center',
+    path: '/command',
+    icon: Compass,
+    badge: '30s Intelligence',
+  },
+  {
+    id: 'briefing',
+    label: 'Daily Briefing',
+    path: '/briefing',
+    icon: Sparkles,
+    badge: 'Morning Intelligence',
+  },
+  {
+    id: 'formula',
+    label: 'Formula Engine',
+    path: '/formula',
+    icon: Zap,
+    badge: 'Equations & Proofs',
+  },
+  {
+    id: 'ncert',
+    label: 'NCERT Intelligence',
+    path: '/ncert',
+    icon: BookOpen,
+    badge: 'Interactive AI',
+  },
+  {
+    id: 'revision',
+    label: 'Smart Revision',
+    path: '/revision',
+    icon: RotateCcw,
+    badge: 'Spaced Recall',
+  },
+  {
+    id: 'brain',
+    label: 'Rankify Brain',
+    path: '/brain',
+    icon: BrainCircuit,
+    badge: 'AI Study Coach',
+  },
+  {
+    id: 'replay',
+    label: 'Study Replay',
+    path: '/replay',
+    icon: History,
+    badge: 'Learning Diary',
+  },
+  {
+    id: 'readiness',
+    label: 'Exam Readiness',
+    path: '/readiness',
+    icon: Award,
+    badge: 'Deterministic',
+  },
+  {
+    id: 'weakness',
+    label: 'Weakness Analyzer',
+    path: '/weakness',
+    icon: Brain,
+    badge: 'Root Cause AI',
   },
   {
     id: 'study',
@@ -26,6 +82,13 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Practice',
     path: '/practice',
     icon: Target,
+  },
+  {
+    id: 'mistakes',
+    label: 'Mistake Notebook',
+    path: '/mistakes',
+    icon: Bookmark,
+    badge: 'Spaced Repetition',
   },
   {
     id: 'ai',
@@ -45,5 +108,17 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Profile',
     path: '/profile',
     icon: User,
+  },
+  {
+    id: 'settings',
+    label: 'Settings',
+    path: '/settings',
+    icon: Settings,
+  },
+  {
+    id: 'admin',
+    label: 'Admin Console',
+    path: '/admin',
+    icon: Shield,
   },
 ];

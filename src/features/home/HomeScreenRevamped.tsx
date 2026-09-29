@@ -45,8 +45,19 @@ import { achievementsService } from '@/services/achievements-service';
 import { ShareCardModal } from '@/components/common/ShareCardModal';
 import { Share2 } from 'lucide-react';
 import { RankifySmartPlanCard } from './RankifySmartPlanCard';
+import { MistakeNotebookCard } from './components/MistakeNotebookCard';
+import { ExamReadinessCard } from './components/ExamReadinessCard';
+import { ExamCommandCenterCard } from './components/ExamCommandCenterCard';
+import { RankifyBrainCard } from './components/RankifyBrainCard';
+import { DailyBriefingHomeCard } from './components/DailyBriefingHomeCard';
+import { TodayRevisionCard } from './components/TodayRevisionCard';
+import { NcertIntelligenceCard } from './components/NcertIntelligenceCard';
+import { FormulaIntelligenceCard } from './components/FormulaIntelligenceCard';
+import { WeaknessAnalyzerCard } from './components/WeaknessAnalyzerCard';
+import { StudyReplayCard } from './components/StudyReplayCard';
 import { StudyJourneyFlow } from '@/features/smartplan/StudyJourneyFlow';
-import { LectureAnalysis } from '@/features/lecturelab/LectureLabView';
+import { notificationEngine, NotificationSettings } from '@/services/notification-service';
+import { Bell } from 'lucide-react';
 
 export interface TaskItem {
   id: string;
@@ -236,46 +247,36 @@ export const HomeScreenRevamped: React.FC = () => {
     contextExam.examDate || new Date(new Date().setMonth(new Date().getMonth() + 2)).toISOString().split('T')[0]
   );
 
-  // LectureLab States
-  const [lastLecture, setLastLecture] = useState<LectureAnalysis | null>(null);
-  const [recentlySaved, setRecentlySaved] = useState<LectureAnalysis | null>(null);
+  const [hasCelebratedToday, setHasCelebratedToday] = useState(false);
 
-  // Fetch LectureLab History
+  // Notification Preference state and syncing hooks
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(() => notificationEngine.getSettings());
+
   useEffect(() => {
     if (!user?.uid) return;
-    const uid = user.uid;
-
-    // Load last analyzed
-    const cachedLast = syncEngine.getLocalCache<LectureAnalysis>('lecturelab_last_analyzed', uid);
-    if (cachedLast) setLastLecture(cachedLast);
-
-    // Fetch recently saved from library
-    const fetchRecentSaved = async () => {
-      try {
-        const q = collection(db, 'users', uid, 'lecturelab_analyses');
-        const snap = await getDocs(q);
-        const list: LectureAnalysis[] = [];
-        snap.forEach((doc) => {
-          list.push(doc.data() as LectureAnalysis);
-        });
-        if (list.length > 0) {
-          // Sort by savedAt desc and get first
-          list.sort((a, b) => {
-            const dateA = a.savedAt ? new Date(a.savedAt).getTime() : 0;
-            const dateB = b.savedAt ? new Date(b.savedAt).getTime() : 0;
-            return dateB - dateA;
-          });
-          setRecentlySaved(list[0]);
-        }
-      } catch (e) {
-        console.warn('Failed to load recent saved lecture for Home Screen:', e);
-      }
+    const syncNotificationSettings = async () => {
+      const loaded = await notificationEngine.loadUserPreferences(user.uid);
+      setNotificationSettings(loaded);
     };
-
-    fetchRecentSaved();
+    syncNotificationSettings();
   }, [user?.uid]);
 
-  const [hasCelebratedToday, setHasCelebratedToday] = useState(false);
+  // Auto-request browser notification permission on first launch after login
+  useEffect(() => {
+    if (!user?.uid) return;
+    const triggerFirstPrompt = async () => {
+      const currentSettings = notificationEngine.getSettings();
+      if (!currentSettings.hasPromptedPermission && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+        setTimeout(async () => {
+          await notificationEngine.requestPermission();
+          const refreshed = notificationEngine.getSettings();
+          setNotificationSettings(refreshed);
+        }, 3000);
+      }
+    };
+    triggerFirstPrompt();
+  }, [user?.uid]);
+
   const [showCelebrationBanner, setShowCelebrationBanner] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showRecalibrateModal, setShowRecalibrateModal] = useState(false);
@@ -299,7 +300,6 @@ export const HomeScreenRevamped: React.FC = () => {
       setHasCelebratedToday(false);
 
       if (user?.uid) {
-        syncEngine.queueSync(user.uid, 'users', `${user.uid}/study_statistics`, resetStats as unknown as Record<string, unknown>);
         syncEngine.queueSync(user.uid, 'users', `${user.uid}/study_statistics/current`, resetStats as unknown as Record<string, unknown>);
       }
     }
@@ -347,10 +347,8 @@ export const HomeScreenRevamped: React.FC = () => {
       if (snap.exists()) {
         setStatistics(snap.data() as StudyStatistics);
       }
-    }, () => {
-      onSnapshot(doc(db, 'users', uid, 'study_statistics'), (snap2) => {
-        if (snap2.exists()) setStatistics(snap2.data() as StudyStatistics);
-      });
+    }, (error) => {
+      console.warn('[Rankify] Real-time statistics subscription failed, using local offline stats:', error);
     });
 
     return () => {
@@ -388,6 +386,37 @@ export const HomeScreenRevamped: React.FC = () => {
   const completedCount = useMemo(() => tasks.filter((t) => t.isCompleted).length, [tasks]);
   const totalTasks = tasks.length;
   const progressPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
+
+  // Automated checks scheduler for Study reminders, Streak alerts, and countdowns
+  useEffect(() => {
+    if (!user?.uid || !notificationSettings.enabled) return;
+
+    const pendingCount = tasks.filter(t => !t.isCompleted).length;
+    
+    // Calculate elapsed hours since last active date
+    let lastActiveHours = 0;
+    if (statistics.lastActiveDate) {
+      const lastActive = new Date(statistics.lastActiveDate);
+      const diffMs = Date.now() - lastActive.getTime();
+      lastActiveHours = diffMs / (1000 * 60 * 60);
+    }
+
+    const hasActiveRevision = tasks.some(t => t.taskTitle.toLowerCase().includes('revision') && !t.isCompleted);
+    const activeChapter = tasks.find(t => !t.isCompleted)?.chapterName || 'CBSE Syllabus';
+
+    const timer = setTimeout(() => {
+      notificationEngine.runAutomatedChecks({
+        pendingTasksCount: pendingCount,
+        daysToExam: daysRemaining,
+        streak: statistics.streak || 1,
+        lastStudyTimeElapsedHours: lastActiveHours,
+        hasActiveRevision,
+        activeChapterName: activeChapter,
+      }).catch(err => console.error('[Notification Check Error]:', err));
+    }, 4000);
+
+    return () => clearTimeout(timer);
+  }, [tasks, statistics, daysRemaining, notificationSettings, user?.uid]);
 
   // Celebration trigger when all daily tasks are completed
   useEffect(() => {
@@ -495,7 +524,6 @@ export const HomeScreenRevamped: React.FC = () => {
 
     // Sync to Firestore immediately
     syncEngine.setLocalCache('study_statistics', newStats, uid);
-    syncEngine.queueSync(uid, 'users', `${uid}/study_statistics`, newStats as unknown as Record<string, unknown>);
     syncEngine.queueSync(uid, 'users', `${uid}/study_statistics/current`, newStats as unknown as Record<string, unknown>);
     syncEngine.queueSync(
       uid,
@@ -571,6 +599,56 @@ export const HomeScreenRevamped: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
+      {/* FRIENDLY NOTIFICATION PERMISSION CARD FOR DENIED OR DEFAULT USERS */}
+      {typeof window !== 'undefined' && 'Notification' in window && Notification.permission !== 'granted' && !notificationSettings.permissionDeniedDismissed && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          className="p-5 rounded-3xl border border-purple-500/25 bg-gradient-to-r from-purple-500/5 to-indigo-500/5 dark:from-purple-500/10 dark:to-indigo-500/10 shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 animate-fadeIn"
+        >
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 flex items-center justify-center shrink-0">
+              <Bell className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="font-extrabold text-sm sm:text-base text-foreground flex items-center gap-2">
+                <span>Stay Focused with Study Notifications</span>
+                <span className="text-[9px] font-black uppercase bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-full">Recommended</span>
+              </h4>
+              <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
+                Get high-yield organic chemistry reactions, daily motivational roasts, and streak warnings delivered straight to your desktop. Never miss a CBSE PCM goal!
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 w-full sm:w-auto shrink-0 justify-end">
+            <button
+              onClick={async () => {
+                const granted = await notificationEngine.requestPermission();
+                const next = { ...notificationSettings, hasPromptedPermission: true, permissionDeniedDismissed: true };
+                setNotificationSettings(next);
+                await notificationEngine.saveSettings({ hasPromptedPermission: true, permissionDeniedDismissed: true });
+              }}
+              className="px-4 h-9 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-sm cursor-pointer flex items-center gap-1.5 transition-all"
+            >
+              <span>Enable Now</span>
+            </button>
+            <button
+              onClick={async () => {
+                const next = { ...notificationSettings, permissionDeniedDismissed: true };
+                setNotificationSettings(next);
+                await notificationEngine.saveSettings({ permissionDeniedDismissed: true });
+                toast('Card dismissed. You can configure notifications anytime in Settings.', { icon: 'ℹ️' });
+              }}
+              className="px-3.5 h-9 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-800 text-muted-foreground text-xs font-bold transition-all cursor-pointer"
+            >
+              <span>Dismiss</span>
+            </button>
+          </div>
+        </motion.div>
+      )}
+
       {/* 1. Header Hero Banner with Dynamic Greeting, Streak, Mission & Goal */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-purple-950 via-indigo-950 to-slate-950 p-6 sm:p-8 text-white shadow-2xl border border-purple-500/25">
         <div className="relative z-10 space-y-4">
@@ -716,6 +794,33 @@ export const HomeScreenRevamped: React.FC = () => {
         )}
       </AnimatePresence>
 
+      {/* 00. AI DAILY BRIEFING ENGINE: Morning / Daypart Personalized Study Intelligence */}
+      <DailyBriefingHomeCard />
+
+      {/* 0a. SMART REVISION ENGINE: Today's Revision Premium Card */}
+      <TodayRevisionCard />
+
+      {/* 0b. NCERT INTELLIGENCE ENGINE: Interactive Textbook Learning Card */}
+      <NcertIntelligenceCard />
+
+      {/* 0c. FORMULA INTELLIGENCE ENGINE: Interactive Equation & Derivation Deck */}
+      <FormulaIntelligenceCard />
+
+      {/* 0d. EXAM COMMAND CENTER: 30-Second Exam Intelligence & Command Deck */}
+      <ExamCommandCenterCard />
+
+      {/* 0b. RANKIFY BRAIN: Personal AI Study Coach & Proactive Mentor Card */}
+      <RankifyBrainCard />
+
+      {/* Core Top Section: Exam Readiness Live Metric & Health Check */}
+      <ExamReadinessCard />
+
+      {/* AI Weakness Analyzer Dashboard Card */}
+      <WeaknessAnalyzerCard />
+
+      {/* Study Replay - Student Learning Diary Timeline */}
+      <StudyReplayCard />
+
       {/* 3. RANKIFY SMARTPLAN: Personalized AI-Powered Study Planning Section (Core Top Section) */}
       <RankifySmartPlanCard
         plan={contextPlan}
@@ -734,129 +839,6 @@ export const HomeScreenRevamped: React.FC = () => {
         onRegeneratePlan={() => setShowRecalibrateModal(true)}
         isRegenerating={isRegenerating}
       />
-
-      {/* 4. LECTURELAB SECTION: Premium AI-Sourced Lecture Synthesizer */}
-      <div className="p-5 sm:p-6 rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl shadow-xs space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Video className="w-5 h-5 text-indigo-500" />
-            <h3 className="font-extrabold text-sm sm:text-base text-foreground flex items-center gap-1.5">
-              <span>LectureLab Premium</span>
-              <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
-                AI Video Analyzer
-              </span>
-            </h3>
-          </div>
-          <button
-            onClick={() => setActiveTab('lecturelab')}
-            className="text-xs text-indigo-600 dark:text-indigo-400 font-extrabold hover:underline cursor-pointer flex items-center gap-1"
-          >
-            <span>Open LectureLab</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Quick Analyze Button */}
-          <div className="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/15 flex flex-col justify-between space-y-3">
-            <div>
-              <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block">
-                Quick Analysis
-              </span>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Paste any Class 12 YouTube video link to instantly synthesize summaries, formula guides, and board-level MCQs.
-              </p>
-            </div>
-            <button
-              onClick={() => setActiveTab('lecturelab')}
-              className="w-full h-9 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-colors cursor-pointer"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Quick Analyze</span>
-            </button>
-          </div>
-
-          {/* Continue Last Lecture Block */}
-          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 flex flex-col justify-between space-y-3">
-            <div>
-              <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider block">
-                Continue Last Lecture
-              </span>
-              {lastLecture ? (
-                <div className="flex items-start gap-2.5 mt-2.5">
-                  <div className="w-16 h-10 rounded-lg overflow-hidden shrink-0 bg-slate-100 dark:bg-slate-950 border border-slate-200/50 dark:border-white/5 relative">
-                    <img src={lastLecture.thumbnailUrl} alt="Thumbnail" className="w-full h-full object-cover" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h5 className="text-xs font-extrabold text-foreground truncate leading-snug">{lastLecture.title}</h5>
-                    <span className="text-[9px] text-muted-foreground font-mono block mt-0.5 truncate">{lastLecture.duration} • {lastLecture.detectedSubject}</span>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  No lectures analyzed yet. Start by analyzing your first board-exam lecture.
-                </p>
-              )}
-            </div>
-            {lastLecture ? (
-              <button
-                onClick={() => setActiveTab('lecturelab')}
-                className="w-full h-9 rounded-xl border border-slate-200/80 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-950 text-foreground text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-              >
-                <Play className="w-3 h-3 text-indigo-500 fill-indigo-500" />
-                <span>Resume Lecture</span>
-              </button>
-            ) : (
-              <button
-                disabled
-                className="w-full h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-muted-foreground text-xs font-bold flex items-center justify-center gap-1.5 opacity-50"
-              >
-                <span>No Session Active</span>
-              </button>
-            )}
-          </div>
-
-          {/* Recently Saved Lecture Block */}
-          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 flex flex-col justify-between space-y-3">
-            <div>
-              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
-                Recently Saved Lecture
-              </span>
-              {recentlySaved ? (
-                <div className="flex items-start gap-2.5 mt-2.5">
-                  <div className="w-16 h-10 rounded-lg overflow-hidden shrink-0 bg-slate-100 dark:bg-slate-950 border border-slate-200/50 dark:border-white/5 relative">
-                    <img src={recentlySaved.thumbnailUrl} alt="Thumbnail" className="w-full h-full object-cover" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h5 className="text-xs font-extrabold text-foreground truncate leading-snug">{recentlySaved.title}</h5>
-                    <span className="text-[9px] text-muted-foreground font-mono block mt-0.5 truncate">{recentlySaved.duration} • {recentlySaved.detectedSubject}</span>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Your lecture library is currently empty. Save an analyzed video to build your archive.
-                </p>
-              )}
-            </div>
-            {recentlySaved ? (
-              <button
-                onClick={() => setActiveTab('lecturelab')}
-                className="w-full h-9 rounded-xl border border-slate-200/80 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-950 text-foreground text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-              >
-                <Bookmark className="w-3 h-3 text-emerald-500 fill-emerald-500" />
-                <span>Open Saved Lecture</span>
-              </button>
-            ) : (
-              <button
-                disabled
-                className="w-full h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-muted-foreground text-xs font-bold flex items-center justify-center gap-1.5 opacity-50"
-              >
-                <span>No Saved Items</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
 
       {/* 6. Dynamic Diagnostics: Weakest vs Strongest Chapter + Needs Focus Rebalancer */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -982,6 +964,9 @@ export const HomeScreenRevamped: React.FC = () => {
           </div>
         </Card>
       </div>
+
+      {/* Mistake Notebook Core Feature Card */}
+      <MistakeNotebookCard />
 
       {/* 7. Quick Actions Hub */}
       <div className="p-5 rounded-3xl bg-card/60 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-3">

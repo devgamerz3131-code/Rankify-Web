@@ -1,14 +1,20 @@
 import React from 'react';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { NAV_ITEMS } from '@/constants/navigation';
+import { useAuth } from '@/hooks/use-auth';
 
 export const BottomNav: React.FC = () => {
   const { activeTab, setActiveTab } = useNavigation();
+  const { user } = useAuth();
+
+  const mobileItems = NAV_ITEMS.filter((item) =>
+    ['home', 'command', 'formula', 'ncert', 'revision'].includes(item.id)
+  );
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 px-3 pb-3 pt-1 pointer-events-none">
       <div className="max-w-md mx-auto h-16 rounded-3xl glass-card border border-slate-200/90 dark:border-white/10 shadow-2xl flex items-center justify-around px-2 pointer-events-auto">
-        {NAV_ITEMS.map((item) => {
+        {mobileItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
 

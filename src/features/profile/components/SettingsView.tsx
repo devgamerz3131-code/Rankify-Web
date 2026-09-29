@@ -2,7 +2,8 @@ import React, { useState, useRef } from 'react';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/hooks/use-auth';
 import { useOnboarding } from '@/contexts/OnboardingContext';
-import { notificationEngine, NotificationTone } from '@/services/notification-service';
+import { useNavigation } from '@/contexts/NavigationContext';
+import { notificationEngine } from '@/services/notification-service';
 import { backupRestoreService } from '@/services/backup-restore';
 import { CURRENT_APP_VERSION } from '@/services/remote-config';
 import {
@@ -29,8 +30,8 @@ export const SettingsView: React.FC = () => {
   const { theme, setTheme } = useTheme();
   const { user } = useAuth();
   const { setScreen } = useOnboarding();
+  const { setActiveTab } = useNavigation();
 
-  const [notifSettings, setNotifSettings] = useState(() => notificationEngine.getSettings());
   const [selectedLanguage, setSelectedLanguage] = useState<'English' | 'Hindi'>('English');
   const [showResetModal, setShowResetModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -38,30 +39,6 @@ export const SettingsView: React.FC = () => {
   const [isCloudSyncing, setIsCloudSyncing] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleToggleNotifications = async () => {
-    if (!notifSettings.permissionGranted) {
-      const granted = await notificationEngine.requestPermission();
-      setNotifSettings((prev) => ({ ...prev, permissionGranted: granted, enabled: granted }));
-    } else {
-      const nextState = !notifSettings.enabled;
-      notificationEngine.saveSettings({ enabled: nextState });
-      setNotifSettings((prev) => ({ ...prev, enabled: nextState }));
-      toast.success(nextState ? 'Notifications enabled' : 'Notifications muted');
-    }
-  };
-
-  const handleToneChange = (tone: NotificationTone) => {
-    notificationEngine.saveSettings({ tone });
-    setNotifSettings((prev) => ({ ...prev, tone }));
-    toast.success(`Reminder style set to: ${tone}`);
-  };
-
-  const handleTestNotification = () => {
-    notificationEngine.sendTestNotification(
-      notifSettings.tone === 'balanced' ? 'motivational' : (notifSettings.tone as any)
-    );
-  };
 
   const handleClearCache = () => {
     try {
@@ -200,62 +177,22 @@ export const SettingsView: React.FC = () => {
 
       {/* 2. Notification Center */}
       <div className="p-6 rounded-3xl bg-card/60 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
               <Bell className="w-4 h-4 text-purple-600" />
-              <span>Adaptive Study Reminders</span>
+              <span>Rankify Notification Center</span>
             </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Intelligent notifications that quiet down when you are already studying.
+            <p className="text-xs text-muted-foreground mt-0.5 max-w-xl">
+              Customize detailed Study Reminders, Savage Motivators, Exam Countdown frequency, Streak Protectors, Quiet Hours, and other system-level preferences.
             </p>
           </div>
 
           <button
-            onClick={handleToggleNotifications}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-              notifSettings.enabled
-                ? 'bg-purple-600 text-white'
-                : 'bg-slate-200 dark:bg-slate-800 text-muted-foreground'
-            }`}
+            onClick={() => setActiveTab('settings')}
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold shrink-0 transition-colors cursor-pointer shadow-sm"
           >
-            {notifSettings.enabled ? 'Enabled' : 'Disabled'}
-          </button>
-        </div>
-
-        {/* Tone Selection */}
-        <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-white/5">
-          <label className="text-xs font-semibold text-muted-foreground">Reminder Tone</label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {[
-              { id: 'motivational', label: 'Motivational' },
-              { id: 'savage', label: 'Savage / Direct' },
-              { id: 'funny', label: 'Humorous' },
-              { id: 'balanced', label: 'Balanced' },
-            ].map((t) => (
-              <button
-                key={t.id}
-                onClick={() => handleToneChange(t.id as any)}
-                className={`p-2.5 rounded-xl border text-xs font-semibold text-center transition-colors cursor-pointer ${
-                  notifSettings.tone === t.id
-                    ? 'border-purple-600 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300'
-                    : 'border-slate-200 dark:border-slate-800 text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Test Notification Trigger */}
-        <div className="flex items-center justify-between pt-2">
-          <span className="text-xs text-muted-foreground">Test notification dispatch:</span>
-          <button
-            onClick={handleTestNotification}
-            className="px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-foreground text-xs font-semibold border border-slate-200 dark:border-slate-700 cursor-pointer"
-          >
-            Send Test Alert
+            Manage Notifications
           </button>
         </div>
       </div>

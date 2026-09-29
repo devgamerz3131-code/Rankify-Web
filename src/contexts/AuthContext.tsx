@@ -23,12 +23,17 @@ export interface AuthContextValue extends AuthState {
   sendPasswordReset: (email: string) => Promise<void>;
   signOutUser: () => Promise<void>;
   markOnboardingComplete: () => void;
+  realUser: UserProfile | null;
+  impersonatedUser: UserProfile | null;
+  startImpersonation: (student: UserProfile) => void;
+  stopImpersonation: () => void;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [impersonatedUser, setImpersonatedUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [modalState, setModalState] = useState<AuthModalState>({
@@ -148,9 +153,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser((prev) => (prev ? { ...prev, onboardingCompleted: true } : null));
   }, []);
 
+  const startImpersonation = useCallback((student: UserProfile) => {
+    setImpersonatedUser(student);
+    toast.success(`Impersonating student: ${student.displayName || 'Candidate'}!`, { icon: '👁️' });
+  }, []);
+
+  const stopImpersonation = useCallback(() => {
+    setImpersonatedUser(null);
+    toast.success('Exited student impersonation mode.', { icon: '🛡️' });
+  }, []);
+
+  const activeUser = useMemo(() => impersonatedUser || user, [impersonatedUser, user]);
+
   const value = useMemo(
     () => ({
-      user,
+      user: activeUser,
+      realUser: user,
+      impersonatedUser,
+      startImpersonation,
+      stopImpersonation,
       isLoading,
       isAuthenticated: !!user,
       error,
@@ -165,7 +186,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       signOutUser,
       markOnboardingComplete,
     }),
-    [user, isLoading, error, modalState, openAuthModal, closeAuthModal, clearError, signIn, signUp, signInWithGooglePopup, sendPasswordReset, signOutUser, markOnboardingComplete]
+    [activeUser, user, impersonatedUser, startImpersonation, stopImpersonation, isLoading, error, modalState, openAuthModal, closeAuthModal, clearError, signIn, signUp, signInWithGooglePopup, sendPasswordReset, signOutUser, markOnboardingComplete]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

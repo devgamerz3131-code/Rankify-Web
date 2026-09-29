@@ -31,7 +31,7 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [activeTab, setActiveTabState] = useState<NavRoute>(() => {
     if (typeof window === 'undefined') return 'home';
     const path = window.location.pathname.replace('/', '') as NavRoute;
-    const validTabs: NavRoute[] = ['home', 'study', 'practice', 'ai', 'progress', 'profile'];
+    const validTabs: NavRoute[] = ['home', 'command', 'briefing', 'formula', 'ncert', 'revision', 'brain', 'replay', 'study', 'practice', 'ai', 'progress', 'profile', 'settings', 'admin', 'mistakes', 'readiness', 'weakness'];
     return validTabs.includes(path) ? path : 'home';
   });
 
@@ -61,7 +61,7 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   useEffect(() => {
     const handlePopState = () => {
       const path = window.location.pathname.replace('/', '') as NavRoute;
-      const validTabs: NavRoute[] = ['home', 'study', 'practice', 'ai', 'progress', 'profile'];
+      const validTabs: NavRoute[] = ['home', 'command', 'briefing', 'formula', 'ncert', 'revision', 'brain', 'replay', 'study', 'practice', 'ai', 'progress', 'profile', 'settings', 'admin', 'mistakes', 'readiness', 'weakness'];
       setActiveTabState(validTabs.includes(path) ? path : 'home');
     };
     window.addEventListener('popstate', handlePopState);

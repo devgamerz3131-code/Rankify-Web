@@ -536,7 +536,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
               syncEngine.queueSync(
                 user.uid,
                 'users',
-                `${user.uid}/study_statistics`,
+                `${user.uid}/study_statistics/current`,
                 {
                   streak: 1,
                   completedTasksCount: 0,

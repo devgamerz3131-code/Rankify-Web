@@ -6,6 +6,7 @@ import {
   sendPasswordResetEmail,
   updateProfile,
   onAuthStateChanged,
+  getIdTokenResult,
   User as FirebaseUser,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -109,9 +110,19 @@ export function subscribeToAuthState(
   return onAuthStateChanged(auth, async (firebaseUser) => {
     if (firebaseUser) {
       try {
+        // Force refresh ID token result on authentication state resolving
+        const idTokenResult = await getIdTokenResult(firebaseUser, true);
+        const claims = idTokenResult.claims;
         const profile = await getOrCreateUserProfile(firebaseUser);
+
+        // Auto detect admin or super_admin custom claims
+        if (claims.admin === true || claims.role === 'super_admin') {
+          profile.role = 'admin';
+        }
+
         onUserChanged(profile);
-      } catch {
+      } catch (err) {
+        console.warn('[AuthService] Claims or profile resolution failed:', err);
         onUserChanged({
           uid: firebaseUser.uid,
           email: firebaseUser.email,

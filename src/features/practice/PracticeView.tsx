@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
+import { useAuth } from '@/hooks/use-auth';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Sparkles, CheckCircle2, XCircle, RotateCcw, Target, Brain, Award } from 'lucide-react';
+import { Sparkles, CheckCircle2, XCircle, RotateCcw, Target, Brain, Award, BookX } from 'lucide-react';
+import { mistakeService } from '@/services/mistake-service';
 import toast from 'react-hot-toast';
 
 interface QuizQuestion {
@@ -12,6 +14,8 @@ interface QuizQuestion {
   options: string[];
   correct: number;
   explanation: string;
+  topic?: string;
+  difficulty?: 'Easy' | 'Medium' | 'Hard';
 }
 
 const SAMPLE_QUESTIONS: QuizQuestion[] = [
@@ -19,6 +23,8 @@ const SAMPLE_QUESTIONS: QuizQuestion[] = [
     question: 'According to Ohm’s law, at constant temperature, the current flowing through a conductor is:',
     subject: 'Physics',
     chapter: 'Electricity',
+    topic: 'Ohm Law',
+    difficulty: 'Easy',
     options: [
       'Inversely proportional to potential difference',
       'Directly proportional to potential difference',
@@ -26,36 +32,73 @@ const SAMPLE_QUESTIONS: QuizQuestion[] = [
       'Directly proportional to square of resistance',
     ],
     correct: 1,
-    explanation: 'V = IR; current I is directly proportional to the potential difference V across the ends.',
+    explanation: 'V = IR; current I is directly proportional to the potential difference V across the ends at constant temperature.',
   },
   {
     question: 'Which of the following compounds exhibits functional group isomerism with ethanol?',
     subject: 'Chemistry',
     chapter: 'Carbon and its Compounds',
+    topic: 'Isomerism',
+    difficulty: 'Medium',
     options: ['Methoxymethane', 'Ethanoic acid', 'Propanol', 'Methanal'],
     correct: 0,
-    explanation: 'Ethanol (CH3CH2OH) and methoxymethane (CH3OCH3) have the same molecular formula C2H6O.',
+    explanation: 'Ethanol (CH3CH2OH, alcohol) and methoxymethane (CH3OCH3, ether) share the identical molecular formula C2H6O but possess different functional groups.',
   },
   {
     question: 'If the discriminant of a quadratic equation ax² + bx + c = 0 is greater than zero, the roots are:',
     subject: 'Mathematics',
     chapter: 'Quadratic Equations',
+    topic: 'Discriminant',
+    difficulty: 'Easy',
     options: ['Real and equal', 'Real and distinct', 'Complex conjugates', 'Zero'],
     correct: 1,
-    explanation: 'When b² - 4ac > 0, the quadratic equation possesses two distinct real roots.',
+    explanation: 'When b² - 4ac > 0, the quadratic formula yields two distinct real numerical values.',
   },
   {
     question: 'In flowering plants, the process of double fertilisation results in the formation of:',
     subject: 'Biology',
     chapter: 'Sexual Reproduction in Flowering Plants',
+    topic: 'Double Fertilisation',
+    difficulty: 'Medium',
     options: ['Zygote only', 'Endosperm only', 'Diploid Zygote and Triploid Endosperm', 'Embryo Sac'],
     correct: 2,
-    explanation: 'One male gamete fuses with the egg (syngamy) to form a 2n zygote, while the other fuses with polar nuclei (triple fusion) to form 3n endosperm.',
+    explanation: 'Syngamy forms the 2n zygote, while triple fusion forms the 3n primary endosperm nucleus.',
+  },
+  {
+    question: 'A convex lens of focal length 20 cm is placed in contact with a concave lens of focal length 25 cm. The power of the combination is:',
+    subject: 'Physics',
+    chapter: 'Ray Optics',
+    topic: 'Lens Combination',
+    difficulty: 'Hard',
+    options: ['+1.0 D', '-1.0 D', '+9.0 D', '-9.0 D'],
+    correct: 0,
+    explanation: 'P1 = 100/20 = +5 D. P2 = -100/25 = -4 D. Net power P = P1 + P2 = +5 - 4 = +1.0 D.',
+  },
+  {
+    question: 'Which of the following does NOT give Cannizzaro reaction?',
+    subject: 'Chemistry',
+    chapter: 'Aldehydes, Ketones and Carboxylic Acids',
+    topic: 'Named Reactions',
+    difficulty: 'Medium',
+    options: ['Formaldehyde', 'Benzaldehyde', 'Acetaldehyde', 'Trimethylacetaldehyde'],
+    correct: 2,
+    explanation: 'Acetaldehyde contains alpha-hydrogen atoms, so it undergoes aldol condensation rather than Cannizzaro reaction.',
+  },
+  {
+    question: 'The value of definite integral ∫ (from -π/2 to π/2) sin⁷(x) dx is:',
+    subject: 'Mathematics',
+    chapter: 'Integrals',
+    topic: 'Definite Integrals',
+    difficulty: 'Medium',
+    options: ['1', '0', 'π/2', '2/7'],
+    correct: 1,
+    explanation: 'f(x) = sin⁷(x) is an odd function because f(-x) = -f(x). The integral of an odd function from -a to a is identically 0.',
   },
 ];
 
 export const PracticeView: React.FC = () => {
   const { chapterProgressMap, weakSubjectAnalysis } = useOnboarding();
+  const { user } = useAuth();
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
@@ -72,7 +115,19 @@ export const PracticeView: React.FC = () => {
       setScore((s) => s + 1);
       toast.success('Correct answer! +10 XP', { icon: '🎯' });
     } else {
-      toast.error('Incorrect. Review the concept explanation below.', { icon: '💡' });
+      mistakeService.saveMistake({
+        question: q.question,
+        correctAnswer: q.options[q.correct],
+        studentAnswer: q.options[idx],
+        explanation: q.explanation,
+        subject: q.subject,
+        chapter: q.chapter,
+        topic: q.topic || 'Core Concept',
+        difficulty: q.difficulty || 'Medium',
+        questionType: 'MCQ',
+        source: 'Targeted Weak Area Drill',
+      }).catch(console.error);
+      toast.error('Incorrect. Auto-saved to your Mistake Notebook 📕', { icon: '💡' });
     }
   };
 
@@ -169,14 +224,25 @@ export const PracticeView: React.FC = () => {
 
           {/* Explanation Box */}
           {isAnswered && (
-            <div className="p-4 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-500/30 text-xs space-y-1">
-              <span className="font-bold text-purple-700 dark:text-purple-300 flex items-center gap-1.5">
-                <Brain className="w-3.5 h-3.5" />
-                <span>Concept Breakdown</span>
-              </span>
-              <p className="text-purple-900/80 dark:text-purple-200/80 leading-relaxed">
-                {q.explanation}
-              </p>
+            <div className="space-y-2">
+              <div className="p-4 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-500/30 text-xs space-y-1">
+                <span className="font-bold text-purple-700 dark:text-purple-300 flex items-center gap-1.5">
+                  <Brain className="w-3.5 h-3.5" />
+                  <span>Concept Breakdown</span>
+                </span>
+                <p className="text-purple-900/80 dark:text-purple-200/80 leading-relaxed">
+                  {q.explanation}
+                </p>
+              </div>
+
+              {selectedOption !== q.correct && (
+                <div className="p-3 rounded-xl bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200/60 dark:border-rose-500/30 text-xs flex items-center justify-between gap-2 text-rose-800 dark:text-rose-200">
+                  <div className="flex items-center gap-2">
+                    <BookX className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>Auto-saved to your <strong>Mistake Notebook</strong>. Scheduled for Day 1, Day 3, Day 7 spaced recall.</span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

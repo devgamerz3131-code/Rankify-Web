@@ -1,40 +1,58 @@
 import { safeLocalStorage } from '@/utils/storage';
+import { db } from '@/firebase/config';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { syncEngine } from '@/services/sync-engine';
 import toast from 'react-hot-toast';
 
-export type NotificationTone = 'motivational' | 'savage' | 'funny' | 'balanced';
+export type NotificationFrequency = 'low' | 'normal' | 'high';
 
 export interface NotificationSettings {
   enabled: boolean;
-  permissionGranted: boolean;
-  tone: NotificationTone;
-  dailyReminderTime: string;
-  smartFrequencyReduction: boolean;
-  soundEnabled: boolean;
+  studyReminders: boolean;
+  dailyMotivation: boolean;
+  examCountdown: boolean;
+  revisionReminder: boolean;
+  streakReminder: boolean;
+  smartPlanReminder: boolean;
+  newFeatureUpdates: boolean;
+  frequency: NotificationFrequency;
+  quietHoursStart: string; // "22:00"
+  quietHoursEnd: string;   // "07:00"
+  permissionDeniedDismissed: boolean;
+  hasPromptedPermission: boolean;
+  soundEnabled?: boolean;
 }
 
 const STORAGE_KEY = 'rankify_notification_settings';
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   enabled: true,
-  permissionGranted: false,
-  tone: 'balanced',
-  dailyReminderTime: '18:00',
-  smartFrequencyReduction: true,
+  studyReminders: true,
+  dailyMotivation: true,
+  examCountdown: true,
+  revisionReminder: true,
+  streakReminder: true,
+  smartPlanReminder: true,
+  newFeatureUpdates: true,
+  frequency: 'normal',
+  quietHoursStart: '22:00',
+  quietHoursEnd: '07:00',
+  permissionDeniedDismissed: false,
+  hasPromptedPermission: false,
   soundEnabled: true,
 };
 
 export class NotificationEngine {
   private static instance: NotificationEngine;
   private settings: NotificationSettings;
+  private currentUserId: string | null = null;
 
   private constructor() {
     this.settings = safeLocalStorage.getItem<NotificationSettings>(
       STORAGE_KEY,
       DEFAULT_NOTIFICATION_SETTINGS
     );
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      this.settings.permissionGranted = Notification.permission === 'granted';
-    }
+    this.registerNotificationServiceWorker();
   }
 
   public static getInstance(): NotificationEngine {
@@ -44,167 +62,178 @@ export class NotificationEngine {
     return NotificationEngine.instance;
   }
 
+  // Register sw-notifications.js to deliver background alerts
+  private async registerNotificationServiceWorker() {
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      try {
+        await navigator.serviceWorker.register('/sw-notifications.js', {
+          scope: '/',
+        });
+        console.log('[NotificationEngine] Custom background service worker registered successfully!');
+      } catch (err) {
+        console.warn('[NotificationEngine] Service worker registration ignored or failed:', err);
+      }
+    }
+  }
+
+  // Sync / Load settings from Firestore on user login
+  public async loadUserPreferences(userId: string): Promise<NotificationSettings> {
+    this.currentUserId = userId;
+    if (!userId || userId === 'guest') {
+      return this.settings;
+    }
+
+    try {
+      // 1. Try to load from syncEngine local persistent cache
+      const cached = syncEngine.getLocalCache<NotificationSettings>(STORAGE_KEY, userId);
+      if (cached) {
+        this.settings = { ...DEFAULT_NOTIFICATION_SETTINGS, ...cached };
+      }
+
+      // 2. Try to fetch from Firebase Firestore document
+      const docRef = doc(db, 'users', userId, 'user_preferences', 'notification_settings');
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const cloudData = snap.data();
+        if (cloudData && cloudData.data) {
+          const syncedSettings = cloudData.data as NotificationSettings;
+          this.settings = { ...DEFAULT_NOTIFICATION_SETTINGS, ...syncedSettings };
+          // Cache locally
+          syncEngine.setLocalCache(STORAGE_KEY, this.settings, userId);
+        }
+      }
+    } catch (err) {
+      console.warn('[NotificationEngine] Synced preferences fetch skipped or failed:', err);
+    }
+
+    return this.getSettings();
+  }
+
   public getSettings(): NotificationSettings {
     return { ...this.settings };
   }
 
-  public saveSettings(newSettings: Partial<NotificationSettings>) {
+  public async saveSettings(newSettings: Partial<NotificationSettings>): Promise<void> {
     this.settings = { ...this.settings, ...newSettings };
     safeLocalStorage.setItem(STORAGE_KEY, this.settings);
+
+    const userId = this.currentUserId;
+    if (userId && userId !== 'guest') {
+      syncEngine.setLocalCache(STORAGE_KEY, this.settings, userId);
+      try {
+        const docRef = doc(db, 'users', userId, 'user_preferences', 'notification_settings');
+        await setDoc(docRef, { data: this.settings, updatedAt: new Date().toISOString() }, { merge: true });
+      } catch (err) {
+        console.warn('[NotificationEngine] Failed to sync preferences to Firestore background queue:', err);
+      }
+    }
   }
 
   public async requestPermission(): Promise<boolean> {
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      toast.error('Web Notifications are not supported in this browser environment.');
-      return false;
+    if (typeof window === 'undefined') return false;
+
+    // Detect if the application is loaded inside an iframe (such as AI Studio preview container)
+    const isIframe = window.self !== window.top;
+
+    if (!('Notification' in window)) {
+      // Standard browser support fallback
+      await this.saveSettings({ enabled: true, hasPromptedPermission: true });
+      toast.success('In-App study alerts activated successfully!', { icon: '🔔' });
+      return true;
     }
 
     try {
+      // Sandboxed preview iframe security blocks standard prompt. Bypass with custom in-app fallback.
+      if (isIframe) {
+        console.log('[NotificationEngine] Sandboxed iframe environment detected. Activating interactive in-app study notifications.');
+        await this.saveSettings({ enabled: true, hasPromptedPermission: true });
+        toast.success('In-App study alerts activated successfully!', { icon: '🔔' });
+        return true;
+      }
+
       const permission = await Notification.requestPermission();
       const granted = permission === 'granted';
-      this.saveSettings({ permissionGranted: granted, enabled: granted });
+      
+      // Keep enabled as true in either case so in-app falling back is guaranteed to work
+      await this.saveSettings({ hasPromptedPermission: true, enabled: true });
 
       if (granted) {
-        toast.success('Notifications enabled! Rankify will keep you on track.');
+        toast.success('Awesome! Desktop notification alerts enabled successfully.', { icon: '🎉' });
       } else {
-        toast('Notifications were blocked. In-app alerts will be used.', { icon: 'ℹ️' });
+        toast('Browser notifications blocked. Activating custom in-app study alerts instead!', { icon: '🔔', duration: 5000 });
       }
-      return granted;
+      return true;
     } catch (e) {
-      console.warn('Notification permission error:', e);
-      return false;
+      console.warn('[NotificationEngine] Standard permission query failed. Defaulting to in-app alerts:', e);
+      await this.saveSettings({ enabled: true, hasPromptedPermission: true });
+      toast.success('In-App study alerts activated successfully!', { icon: '🔔' });
+      return true;
     }
   }
 
-  /**
-   * Generates tailored message based on category and student activity level.
-   */
-  public generateAdaptiveMessage(params: {
-    category:
-      | 'funny'
-      | 'savage'
-      | 'motivational'
-      | 'exam_countdown'
-      | 'incomplete_task'
-      | 'revision'
-      | 'weekly_summary'
-      | 'morning'
-      | 'night'
-      | 'missed_study'
-      | 'streak'
-      | 'goal_completed';
-    studentName?: string;
-    streak?: number;
-    daysToExam?: number;
-    pendingTasks?: number;
-    activeMinutesToday?: number;
-    chapterName?: string;
-  }): { title: string; body: string } {
-    const {
-      category,
-      studentName = 'Scholar',
-      streak = 1,
-      daysToExam = 60,
-      pendingTasks = 2,
-      activeMinutesToday = 0,
-      chapterName = 'Electric Charges and Fields',
-    } = params;
+  // Check if current time is within Quiet Hours window
+  private isInQuietHours(): boolean {
+    const start = this.settings.quietHoursStart;
+    const end = this.settings.quietHoursEnd;
+    if (!start || !end) return false;
 
-    // Smart Frequency Reduction: If student already studied >= 90 mins today, relax reminders
-    if (this.settings.smartFrequencyReduction && activeMinutesToday >= 90 && category !== 'goal_completed') {
-      return {
-        title: '🌟 Outstanding Focus Today!',
-        body: `You have logged ${activeMinutesToday} mins of CBSE PCM study today. Keep pacing yourself smoothly!`,
-      };
-    }
+    const now = new Date();
+    const current = now.getHours() * 60 + now.getMinutes();
 
-    switch (category) {
-      case 'funny':
-        return {
-          title: '😼 Even Schrödinger’s Cat is Studying',
-          body: `Is your physics revision done or not done? Don't leave it in a superposition—open Rankify!`,
-        };
-      case 'savage':
-        return {
-          title: '🔥 Real Talk, ' + studentName,
-          body: `While you’re relaxing, thousands of Class 12 competitors just mastered Lens Maker's Formula. Get in the game.`,
-        };
-      case 'motivational':
-        return {
-          title: '✨ 95%+ Target in Sight',
-          body: `Every single derivation solved today compounds for CBSE Board glory. Take on your next mission!`,
-        };
-      case 'exam_countdown':
-        return {
-          title: `⏳ ${daysToExam} Days Until CBSE Boards`,
-          body: `Every day counts. Today's target: Knock out your high-weightage chapters early.`,
-        };
-      case 'incomplete_task':
-        return {
-          title: `📝 ${pendingTasks} Tasks Awaiting Completion`,
-          body: `Wrap up today's daily CBSE PCM missions to lock in full completion for your streak!`,
-        };
-      case 'revision':
-        return {
-          title: `🔄 Spaced Recall Due: ${chapterName}`,
-          body: `Optimal memory retention curve reached for ${chapterName}. A quick 10-minute review locks it in!`,
-        };
-      case 'weekly_summary':
-        return {
-          title: '📊 Weekly Performance Report Ready',
-          body: `Check out your accuracy and chapter completion stats in the Rankify Diagnostic Dashboard.`,
-        };
-      case 'morning':
-        return {
-          title: '☀️ Rise & Conquer CBSE Class 12',
-          body: `Peak brain plasticity window is active. Tackle difficult Calculus or Chemistry mechanisms now!`,
-        };
-      case 'night':
-        return {
-          title: '🌙 Nighttime Formula Consolidation',
-          body: `Reviewing 5 essential formulas before sleep enhances synaptic recall by 40%.`,
-        };
-      case 'missed_study':
-        return {
-          title: '⚡ 15 Minutes is All It Takes',
-          body: `Don't worry if today was hectic—just solve 5 quick PYQs to keep your momentum alive.`,
-        };
-      case 'streak':
-        return {
-          title: `🔥 Defend Your ${streak}-Day Streak!`,
-          body: `You've built unstoppable discipline. Finish at least one CBSE task before midnight!`,
-        };
-      case 'goal_completed':
-        return {
-          title: '🎉 Target Crushed Today!',
-          body: `Phenomenal discipline! All daily CBSE Class 12 tasks completed. Tomorrow we build further.`,
-        };
-      default:
-        return {
-          title: 'Rankify Study Reminder',
-          body: `Stay consistent with your CBSE Class 12 PCM schedule today!`,
-        };
+    const [startH, startM] = start.split(':').map(Number);
+    const [endH, endM] = end.split(':').map(Number);
+
+    const startMinutes = startH * 60 + startM;
+    const endMinutes = endH * 60 + endM;
+
+    if (startMinutes <= endMinutes) {
+      return current >= startMinutes && current <= endMinutes;
+    } else {
+      // Over midnight
+      return current >= startMinutes || current <= endMinutes;
     }
   }
 
-  /**
-   * Fires a system notification or in-app toast with sound.
-   */
-  public triggerNotification(
+  // Fire system or background notification with in-app sound fallback
+  public async triggerNotification(
     title: string,
     body: string,
     icon: string = '/pwa-192x192.png'
-  ): void {
-    if (this.settings.soundEnabled) {
+  ): Promise<void> {
+    if (!this.settings.enabled) return;
+
+    if (this.isInQuietHours()) {
+      console.log('[NotificationEngine] Quiet Hours is active. Suppressed alert:', title);
+      return;
+    }
+
+    if (this.settings.soundEnabled !== false) {
       this.playNotificationChime();
     }
 
-    // Try Web Notification if permission granted
+    // Try service worker background notification
     if (
       typeof window !== 'undefined' &&
+      'serviceWorker' in navigator &&
       'Notification' in window &&
       Notification.permission === 'granted'
     ) {
+      try {
+        const reg = await navigator.serviceWorker.getRegistration('/sw-notifications.js');
+        if (reg) {
+          reg.showNotification(title, {
+            body,
+            icon,
+            badge: '/pwa-192x192.png',
+            vibrate: [200, 100, 200],
+          } as any);
+          return;
+        }
+      } catch (err) {
+        console.warn('[NotificationEngine] SW background notification failed, falling back to window:', err);
+      }
+
+      // Fallback to active window notification
       try {
         new Notification(title, {
           body,
@@ -212,31 +241,138 @@ export class NotificationEngine {
           badge: '/pwa-192x192.png',
         });
         return;
-      } catch (e) {
-        console.warn('System notification trigger failed, falling back to toast:', e);
+      } catch (err) {
+        console.warn('[NotificationEngine] Window alert failed, falling back to toast:', err);
       }
     }
 
-    // Graceful in-app toast fallback
+    // In-app fallback toast
     toast(`${title}\n${body}`, {
       icon: '🔔',
-      duration: 5000,
+      duration: 6000,
     });
   }
 
-  /**
-   * Immediate test notification button trigger
-   */
-  public sendTestNotification(category: 'savage' | 'motivational' | 'funny' = 'motivational') {
-    const msg = this.generateAdaptiveMessage({
-      category,
-      studentName: 'Candidate',
-      streak: 3,
-      daysToExam: 45,
-      pendingTasks: 2,
-      activeMinutesToday: 40,
-    });
-    this.triggerNotification(msg.title, msg.body);
+  // Trigger immediate browser test notification
+  public sendTestNotification() {
+    const funnySavageQuotes = [
+      'Books miss you more than Instagram today 😂',
+      'Topper banne ka shortcut nahi hai. Open Rankify.',
+      'Kal ka "kal" kabhi nahi aata.',
+      'Phone charge ho gaya, ab dimaag bhi charge kar.',
+      'Physics won\'t study itself 😶',
+    ];
+    const randomIndex = Math.floor(Math.random() * funnySavageQuotes.length);
+    const bodyText = funnySavageQuotes[randomIndex];
+
+    this.triggerNotification('🎯 Rankify Test Notification', bodyText);
+  }
+
+  // Generate motivational reminders
+  public getMotivationalReminders(): { title: string; body: string }[] {
+    return [
+      { title: '🤪 Reality Check', body: 'Books miss you more than Instagram today 😂' },
+      { title: '🥇 Mission Board Exam', body: 'Topper banne ka shortcut nahi hai. Open Rankify.' },
+      { title: '⏳ Procrastinator Warning', body: 'Kal ka "kal" kabhi nahi aata.' },
+      { title: '🔋 Battery Full?', body: 'Phone charge ho gaya, ab dimaag bhi charge kar.' },
+      { title: '😶 Physics Alert', body: 'Physics won\'t study itself 😶' },
+      { title: '⚡ Spark Your Calculus', body: 'Derivations don\'t solve themselves when you scroll Reels!' },
+      { title: '🧪 Organic Chemistry', body: 'Aldol Condensation wants to meet you before board exam does!' },
+    ];
+  }
+
+  // Runs background analysis reminders based on client state
+  public async runAutomatedChecks(params: {
+    pendingTasksCount: number;
+    daysToExam: number;
+    streak: number;
+    lastStudyTimeElapsedHours?: number;
+    hasActiveRevision?: boolean;
+    activeChapterName?: string;
+  }): Promise<void> {
+    if (!this.settings.enabled) return;
+    if (this.isInQuietHours()) return;
+
+    const {
+      pendingTasksCount,
+      daysToExam,
+      streak,
+      lastStudyTimeElapsedHours = 0,
+      hasActiveRevision = false,
+      activeChapterName = 'Organic Chemistry',
+    } = params;
+
+    const now = new Date();
+    const currentHour = now.getHours();
+
+    // Frequency constraints check
+    // Low: check only in afternoon (14:00 - 16:00)
+    // Normal: check morning (9:00 - 11:00) and evening (18:00 - 20:00)
+    // High: check any time
+    if (this.settings.frequency === 'low') {
+      if (currentHour < 14 || currentHour > 16) return;
+    } else if (this.settings.frequency === 'normal') {
+      const isMorningSlot = currentHour >= 9 && currentHour <= 11;
+      const isEveningSlot = currentHour >= 18 && currentHour <= 20;
+      if (!isMorningSlot && !isEveningSlot) return;
+    }
+
+    // 1. Study & SmartPlan Reminders
+    if (this.settings.studyReminders && pendingTasksCount > 0) {
+      const studyPhrases = [
+        '📚 Your Physics task is waiting.',
+        '⚡ Only 25 minutes today to stay on track.',
+        '🎯 Complete today\'s mission.',
+      ];
+      const randomPhrase = studyPhrases[Math.floor(Math.random() * studyPhrases.length)];
+      await this.triggerNotification('📚 SmartPlan Priority Remind', randomPhrase);
+      return; // prevent spamming multiple notifications at the exact same tick
+    }
+
+    // 2. Revision Reminder
+    if (this.settings.revisionReminder && hasActiveRevision) {
+      await this.triggerNotification(
+        '🔄 Revision Scheduled',
+        `Time to revise "${activeChapterName}" now to lock-in long-term memory recall!`
+      );
+      return;
+    }
+
+    // 3. Exam Mode Reminders (Countdown and Frequency Boost)
+    if (this.settings.examCountdown && daysToExam > 0) {
+      const isExamNear = daysToExam <= 15;
+      if (isExamNear || Math.random() < 0.3) {
+        await this.triggerNotification(
+          '⏳ Exam Mode Boost!',
+          `Only ${daysToExam} days left until CBSE Board Exams! Revise your formula sheets now.`
+        );
+        return;
+      }
+    }
+
+    // 4. Streak & Missed Study Reminders
+    if (this.settings.streakReminder) {
+      if (lastStudyTimeElapsedHours >= 24 && lastStudyTimeElapsedHours < 48) {
+        await this.triggerNotification(
+          '🔥 Streak Alert!',
+          `You are about to miss your study today! Revise 5 quick MCQs to protect your ${streak}-day streak.`
+        );
+        return;
+      } else if (lastStudyTimeElapsedHours >= 48) {
+        await this.triggerNotification(
+          '💔 Streak Broken!',
+          `Oh no, your study streak was lost. Restart your momentum today—you can do this!`
+        );
+        return;
+      }
+    }
+
+    // 5. Daily Motivation Reminders
+    if (this.settings.dailyMotivation && Math.random() < 0.25) {
+      const motivators = this.getMotivationalReminders();
+      const quote = motivators[Math.floor(Math.random() * motivators.length)];
+      await this.triggerNotification(quote.title, quote.body);
+    }
   }
 
   private playNotificationChime() {
@@ -251,14 +387,14 @@ export class NotificationEngine {
       osc.type = 'sine';
       osc.frequency.setValueAtTime(880, ctx.currentTime); // A5
       osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.15); // E6
-      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 0.3);
     } catch {
-      // User gesture might be needed
+      // User gesture bypass
     }
   }
 }

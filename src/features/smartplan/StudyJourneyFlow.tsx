@@ -318,7 +318,7 @@ export const StudyJourneyFlow: React.FC<StudyJourneyFlowProps> = ({
           await setDoc(userRef, profileData, { merge: true });
         }
 
-        syncEngine.queueSync(uid, 'users', `${uid}/study_profile`, studyProfile as unknown as Record<string, unknown>);
+        syncEngine.queueSync(uid, 'users', `${uid}/study_profile/current`, studyProfile as unknown as Record<string, unknown>);
         syncEngine.queueSync(
           uid,
           'users',

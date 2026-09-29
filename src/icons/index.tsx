@@ -32,6 +32,7 @@ export {
   Layers,
   GraduationCap,
   BrainCircuit,
+  Brain,
   Target,
   BarChart3,
   Bookmark,
@@ -45,6 +46,9 @@ export {
   WifiOff,
   RefreshCw,
   Video,
+  History,
+  RotateCcw,
+  Zap,
 } from 'lucide-react';
 
 export const RankifyLogo: React.FC<{ className?: string; size?: number }> = ({

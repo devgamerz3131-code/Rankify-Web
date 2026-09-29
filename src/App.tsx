@@ -10,9 +10,20 @@ import { HomeScreenRevamped } from '@/features/home/HomeScreenRevamped';
 import { ActiveStudyEngineView } from '@/features/study/ActiveStudyEngineView';
 import { PracticeView } from '@/features/practice/PracticeView';
 import { ProfileView } from '@/features/profile/ProfileView';
+import { NotificationSettingsView } from '@/features/settings/NotificationSettingsView';
 import { RankifyAiScreen } from '@/ai';
 import { StudyJourneyFlow } from '@/features/smartplan/StudyJourneyFlow';
-import { LectureLabView } from '@/features/lecturelab/LectureLabView';
+import { AdminDashboardView } from '@/features/admin/AdminDashboardView';
+import { MistakeNotebookView } from '@/features/mistakes/MistakeNotebookView';
+import { ExamReadinessView } from '@/features/readiness/ExamReadinessView';
+import { WeaknessAnalyzerView } from '@/features/weakness/WeaknessAnalyzerView';
+import { StudyReplayView } from '@/features/replay/StudyReplayView';
+import { RankifyBrainView } from '@/features/brain/RankifyBrainView';
+import { ExamCommandCenterView } from '@/features/command/ExamCommandCenterView';
+import { SmartRevisionEngineView } from '@/features/revision/SmartRevisionEngineView';
+import { NcertLibraryView } from '@/features/ncert/NcertLibraryView';
+import { FormulaIntelligenceView } from '@/features/formula/FormulaIntelligenceView';
+import { DailyBriefingView } from '@/features/briefing/DailyBriefingView';
 import { syncEngine } from '@/services/sync-engine';
 import { backupRestoreService } from '@/services/backup-restore';
 import { remoteConfig } from '@/services/remote-config';
@@ -21,7 +32,7 @@ import { ErrorBoundary } from '@/components/common/error-boundary';
 
 const AppRouter: React.FC = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
-  const { activeTab } = useNavigation();
+  const { activeTab, setActiveTab } = useNavigation();
   const [isMaintenance, setIsMaintenance] = useState(() => remoteConfig.isMaintenanceActive());
   const [journeyCompleted, setJourneyCompleted] = useState<boolean>(() => {
     if (!user?.uid) return false;
@@ -100,8 +111,6 @@ const AppRouter: React.FC = () => {
     switch (activeTab) {
       case 'home':
         return <HomeScreenRevamped />;
-      case 'lecturelab':
-        return <LectureLabView />;
       case 'study':
       case 'progress':
         return <ActiveStudyEngineView />;
@@ -111,6 +120,34 @@ const AppRouter: React.FC = () => {
         return <RankifyAiScreen />;
       case 'profile':
         return <ProfileView />;
+      case 'settings':
+        return <NotificationSettingsView />;
+      case 'admin':
+        if (user?.role !== 'admin') {
+          setTimeout(() => setActiveTab('home'), 0);
+          return <HomeScreenRevamped />;
+        }
+        return <AdminDashboardView />;
+      case 'mistakes':
+        return <MistakeNotebookView />;
+      case 'readiness':
+        return <ExamReadinessView />;
+      case 'weakness':
+        return <WeaknessAnalyzerView />;
+      case 'replay':
+        return <StudyReplayView />;
+      case 'brain':
+        return <RankifyBrainView />;
+      case 'command':
+        return <ExamCommandCenterView />;
+      case 'briefing':
+        return <DailyBriefingView />;
+      case 'revision':
+        return <SmartRevisionEngineView />;
+      case 'ncert':
+        return <NcertLibraryView />;
+      case 'formula':
+        return <FormulaIntelligenceView />;
       default:
         return <HomeScreenRevamped />;
     }
