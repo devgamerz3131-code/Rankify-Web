@@ -3,23 +3,20 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 
-// Cleanly unregister any stale service workers or caches from previous builds
-if (typeof window !== 'undefined') {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then((registrations) => {
+// Ensure service workers update cleanly on new deploys without wiping active notification/PWA workers
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  navigator.serviceWorker
+    .getRegistrations()
+    .then((registrations) => {
       for (const registration of registrations) {
-        registration.unregister().catch(() => {});
+        if (import.meta.env.DEV && registration.active?.scriptURL.includes('/dev-sw.js')) {
+          registration.unregister().catch(() => {});
+        } else {
+          registration.update().catch(() => {});
+        }
       }
-    }).catch(() => {});
-  }
-
-  if ('caches' in window) {
-    caches.keys().then((keys) => {
-      for (const key of keys) {
-        caches.delete(key).catch(() => {});
-      }
-    }).catch(() => {});
-  }
+    })
+    .catch(() => {});
 }
 
 const rootElement = document.getElementById('root');

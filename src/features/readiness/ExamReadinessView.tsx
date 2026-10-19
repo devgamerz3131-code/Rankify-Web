@@ -196,16 +196,12 @@ export const ExamReadinessView: React.FC = () => {
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-16">
       {/* 1. Header Hero Card with Circular Gauge & Strategy Mode */}
-      <div className={`relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-gradient-to-br ${ratingThemes.glowBg} text-white border border-indigo-500/30 shadow-2xl`}>
-        {/* Glow circles */}
-        <div className="absolute -right-24 -top-24 w-80 h-80 rounded-full bg-indigo-500/15 blur-3xl pointer-events-none" />
-        <div className="absolute -left-20 -bottom-20 w-80 h-80 rounded-full bg-purple-500/10 blur-3xl pointer-events-none" />
-
+      <div className={`relative overflow-hidden rounded-2xl p-6 sm:p-8 bg-gradient-to-br ${ratingThemes.glowBg} text-white border border-indigo-500/30 shadow-2xl`}>
         <div className="relative z-10 space-y-6">
           {/* Top navigation row */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-bold text-indigo-200">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/10 border border-white/15 text-xs font-bold text-indigo-200">
                 <ShieldCheck className="w-4 h-4 text-indigo-300" />
                 <span>Rankify Exam Readiness Engine</span>
               </div>
@@ -253,7 +249,7 @@ export const ExamReadinessView: React.FC = () => {
 
               {/* Exam Mode Strategic Banner */}
               {examMode && (
-                <div className="p-4 rounded-2xl bg-black/40 backdrop-blur-md border border-amber-500/30 mt-4 space-y-2">
+                <div className="p-4 rounded-2xl bg-black/40 border border-amber-500/30 mt-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-xs font-extrabold text-amber-300 uppercase tracking-wider">
                       <Flame className="w-4 h-4 text-amber-400" />
@@ -322,7 +318,7 @@ export const ExamReadinessView: React.FC = () => {
 
           {/* Quick Metrics Ribbon */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-            <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10">
+            <div className="p-3.5 rounded-2xl bg-white/10 border border-white/10">
               <div className="flex items-center gap-1.5 text-xs text-indigo-200">
                 <Target className="w-3.5 h-3.5 text-indigo-300" />
                 <span>Current Prep</span>
@@ -332,7 +328,7 @@ export const ExamReadinessView: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10">
+            <div className="p-3.5 rounded-2xl bg-white/10 border border-white/10">
               <div className="flex items-center gap-1.5 text-xs text-indigo-200">
                 <TrendingUp className="w-3.5 h-3.5 text-emerald-300" />
                 <span>Expected by Exam</span>
@@ -342,7 +338,7 @@ export const ExamReadinessView: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10">
+            <div className="p-3.5 rounded-2xl bg-white/10 border border-white/10">
               <div className="flex items-center gap-1.5 text-xs text-indigo-200">
                 <AlertTriangle className="w-3.5 h-3.5 text-rose-300" />
                 <span>High Priority</span>
@@ -352,7 +348,7 @@ export const ExamReadinessView: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10">
+            <div className="p-3.5 rounded-2xl bg-white/10 border border-white/10">
               <div className="flex items-center gap-1.5 text-xs text-indigo-200">
                 <ShieldCheck className="w-3.5 h-3.5 text-purple-300" />
                 <span>Target Score Band</span>
@@ -389,7 +385,7 @@ export const ExamReadinessView: React.FC = () => {
             return (
               <Card
                 key={sub.subjectId}
-                className="p-5 sm:p-6 bg-card/80 backdrop-blur-xl border-slate-200/80 dark:border-white/10 shadow-xs flex flex-col justify-between hover:shadow-md transition-all"
+                className="p-5 sm:p-6 bg-card border-border shadow-xs flex flex-col justify-between hover:shadow-md transition-all"
               >
                 <div className="space-y-4">
                   {/* Subject Header */}
@@ -513,7 +509,7 @@ export const ExamReadinessView: React.FC = () => {
                     <span className="text-emerald-500 font-bold">
                       {sub.masteredChapters} Mastered
                     </span>
-                    <span className="text-slate-300 dark:text-slate-700">•</span>
+                    <span className="text-slate-400 dark:text-slate-500">•</span>
                     <span className="text-rose-500 font-bold">
                       {sub.weakChapters} Weak
                     </span>
@@ -540,7 +536,7 @@ export const ExamReadinessView: React.FC = () => {
       {/* 3. WHY THIS SCORE (Diagnostic Explanations) & IMPROVEMENT PLAN (Top 5 Actions) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: WHY THIS SCORE */}
-        <Card className="p-5 sm:p-6 bg-card/80 backdrop-blur-xl border-slate-200/80 dark:border-white/10 shadow-xs flex flex-col justify-between">
+        <Card className="p-5 sm:p-6 bg-card border-border shadow-xs flex flex-col justify-between">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -610,7 +606,7 @@ export const ExamReadinessView: React.FC = () => {
         </Card>
 
         {/* Right: TOP 5 IMPROVEMENT PLAN */}
-        <Card className="p-5 sm:p-6 bg-card/80 backdrop-blur-xl border-slate-200/80 dark:border-white/10 shadow-xs flex flex-col justify-between">
+        <Card className="p-5 sm:p-6 bg-card border-border shadow-xs flex flex-col justify-between">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -824,7 +820,7 @@ export const ExamReadinessView: React.FC = () => {
                 key={ch.chapterId}
                 whileHover={{ scale: 1.02 }}
                 onClick={() => setSelectedChapterDetail(ch)}
-                className={`p-3.5 rounded-2xl border ${statusConfig.bg} backdrop-blur-xs flex flex-col justify-between cursor-pointer transition-all min-h-[110px]`}
+                className={`p-3.5 rounded-2xl border ${statusConfig.bg} flex flex-col justify-between cursor-pointer transition-all min-h-[110px]`}
               >
                 <div>
                   <div className="flex items-start justify-between gap-1 mb-1">
@@ -866,7 +862,7 @@ export const ExamReadinessView: React.FC = () => {
       </div>
 
       {/* 5. WEEKLY TREND CHART & SUMMARY */}
-      <Card className="p-5 sm:p-6 bg-card/80 backdrop-blur-xl border-slate-200/80 dark:border-white/10 shadow-xs">
+      <Card className="p-5 sm:p-6 bg-card border-border shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
           <div className="flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
@@ -903,7 +899,7 @@ export const ExamReadinessView: React.FC = () => {
       {/* MODAL: CHAPTER DETAIL DRAWER */}
       <AnimatePresence>
         {selectedChapterDetail && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -1034,7 +1030,7 @@ export const ExamReadinessView: React.FC = () => {
       {/* MODAL: EDIT EXAM TARGET */}
       <AnimatePresence>
         {showExamModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}

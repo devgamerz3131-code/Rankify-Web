@@ -1,12 +1,10 @@
 import React from 'react';
 import { useNavigation } from '@/contexts/NavigationContext';
-import { useAuth } from '@/hooks/use-auth';
 import { NAV_ITEMS } from '@/constants/navigation';
-import { ChevronRight, Award } from '@/icons';
+import { ChevronRight } from '@/icons';
 
 export const ResponsiveHeader: React.FC = () => {
   const { activeTab, selectedClass } = useNavigation();
-  const { user } = useAuth();
 
   const currentNav = NAV_ITEMS.find((item) => item.id === activeTab) || NAV_ITEMS[0];
 
@@ -35,21 +33,8 @@ export const ResponsiveHeader: React.FC = () => {
             )}
           </div>
         </div>
-
-        {/* User Status / Badge */}
-        <div className="flex items-center gap-2 text-xs">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-200/80 dark:border-white/10 bg-card shadow-xs">
-            <Award className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-            <span className="font-semibold text-foreground">
-              {user ? user.displayName || 'Student' : 'Guest Student'}
-            </span>
-            <span className="text-muted-foreground">•</span>
-            <span className="text-purple-600 dark:text-purple-400 font-semibold">
-              {user?.role === 'admin' ? 'Educator' : `Class ${selectedClass}`}
-            </span>
-          </div>
-        </div>
       </div>
     </div>
   );
 };
+

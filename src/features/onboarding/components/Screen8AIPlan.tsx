@@ -86,18 +86,8 @@ export const Screen8AIPlan: React.FC = () => {
             className="absolute inset-0 rounded-full border-2 border-dashed border-purple-500/40 pointer-events-none"
           />
 
-          {/* Secondary Pulse Ring */}
-          <motion.div
-            animate={{
-              scale: [1, 1.25, 1],
-              opacity: [0.25, 0.6, 0.25],
-            }}
-            transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
-            className="absolute inset-2 rounded-full bg-gradient-to-tr from-purple-600 via-indigo-500 to-pink-500 blur-2xl pointer-events-none"
-          />
-
           {/* Center Brain Core */}
-          <div className="relative z-10 w-28 h-28 rounded-3xl bg-slate-950 border border-purple-500/50 shadow-2xl flex flex-col items-center justify-center backdrop-blur-xl">
+          <div className="relative z-10 w-28 h-28 rounded-3xl bg-slate-950 border border-purple-500/50 shadow-2xl flex flex-col items-center justify-center">
             <BrainCircuit className="w-12 h-12 text-purple-400 animate-pulse" />
             <motion.div
               animate={{ opacity: [0.4, 1, 0.4] }}
@@ -138,7 +128,7 @@ export const Screen8AIPlan: React.FC = () => {
         </div>
 
         {/* 5 Distinct Pipeline Stages Checklist */}
-        <div className="max-w-md mx-auto rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-white/10 p-4 text-left shadow-xs backdrop-blur-xl space-y-2">
+        <div className="max-w-md mx-auto rounded-2xl bg-card border border-border p-4 text-left shadow-xs space-y-2">
           {STAGES.map((stage, idx) => {
             const isCompleted = currentStageIndex > idx || generationProgress === 100;
             const isCurrent = currentStageIndex === idx && generationProgress < 100;
@@ -202,7 +192,7 @@ export const Screen8AIPlan: React.FC = () => {
         {/* Fast Track / Instant Generate Button */}
         <div className="pt-2">
           <Button
-            variant="glass"
+            variant="surface"
             size="sm"
             onClick={() => startAIPlanGeneration(true)}
             className="text-xs font-semibold gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground"

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/use-auth';
 import { mistakeService } from '@/services/mistake-service';
@@ -93,6 +93,30 @@ export const MistakeNotebookView: React.FC = () => {
 
   // Active view tab: 'notebook' | 'analytics'
   const [activeTab, setActiveTab] = useState<'notebook' | 'analytics'>('notebook');
+  const tabsRef = useRef<HTMLDivElement>(null);
+
+  const updateTabsFade = useCallback(() => {
+    const el = tabsRef.current;
+    if (!el) return;
+    el.setAttribute('data-fade-left', el.scrollLeft > 4 ? 'true' : 'false');
+    el.setAttribute(
+      'data-fade-right',
+      el.scrollLeft + el.clientWidth < el.scrollWidth - 4 ? 'true' : 'false'
+    );
+  }, []);
+
+  useEffect(() => {
+    const el = tabsRef.current;
+    if (!el) return;
+    const activeBtn = el.querySelector('[data-active="true"]') as HTMLElement | null;
+    if (activeBtn && el.scrollWidth > el.clientWidth) {
+      const targetLeft = activeBtn.offsetLeft - el.clientWidth / 2 + activeBtn.clientWidth / 2;
+      el.scrollTo({ left: Math.max(0, targetLeft), behavior: 'smooth' });
+    }
+    updateTabsFade();
+    window.addEventListener('resize', updateTabsFade);
+    return () => window.removeEventListener('resize', updateTabsFade);
+  }, [activeTab, updateTabsFade]);
 
   // Quick Revision Interactive Session Modal
   const [revisionSessionActive, setRevisionSessionActive] = useState<boolean>(false);
@@ -309,18 +333,18 @@ export const MistakeNotebookView: React.FC = () => {
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-rose-950 via-slate-950 to-indigo-950 p-6 sm:p-8 text-white shadow-2xl border border-rose-500/25">
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-5">
           <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-md px-3 py-1 text-xs font-semibold text-rose-200 border border-white/15">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-rose-200 border border-white/15">
               <BookX className="h-3.5 w-3.5 text-rose-300" />
               <span>Rankify Core Intelligence</span>
             </div>
-            <h1 className="text-2xl sm:text-4xl font-black tracking-tight flex items-center gap-2">
+            <h1 className="text-2xl sm:text-4xl font-black tracking-tight flex flex-wrap items-center gap-2">
               <span>Mistake Notebook</span>
-              <span className="text-sm font-bold bg-rose-500/20 text-rose-300 px-2.5 py-0.5 rounded-full border border-rose-500/30">
+              <span className="text-sm font-bold bg-rose-500/20 text-rose-300 px-2.5 py-0.5 rounded-full border border-rose-500/30 whitespace-nowrap shrink-0">
                 Spaced Repetition
               </span>
             </h1>
             <p className="text-xs sm:text-sm text-slate-300 max-w-2xl font-medium leading-relaxed">
-              Every incorrect question in Practice, NCERT PYQs, or Study Engine is automatically logged here. Re-test on Day 1, Day 3, Day 7, Day 14, and Day 30 to guarantee 100% board accuracy!
+              Incorrect questions from Practice, NCERT PYQs, or Study sessions are logged here. Review on Day 1, Day 3, Day 7, Day 14, and Day 30 to build lasting accuracy.
             </p>
           </div>
 
@@ -344,9 +368,6 @@ export const MistakeNotebookView: React.FC = () => {
             </Button>
           </div>
         </div>
-
-        {/* Ambient Glow */}
-        <div className="absolute -right-20 -bottom-20 w-80 h-80 rounded-full bg-rose-500/15 blur-3xl pointer-events-none" />
       </div>
 
       {/* 2. STATS OVERVIEW CARDS */}
@@ -393,56 +414,62 @@ export const MistakeNotebookView: React.FC = () => {
       </div>
 
       {/* 3. NAVIGATION VIEW TOGGLE (Notebook vs Analytics) */}
-      <div className="flex items-center justify-between gap-4 border-b border-slate-200 dark:border-white/10 pb-2">
-        <div className="flex items-center gap-2">
+      <div
+        ref={tabsRef}
+        onScroll={updateTabsFade}
+        className="flex items-center justify-between gap-2 border-b border-slate-200 dark:border-white/10 pb-2 overflow-x-auto flex-nowrap snap-x snap-mandatory scrollbar-none scroll-edge-fade min-w-0"
+      >
+        <div className="flex items-center gap-2 shrink-0">
           <button
+            data-active={activeTab === 'notebook'}
             onClick={() => setActiveTab('notebook')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shrink-0 whitespace-nowrap snap-start min-h-[44px] lg:min-h-0 ${
               activeTab === 'notebook'
                 ? 'bg-purple-600 text-white shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            <BookX className="w-3.5 h-3.5" />
+            <BookX className="w-3.5 h-3.5 shrink-0" />
             <span>Mistake Vault ({filteredMistakes.length})</span>
           </button>
 
           <button
+            data-active={activeTab === 'analytics'}
             onClick={() => setActiveTab('analytics')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shrink-0 whitespace-nowrap snap-start min-h-[44px] lg:min-h-0 ${
               activeTab === 'analytics'
                 ? 'bg-purple-600 text-white shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            <BarChart3 className="w-3.5 h-3.5" />
-            <span>Error Analytics & Diagnostic Charts</span>
+            <BarChart3 className="w-3.5 h-3.5 shrink-0" />
+            <span>Error Breakdown & Trends</span>
           </button>
         </div>
 
         {/* Bookmark & Pin quick filters */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setFilters((prev) => ({ ...prev, pinnedOnly: !prev.pinnedOnly }))}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border shrink-0 whitespace-nowrap snap-start min-h-[44px] lg:min-h-0 ${
               filters.pinnedOnly
                 ? 'bg-purple-500/20 text-purple-600 dark:text-purple-400 border-purple-500/40'
                 : 'bg-card text-muted-foreground border-slate-200 dark:border-white/10 hover:text-foreground'
             }`}
           >
-            <Pin className="w-3.5 h-3.5" />
+            <Pin className="w-3.5 h-3.5 shrink-0" />
             <span>Pinned</span>
           </button>
 
           <button
             onClick={() => setFilters((prev) => ({ ...prev, bookmarkedOnly: !prev.bookmarkedOnly }))}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border shrink-0 whitespace-nowrap snap-start min-h-[44px] lg:min-h-0 ${
               filters.bookmarkedOnly
                 ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/40'
                 : 'bg-card text-muted-foreground border-slate-200 dark:border-white/10 hover:text-foreground'
             }`}
           >
-            <Bookmark className="w-3.5 h-3.5" />
+            <Bookmark className="w-3.5 h-3.5 shrink-0" />
             <span>Bookmarked</span>
           </button>
         </div>
@@ -643,37 +670,37 @@ export const MistakeNotebookView: React.FC = () => {
                       </div>
 
                       {/* Right Pin & Bookmark & Delete buttons */}
-                      <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="flex items-center gap-1 shrink-0">
                         <button
                           onClick={() => mistakeService.togglePin(item.id)}
-                          className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                          className={`min-w-[44px] min-h-[44px] lg:min-w-[36px] lg:min-h-[36px] p-2.5 lg:p-1.5 flex items-center justify-center rounded-xl transition-colors cursor-pointer ${
                             item.isPinned
                               ? 'text-purple-600 bg-purple-500/15'
                               : 'text-muted-foreground hover:bg-slate-100 dark:hover:bg-slate-800'
                           }`}
                           title={item.isPinned ? 'Unpin' : 'Pin to top'}
                         >
-                          <Pin className="w-3.5 h-3.5" />
+                          <Pin className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
                         </button>
 
                         <button
                           onClick={() => mistakeService.toggleBookmark(item.id)}
-                          className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                          className={`min-w-[44px] min-h-[44px] lg:min-w-[36px] lg:min-h-[36px] p-2.5 lg:p-1.5 flex items-center justify-center rounded-xl transition-colors cursor-pointer ${
                             item.isBookmarked
                               ? 'text-amber-500 bg-amber-500/15'
                               : 'text-muted-foreground hover:bg-slate-100 dark:hover:bg-slate-800'
                           }`}
                           title={item.isBookmarked ? 'Remove bookmark' : 'Bookmark'}
                         >
-                          <Bookmark className="w-3.5 h-3.5" />
+                          <Bookmark className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
                         </button>
 
                         <button
                           onClick={() => mistakeService.deleteMistake(item.id)}
-                          className="p-1.5 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                          className="min-w-[44px] min-h-[44px] lg:min-w-[36px] lg:min-h-[36px] p-2.5 lg:p-1.5 flex items-center justify-center text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-colors cursor-pointer"
                           title="Delete mistake"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
                         </button>
                       </div>
                     </div>
@@ -902,7 +929,7 @@ export const MistakeNotebookView: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 pointer-events-auto"
+            className="fixed inset-0 z-50 bg-slate-950/80 flex items-center justify-center p-4 pointer-events-auto"
           >
             <motion.div
               initial={{ scale: 0.95, y: 10 }}
@@ -1034,7 +1061,7 @@ export const MistakeNotebookView: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 pointer-events-auto"
+            className="fixed inset-0 z-50 bg-slate-950/80 flex items-center justify-center p-4 pointer-events-auto"
           >
             <motion.div
               initial={{ scale: 0.95, y: 10 }}
@@ -1143,7 +1170,7 @@ export const MistakeNotebookView: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 pointer-events-auto"
+            className="fixed inset-0 z-50 bg-slate-950/80 flex items-center justify-center p-4 pointer-events-auto"
           >
             <motion.div
               initial={{ scale: 0.95, y: 10 }}

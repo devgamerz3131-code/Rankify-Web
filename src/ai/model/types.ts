@@ -1,5 +1,7 @@
 export type MessageRole = 'user' | 'assistant' | 'system';
 
+export type AiMode = 'Tutor' | 'Solver' | 'Notes' | 'Revision' | 'Planner' | 'Exam';
+
 export type DetectedSubject = 'Physics' | 'Chemistry' | 'Mathematics' | 'General CBSE';
 
 export type QuestionType =

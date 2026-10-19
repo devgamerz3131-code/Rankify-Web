@@ -3,6 +3,9 @@ export type ClassNumber = 12;
 export type MediumType = 'English' | 'Hindi';
 export type PreferredLanguageType = 'English' | 'Hindi' | 'Hinglish';
 
+export type AiToneType = 'savage' | 'mentor' | 'balanced' | 'zen';
+export type PreparationLevelType = 'beginner' | 'intermediate' | 'advanced';
+
 export interface StudentDetails {
   name: string;
   classNumber: 12;
@@ -11,6 +14,10 @@ export interface StudentDetails {
   preferredLanguage: PreferredLanguageType;
   targetPercentage: number;
   stream: 'science-pcm';
+  weakestSubject?: string;
+  strongestSubject?: string;
+  preferredAiTone?: AiToneType;
+  preparationLevel?: PreparationLevelType;
 }
 
 export interface SubjectItem {

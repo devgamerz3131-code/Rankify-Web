@@ -143,9 +143,6 @@ export const SmartRevisionEngineView: React.FC = () => {
     <div className="max-w-7xl mx-auto space-y-7 pb-28 select-none px-2 sm:px-4">
       {/* 1. TOP HERO BANNER: SMART REVISION ENGINE */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-950 via-amber-950/70 to-purple-950 p-6 sm:p-8 text-white shadow-2xl border border-amber-500/30">
-        <div className="absolute -right-20 -top-20 w-80 h-80 rounded-full bg-amber-500/20 blur-3xl pointer-events-none" />
-        <div className="absolute -left-20 -bottom-20 w-80 h-80 rounded-full bg-purple-600/20 blur-3xl pointer-events-none" />
-
         <div className="relative z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
           <div className="space-y-3 max-w-2xl">
             <div className="flex items-center gap-2 flex-wrap">
@@ -173,7 +170,7 @@ export const SmartRevisionEngineView: React.FC = () => {
 
             {/* Live Highlight Alert */}
             {smartNotifications[0] && (
-              <div className="p-3 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-2.5 backdrop-blur-xs">
+              <div className="p-3 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-2.5">
                 <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
                 <div className="text-xs">
                   <span className="font-extrabold uppercase text-amber-300 mr-2 font-mono">Engine Directive:</span>
@@ -186,7 +183,7 @@ export const SmartRevisionEngineView: React.FC = () => {
           {/* Right Hero Gauges: Revision Score & Streak */}
           <div className="flex flex-row sm:flex-row items-center gap-4 w-full lg:w-auto justify-around sm:justify-end">
             {/* Revision Score Gauge */}
-            <div className="p-4 rounded-3xl bg-amber-950/40 border border-amber-400/30 text-center min-w-[130px] shrink-0 backdrop-blur-md">
+            <div className="p-4 rounded-2xl bg-amber-950/40 border border-amber-400/30 text-center min-w-[130px] shrink-0">
               <span className="text-[10px] text-amber-200 font-bold uppercase tracking-wider block">
                 Today's Revision Score
               </span>
@@ -199,7 +196,7 @@ export const SmartRevisionEngineView: React.FC = () => {
             </div>
 
             {/* Streak Counter */}
-            <div className="p-4 rounded-3xl bg-purple-900/40 border border-purple-400/30 text-center min-w-[130px] shrink-0 backdrop-blur-md flex flex-col items-center justify-center">
+            <div className="p-4 rounded-2xl bg-purple-900/40 border border-purple-400/30 text-center min-w-[130px] shrink-0 flex flex-col items-center justify-center">
               <span className="text-[10px] text-purple-200 font-bold uppercase tracking-wider block">
                 Daily Revision Streak
               </span>
@@ -957,7 +954,7 @@ export const SmartRevisionEngineView: React.FC = () => {
       {/* DRILL MODAL (When student clicks "Start Session") */}
       {/* ======================================================== */}
       {activeDrillSession && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}

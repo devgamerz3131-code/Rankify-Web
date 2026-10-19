@@ -16,6 +16,7 @@ import {
 } from '@/types/readiness';
 import { ChapterProgress, UpcomingExam } from '@/types/onboarding';
 import { mistakeService } from './mistake-service';
+import { getChapterById, computeAccuracy } from './chapter-service';
 import toast from 'react-hot-toast';
 
 const STORAGE_KEY = 'rankify_exam_readiness_cache_';
@@ -358,38 +359,48 @@ export class ReadinessService {
         }
         subjectRevisionSum += revisionScore;
 
-        // Chapter accuracy
-        const chAccuracy = typeof ch.accuracy === 'number' && ch.accuracy > 0 ? ch.accuracy : 72;
-        subjectAccuracySum += chAccuracy;
-        subjectAccuracyCount++;
-        overallAccuracySum += chAccuracy;
-        accuracyCount++;
+        // Questions attempted & accuracy
+        const chQuestions = (ch as any).attempted ?? (ch as any).questionsAttempted ?? ch.practiceQuestions ?? ch.questionSolved ?? 0;
+        const chCorrect = (ch as any).correct ?? (ch as any).questionsCorrect;
+        const computedAcc = computeAccuracy(chQuestions, chCorrect, ch.accuracy);
+        const hasAttempts = chQuestions > 0 && computedAcc !== null;
 
-        // Questions attempted
-        const chQuestions = ch.practiceQuestions || ch.questionSolved || 15;
+        if (hasAttempts) {
+          subjectAccuracySum += computedAcc;
+          subjectAccuracyCount++;
+          overallAccuracySum += computedAcc;
+          accuracyCount++;
+        }
+
         subjectQuestionsCount += chQuestions;
         totalQuestionsCount += chQuestions;
 
         // Chapter mistakes
+        const chInfo = getChapterById(ch.chapterId || ch.chapterName);
+        const resolvedChapterName = chInfo.name;
         const chMistakes = mistakes.filter(
           (m) =>
             m.chapter.toLowerCase() === ch.chapterName.toLowerCase() ||
-            (m.topic && m.topic.toLowerCase() === ch.chapterName.toLowerCase())
+            m.chapter.toLowerCase() === resolvedChapterName.toLowerCase() ||
+            (m.topic && m.topic.toLowerCase() === resolvedChapterName.toLowerCase())
         );
         const chUnresolvedMistakes = chMistakes.filter((m) => m.status !== 'Mastered').length;
 
-        // Determine Status deterministically
+        // Determine Status deterministically:
+        // Skip unattempted chapters from false 72% / 0% accuracy
         let status: ChapterReadinessStatus = 'Ready';
-        if (syllabusCompleted >= 80 && chAccuracy >= 78 && daysSinceRevision <= 14 && chUnresolvedMistakes === 0) {
+        if (!hasAttempts && syllabusCompleted === 0) {
+          status = 'Needs Practice';
+        } else if (syllabusCompleted >= 80 && hasAttempts && computedAcc >= 78 && daysSinceRevision <= 14 && chUnresolvedMistakes === 0) {
           status = 'Mastered';
           masteredCount++;
-        } else if (chUnresolvedMistakes >= 2 || chAccuracy < 60 || syllabusCompleted < 40) {
+        } else if (chUnresolvedMistakes >= 2 || (hasAttempts && computedAcc < 60) || (syllabusCompleted > 0 && syllabusCompleted < 40)) {
           status = 'Weak';
           weakCount++;
         } else if (daysSinceRevision > 10) {
           status = 'Needs Revision';
           needsRevisionCount++;
-        } else if (chQuestions < 20 || chAccuracy < 72) {
+        } else if (chQuestions < 20 || (hasAttempts && computedAcc < 72)) {
           status = 'Needs Practice';
         } else {
           status = 'Ready';
@@ -397,21 +408,25 @@ export class ReadinessService {
 
         // Chapter Readiness Confidence (0-100%)
         const chapterConfidence = Math.round(
-          syllabusCompleted * 0.35 +
-            chAccuracy * 0.25 +
-            revisionScore * 0.25 +
-            Math.max(0, 15 - chUnresolvedMistakes * 5)
+          hasAttempts
+            ? syllabusCompleted * 0.35 +
+              computedAcc * 0.25 +
+              revisionScore * 0.25 +
+              Math.max(0, 15 - chUnresolvedMistakes * 5)
+            : syllabusCompleted * 0.45 +
+              revisionScore * 0.35 +
+              Math.max(0, 15 - chUnresolvedMistakes * 5)
         );
 
         const chapterReadiness: ChapterReadiness = {
           chapterId: ch.chapterId,
-          chapterName: ch.chapterName,
+          chapterName: resolvedChapterName,
           subjectId: subId,
           subjectName: subData.subjectName,
           confidence: Math.min(100, Math.max(10, chapterConfidence)),
           status,
           syllabusCompleted,
-          accuracy: chAccuracy,
+          accuracy: hasAttempts ? computedAcc : 0,
           questionsAttempted: chQuestions,
           lastRevisedDaysAgo: daysSinceRevision,
           unresolvedMistakes: chUnresolvedMistakes,
@@ -438,15 +453,15 @@ export class ReadinessService {
           });
         }
 
-        if (chAccuracy < 65 && chQuestions >= 10) {
+        if (hasAttempts && computedAcc < 65 && chQuestions >= 10) {
           diagnostics.push({
             id: `diag_acc_${ch.chapterId}`,
             type: 'critical',
-            title: `Low Accuracy: ${ch.chapterName}`,
-            description: `${ch.chapterName} question accuracy is only ${chAccuracy}%. Multiple concept traps detected.`,
-            metric: `${chAccuracy}% accuracy`,
+            title: `Low Accuracy: ${resolvedChapterName}`,
+            description: `${resolvedChapterName} question accuracy is only ${computedAcc}%. Multiple concept traps detected.`,
+            metric: `${computedAcc}% accuracy`,
             subject: subData.subjectName,
-            chapter: ch.chapterName,
+            chapter: resolvedChapterName,
             actionableStep: `Solve 15 foundational numericals before tackling hard problems.`,
           });
         }
@@ -455,11 +470,11 @@ export class ReadinessService {
           diagnostics.push({
             id: `diag_mistake_${ch.chapterId}`,
             type: 'critical',
-            title: `Mistakes in ${ch.chapterName}`,
+            title: `Mistakes in ${resolvedChapterName}`,
             description: `You have ${chUnresolvedMistakes} active error(s) logged in Mistake Notebook for this chapter.`,
             metric: `${chUnresolvedMistakes} errors`,
             subject: subData.subjectName,
-            chapter: ch.chapterName,
+            chapter: resolvedChapterName,
             actionableStep: `Open Mistake Notebook and do spaced repetition review.`,
           });
         }
@@ -468,11 +483,13 @@ export class ReadinessService {
           diagnostics.push({
             id: `diag_mastered_${ch.chapterId}`,
             type: 'positive',
-            title: `Mastered: ${ch.chapterName}`,
-            description: `Exceptional mastery with ${chAccuracy}% accuracy and ${chQuestions}+ questions solved. High scoring security!`,
+            title: `Mastered: ${resolvedChapterName}`,
+            description: hasAttempts
+              ? `Exceptional mastery with ${computedAcc}% accuracy and ${chQuestions}+ questions solved. High scoring security!`
+              : `Exceptional mastery with full syllabus coverage. High scoring security!`,
             metric: `${chapterConfidence}% mastery`,
             subject: subData.subjectName,
-            chapter: ch.chapterName,
+            chapter: resolvedChapterName,
           });
         }
       }
@@ -481,16 +498,20 @@ export class ReadinessService {
       const avgProgress = Math.round(subjectSyllabusSum / totalSubjectChapters);
       const avgConfidence = Math.round(subjectConfidenceSum / totalSubjectChapters);
       const avgRevision = Math.round(subjectRevisionSum / totalSubjectChapters);
-      const avgAccuracy = subjectAccuracyCount > 0 ? Math.round(subjectAccuracySum / subjectAccuracyCount) : 70;
+      const avgAccuracy = subjectAccuracyCount > 0 ? Math.round(subjectAccuracySum / subjectAccuracyCount) : 0;
 
       // Practice percentage: scale based on average questions solved per chapter & accuracy
       const practiceVolumeScore = Math.min(100, Math.round((subjectQuestionsCount / (totalSubjectChapters * 25)) * 100));
-      const practicePercent = Math.round(avgAccuracy * 0.6 + practiceVolumeScore * 0.4);
+      const practicePercent = subjectAccuracyCount > 0
+        ? Math.round(avgAccuracy * 0.6 + practiceVolumeScore * 0.4)
+        : Math.round(practiceVolumeScore * 0.5);
 
       // Formula revision & Mock scores (derived from syllabus progress, revision recency, and mistake errors)
       const mistakePenalty = Math.min(25, unresolvedMistakesCount * 3);
       const formulaPercent = Math.max(30, Math.min(100, Math.round(avgRevision * 0.7 + avgProgress * 0.3 - mistakePenalty * 0.5)));
-      const mockPercent = Math.max(35, Math.min(100, Math.round(avgAccuracy * 0.7 + avgConfidence * 0.3 - mistakePenalty * 0.3)));
+      const mockPercent = subjectAccuracyCount > 0
+        ? Math.max(35, Math.min(100, Math.round(avgAccuracy * 0.7 + avgConfidence * 0.3 - mistakePenalty * 0.3)))
+        : Math.max(30, Math.min(100, Math.round(avgConfidence * 0.6 + avgProgress * 0.4 - mistakePenalty * 0.3)));
 
       // Subject Overall Score (Weighted combination)
       const subjectOverallScore = Math.round(
@@ -669,7 +690,7 @@ export class ReadinessService {
 
     const metricsFactors = {
       syllabusCoverageScore: Math.round(weightedSyllabusScore > 0 ? (weightedSyllabusScore / totalSyllabusWeight) * 100 : 72),
-      questionAccuracyScore: accuracyCount > 0 ? Math.round(overallAccuracySum / accuracyCount) : 74,
+      questionAccuracyScore: accuracyCount > 0 ? Math.round(overallAccuracySum / accuracyCount) : 0,
       revisionRecencyScore: Math.round(
         calculatedChapters.reduce((acc, c) => acc + (c.lastRevisedDaysAgo <= 7 ? 100 : c.lastRevisedDaysAgo <= 14 ? 60 : 25), 0) /
           Math.max(1, calculatedChapters.length)

@@ -108,9 +108,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
     try {
       const profile = await loginWithGoogle();
-      setUser(profile);
-      setModalState((prev) => ({ ...prev, isOpen: false }));
-      toast.success(`Signed in as ${profile.displayName || profile.email}`);
+      if (profile) {
+        setUser(profile);
+        setModalState((prev) => ({ ...prev, isOpen: false }));
+        toast.success(`Signed in as ${profile.displayName || profile.email}`);
+      }
     } catch (err: unknown) {
       const formatted = formatAuthError(err);
       setError(formatted);

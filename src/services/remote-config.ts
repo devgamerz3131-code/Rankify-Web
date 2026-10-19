@@ -52,26 +52,28 @@ export interface RemoteConfigState {
   lastUpdated: string;
 }
 
+import { TOTAL_OFFICIAL_CHAPTERS } from '@/services/chapter-service';
+
 const STORAGE_KEY = 'rankify_remote_config_state';
 
 export const CURRENT_APP_VERSION = '1.1.0';
 
 export const DEFAULT_REMOTE_CONFIG: RemoteConfigState = {
   announcement: {
-    enabled: true,
-    title: 'CBSE Class 12 Boards Alignment Active',
-    message: 'All 37 PCM chapters calibrated to latest official CBSE marking schemes.',
+    enabled: false,
+    title: 'Class 12 PCM Syllabus Tracker',
+    message: `All ${TOTAL_OFFICIAL_CHAPTERS} Physics, Chemistry, and Maths chapters available for study and revision.`,
     priority: 'normal',
-    badgeText: 'Official Notice',
+    badgeText: 'Update',
   },
   maintenance: {
     enabled: false,
-    message: 'Rankify is briefly undergoing routine CBSE syllabus calibration.',
+    message: 'Rankify is briefly undergoing routine maintenance.',
     estimatedReturn: '15 Minutes',
   },
   aiAvailability: {
     enabled: true,
-    notice: 'Rankify study engine is active across Physics, Chemistry, and Maths.',
+    notice: 'Study assistant is active across Physics, Chemistry, and Maths.',
     dailyQuotaFree: 100,
   },
   features: {
@@ -88,10 +90,10 @@ export const DEFAULT_REMOTE_CONFIG: RemoteConfigState = {
     latestVersion: '1.1.0',
     enforceBlock: false,
     releaseNotes: [
-      'Strict 37-chapter CBSE Class 12 PCM official syllabus alignment',
-      'Comprehensive NCERT chapter-wise revision and question sets',
-      'Study reports and gamified academic achievements',
-      'One-click high-resolution share cards for study streaks',
+      `${TOTAL_OFFICIAL_CHAPTERS}-chapter CBSE Class 12 PCM syllabus coverage`,
+      'Chapter-wise NCERT revision and question sets',
+      'Study reports and academic milestones',
+      'One-click share cards for study streaks',
     ],
   },
   lastUpdated: new Date().toISOString(),
@@ -103,10 +105,18 @@ class RemoteConfigService {
   private listeners: Set<(config: RemoteConfigState) => void> = new Set();
 
   private constructor() {
-    this.config = safeLocalStorage.getItem<RemoteConfigState>(
+    const stored = safeLocalStorage.getItem<RemoteConfigState>(
       STORAGE_KEY,
       DEFAULT_REMOTE_CONFIG
     );
+    if (
+      stored?.announcement?.badgeText === 'Official Notice' ||
+      stored?.announcement?.message?.includes('official CBSE')
+    ) {
+      stored.announcement = { ...DEFAULT_REMOTE_CONFIG.announcement };
+      safeLocalStorage.setItem(STORAGE_KEY, stored);
+    }
+    this.config = stored;
   }
 
   public static getInstance(): RemoteConfigService {

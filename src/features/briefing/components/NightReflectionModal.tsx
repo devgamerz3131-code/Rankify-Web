@@ -75,7 +75,7 @@ export const NightReflectionModal: React.FC<NightReflectionModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 select-none">
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3 sm:p-4 select-none">
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -162,7 +162,7 @@ export const NightReflectionModal: React.FC<NightReflectionModalProps> = ({
                       className={`w-5 h-5 ${
                         star <= focusScore
                           ? 'text-amber-400 fill-amber-400'
-                          : 'text-slate-300 dark:text-slate-700'
+                          : 'text-slate-400 dark:text-slate-600'
                       }`}
                     />
                   </button>

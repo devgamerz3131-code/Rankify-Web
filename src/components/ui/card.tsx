@@ -1,25 +1,56 @@
 import React, { forwardRef } from 'react';
+import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/utils/cn';
 
-export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+export const cardVariants = cva(
+  'rounded-2xl border transition-all duration-200 text-card-foreground',
+  {
+    variants: {
+      variant: {
+        primary:
+          'bg-card border-border shadow-xs',
+        secondary:
+          'bg-muted border-border shadow-xs',
+        surface:
+          'bg-card border-border shadow-sm',
+        elevated:
+          'bg-card border-border shadow-md',
+        outline:
+          'bg-transparent border-border',
+      },
+      padding: {
+        none: 'p-0',
+        compact: 'p-3.5 sm:p-4',
+        normal: 'p-5 sm:p-6',
+        large: 'p-6 sm:p-8',
+      },
+      interactive: {
+        true: 'cursor-pointer hover:shadow-xl hover:shadow-purple-500/10 hover:-translate-y-0.5 hover:border-purple-400/60 dark:hover:border-purple-500/40 active:scale-[0.99]',
+        false: '',
+      },
+    },
+    defaultVariants: {
+      variant: 'primary',
+      padding: 'normal',
+      interactive: false,
+    },
+  }
+);
+
+export interface CardProps
+  extends React.HTMLAttributes<HTMLDivElement>,
+    VariantProps<typeof cardVariants> {
   glass?: boolean;
-  interactive?: boolean;
 }
 
 export const Card = forwardRef<HTMLDivElement, CardProps>(
-  ({ className, glass, interactive, ...props }, ref) => {
+  ({ className, variant, padding, interactive, glass, ...props }, ref) => {
+    const computedVariant = variant || (glass ? 'surface' : 'primary');
+
     return (
       <div
         ref={ref}
-        className={cn(
-          'rounded-2xl border text-card-foreground transition-all duration-300',
-          glass
-            ? 'glass-card'
-            : 'bg-card border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.25)]',
-          interactive &&
-            'cursor-pointer hover:shadow-lg hover:shadow-purple-500/5 hover:-translate-y-0.5 hover:border-purple-300 dark:hover:border-purple-500/30',
-          className
-        )}
+        className={cn(cardVariants({ variant: computedVariant, padding, interactive, className }))}
         {...props}
       />
     );
@@ -38,7 +69,7 @@ export const CardTitle = forwardRef<HTMLHeadingElement, React.HTMLAttributes<HTM
   ({ className, ...props }, ref) => (
     <h3
       ref={ref}
-      className={cn('text-lg font-semibold leading-none tracking-tight text-foreground', className)}
+      className={cn('text-base sm:text-lg font-bold leading-tight tracking-tight text-foreground', className)}
       {...props}
     />
   )
@@ -47,7 +78,7 @@ CardTitle.displayName = 'CardTitle';
 
 export const CardDescription = forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLParagraphElement>>(
   ({ className, ...props }, ref) => (
-    <p ref={ref} className={cn('text-sm text-muted-foreground leading-relaxed', className)} {...props} />
+    <p ref={ref} className={cn('text-xs sm:text-sm text-muted-foreground leading-relaxed', className)} {...props} />
   )
 );
 CardDescription.displayName = 'CardDescription';

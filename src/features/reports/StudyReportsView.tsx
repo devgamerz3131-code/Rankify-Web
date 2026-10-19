@@ -15,13 +15,20 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
+import {
+  TOTAL_OFFICIAL_CHAPTERS,
+  computeAccuracy,
+  getChapterById,
+  getSubjectChapterCounts,
+} from '@/services/chapter-service';
 
 export const StudyReportsView: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
   const { chapterProgressMap, studentDetails, studyRoutine } = useOnboarding();
+  const subjectCounts = getSubjectChapterCounts();
 
   const chapters = Object.values(chapterProgressMap || {});
-  const totalChapters = 37;
+  const totalChapters = chapters.length || TOTAL_OFFICIAL_CHAPTERS;
   const completedChapters = chapters.filter((c) => c.progressPercentage === 100 || c.completion).length;
   const completionPercentage = Math.round((completedChapters / totalChapters) * 100);
 
@@ -40,7 +47,19 @@ export const StudyReportsView: React.FC<{ onClose?: () => void }> = ({ onClose }
 
   const revisionsCount = period === 'daily' ? 1 : period === 'weekly' ? 5 : 18;
   const aiDoubtsCount = period === 'daily' ? 6 : period === 'weekly' ? 24 : 85;
-  const averageAccuracy = 78;
+
+  const attemptedList = chapters
+    .map((c) => {
+      const att = (c as any).attempted ?? (c as any).questionsAttempted ?? c.practiceQuestions ?? c.questionSolved ?? 0;
+      const corr = (c as any).correct ?? (c as any).questionsCorrect;
+      return computeAccuracy(att, corr, c.accuracy);
+    })
+    .filter((acc): acc is number => acc !== null);
+
+  const averageAccuracy =
+    attemptedList.length > 0
+      ? Math.round(attemptedList.reduce((sum, a) => sum + a, 0) / attemptedList.length)
+      : null;
 
   const handleExportReport = () => {
     toast.success(`Academic ${period} report exported!`);
@@ -83,7 +102,7 @@ export const StudyReportsView: React.FC<{ onClose?: () => void }> = ({ onClose }
 
       {/* KPI Overview Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="p-4 rounded-2xl bg-card/60 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-1">
+        <div className="p-4 rounded-2xl bg-card border border-border shadow-xs space-y-1">
           <span className="text-xs text-muted-foreground font-semibold flex items-center gap-1.5">
             <Clock className="w-4 h-4 text-purple-600" />
             Hours Studied
@@ -92,7 +111,7 @@ export const StudyReportsView: React.FC<{ onClose?: () => void }> = ({ onClose }
           <p className="text-[10px] text-muted-foreground">{period} active study time</p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-card/60 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-1">
+        <div className="p-4 rounded-2xl bg-card border border-border shadow-xs space-y-1">
           <span className="text-xs text-muted-foreground font-semibold flex items-center gap-1.5">
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
             Syllabus Covered
@@ -101,20 +120,24 @@ export const StudyReportsView: React.FC<{ onClose?: () => void }> = ({ onClose }
             {completionPercentage}%
           </div>
           <p className="text-[10px] text-muted-foreground">
-            {completedChapters} of 37 Chapters
+            {completedChapters} of {totalChapters} Chapters
           </p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-card/60 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-1">
+        <div className="p-4 rounded-2xl bg-card border border-border shadow-xs space-y-1">
           <span className="text-xs text-muted-foreground font-semibold flex items-center gap-1.5">
             <TrendingUp className="w-4 h-4 text-blue-600" />
             Average Accuracy
           </span>
-          <div className="text-2xl font-black text-blue-600 font-mono">{averageAccuracy}%</div>
-          <p className="text-[10px] text-muted-foreground">Board PYQ accuracy</p>
+          <div className="text-2xl font-black text-blue-600 font-mono">
+            {averageAccuracy !== null ? `${averageAccuracy}%` : '–'}
+          </div>
+          <p className="text-[10px] text-muted-foreground">
+            {averageAccuracy !== null ? 'Board PYQ accuracy' : 'No attempts yet'}
+          </p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-card/60 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-1">
+        <div className="p-4 rounded-2xl bg-card border border-border shadow-xs space-y-1">
           <span className="text-xs text-muted-foreground font-semibold flex items-center gap-1.5">
             <Sparkles className="w-4 h-4 text-amber-500" />
             Practice Questions Mastered
@@ -125,7 +148,7 @@ export const StudyReportsView: React.FC<{ onClose?: () => void }> = ({ onClose }
       </div>
 
       {/* Time Distribution across PCM */}
-      <div className="p-6 rounded-3xl bg-card/60 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-4">
+      <div className="p-6 rounded-3xl bg-card border border-border shadow-xs space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
             <Clock className="w-4 h-4 text-purple-600" />
@@ -162,7 +185,7 @@ export const StudyReportsView: React.FC<{ onClose?: () => void }> = ({ onClose }
               <span>Physics (042)</span>
             </div>
             <div className="text-lg font-black font-mono mt-1 text-foreground">{physicsHours}h</div>
-            <div className="text-[10px] text-muted-foreground">14 Chapters</div>
+            <div className="text-[10px] text-muted-foreground">{subjectCounts.physics} Chapters</div>
           </div>
 
           <div className="p-3 rounded-2xl bg-pink-50 dark:bg-pink-950/40 border border-pink-200/60 dark:border-pink-800/40">
@@ -171,7 +194,7 @@ export const StudyReportsView: React.FC<{ onClose?: () => void }> = ({ onClose }
               <span>Chemistry (043)</span>
             </div>
             <div className="text-lg font-black font-mono mt-1 text-foreground">{chemistryHours}h</div>
-            <div className="text-[10px] text-muted-foreground">10 Chapters</div>
+            <div className="text-[10px] text-muted-foreground">{subjectCounts.chemistry} Chapters</div>
           </div>
 
           <div className="p-3 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-800/40">
@@ -180,7 +203,7 @@ export const StudyReportsView: React.FC<{ onClose?: () => void }> = ({ onClose }
               <span>Mathematics (041)</span>
             </div>
             <div className="text-lg font-black font-mono mt-1 text-foreground">{mathsHours}h</div>
-            <div className="text-[10px] text-muted-foreground">13 Chapters</div>
+            <div className="text-[10px] text-muted-foreground">{subjectCounts.mathematics} Chapters</div>
           </div>
         </div>
       </div>
@@ -188,7 +211,7 @@ export const StudyReportsView: React.FC<{ onClose?: () => void }> = ({ onClose }
       {/* Weak & Strong Chapters Diagnostic Split */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Needs Revision / Weak Areas */}
-        <div className="p-6 rounded-3xl bg-card/60 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-3">
+        <div className="p-6 rounded-3xl bg-card border border-border shadow-xs space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-amber-500" />
@@ -205,26 +228,29 @@ export const StudyReportsView: React.FC<{ onClose?: () => void }> = ({ onClose }
             </p>
           ) : (
             <div className="space-y-2">
-              {weakChapters.slice(0, 4).map((c) => (
-                <div
-                  key={c.id}
-                  className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5 flex items-center justify-between text-xs"
-                >
-                  <div>
-                    <div className="font-bold text-foreground">{c.chapterName}</div>
-                    <div className="text-[10px] text-muted-foreground">{c.subjectName}</div>
+              {weakChapters.slice(0, 4).map((c) => {
+                const info = getChapterById(c.chapterName || c.id);
+                return (
+                  <div
+                    key={c.id}
+                    className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5 flex items-center justify-between text-xs"
+                  >
+                    <div>
+                      <div className="font-bold text-foreground">{info.name}</div>
+                      <div className="text-[10px] text-muted-foreground">{info.subjectName}</div>
+                    </div>
+                    <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full">
+                      Confidence: {c.confidence}/5
+                    </span>
                   </div>
-                  <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full">
-                    Confidence: {c.confidence}/5
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
 
         {/* Strong Subject Areas */}
-        <div className="p-6 rounded-3xl bg-card/60 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-3">
+        <div className="p-6 rounded-3xl bg-card border border-border shadow-xs space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-500" />
@@ -241,20 +267,23 @@ export const StudyReportsView: React.FC<{ onClose?: () => void }> = ({ onClose }
             </p>
           ) : (
             <div className="space-y-2">
-              {strongChapters.slice(0, 4).map((c) => (
-                <div
-                  key={c.id}
-                  className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5 flex items-center justify-between text-xs"
-                >
-                  <div>
-                    <div className="font-bold text-foreground">{c.chapterName}</div>
-                    <div className="text-[10px] text-muted-foreground">{c.subjectName}</div>
+              {strongChapters.slice(0, 4).map((c) => {
+                const info = getChapterById(c.chapterName || c.id);
+                return (
+                  <div
+                    key={c.id}
+                    className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5 flex items-center justify-between text-xs"
+                  >
+                    <div>
+                      <div className="font-bold text-foreground">{info.name}</div>
+                      <div className="text-[10px] text-muted-foreground">{info.subjectName}</div>
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full">
+                      {c.progressPercentage}% Mastered
+                    </span>
                   </div>
-                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full">
-                    {c.progressPercentage}% Mastered
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

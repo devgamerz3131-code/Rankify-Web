@@ -620,7 +620,7 @@ export const NCERT_CLASS_12_CHAPTERS: NcertChapter[] = [
           ],
           boardGuaranteedDerivations: [
             'Derivation of |adj A| = |A|^(n-1) and |adj(adj A)| = |A|^((n-1)²)',
-            '5-Mark guaranteed Matrix Method solution for 3 equations in 3 variables',
+            '5-Mark Matrix Method solution for 3 equations in 3 variables',
           ],
         },
       ],
@@ -645,7 +645,7 @@ export const NCERT_CLASS_12_CHAPTERS: NcertChapter[] = [
               detailedExplanation:
                 'The matrix inverse A⁻¹ satisfies A · A⁻¹ = I. Multiplying AX = B from the left by A⁻¹ gives A⁻¹(AX) = A⁻¹B => (A⁻¹A)X = A⁻¹B => I X = A⁻¹B => X = A⁻¹B. Because matrix multiplication is non-commutative, you must multiply by A⁻¹ on the left (pre-multiplication).',
               examPointOfView:
-                'Absolute guaranteed 5-mark question in Section D of CBSE Class 12 Mathematics paper every single year! Accuracy in calculating the 9 cofactors without sign mistakes is critical.',
+                'Frequently asked 5-mark question in Section D of the Class 12 Mathematics paper. Take care when calculating the 9 cofactors to avoid sign mistakes.',
               realLifeExample:
                 'GPS triangulation algorithms, airline crew scheduling, and 3D computer game graphics engines solve thousands of such matrix equations AX = B every millisecond.',
               commonMistakes: [
@@ -735,8 +735,8 @@ export const NCERT_CLASS_12_CHAPTERS: NcertChapter[] = [
             'PROPERTIES: A·adj(A) = |A| I | |adj A| = |A|^(n-1) | |kA| = k^n |A|',
           ],
           examRevisionNotes: [
-            '⭐ GUARANTEED 5 MARKS: Solving 3x3 system AX = B.',
-            '⭐ VERIFY: Always plug your final (x, y, z) back into Equation 1 to guarantee 100% full marks.',
+            '⭐ HIGH-WEIGHTAGE 5 MARKS: Solving 3x3 system AX = B.',
+            '⭐ VERIFY: Substitute your final (x, y, z) values back into Equation 1 to check your answer.',
             '⭐ 1-MARK TRICK: If |A| of 3x3 is 5, find |2A| => 2³ × 5 = 40; find |adj A| => 5² = 25.',
           ],
         },

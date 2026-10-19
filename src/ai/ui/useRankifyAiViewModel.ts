@@ -6,6 +6,7 @@ import {
   PromptResult,
   PromptBooster,
   SmartPromptOptions,
+  AiMode,
 } from '../model/types';
 import { chatRepository } from '../repository/chat-repository';
 import { generateStudyPrompt } from '../utils/prompt-engine';
@@ -15,6 +16,7 @@ import {
   sharePrompt,
   triggerHapticFeedback,
 } from '../utils/external-ai';
+import { copyTextToClipboard } from '@/utils/browser-compat';
 import { getSavedStudentContext } from '../utils/student-context';
 import { TimeFilterOption } from '../components/ChatSidebar';
 import { useNavigation } from '@/contexts/NavigationContext';
@@ -30,6 +32,8 @@ export interface RankifyAiViewModelState {
   searchQuery: string;
   activeFilter: TimeFilterOption;
   activeBooster: PromptBooster | null;
+  activeMode: AiMode;
+  isToolsPanelOpen: boolean;
   promptOptions: SmartPromptOptions;
   filteredConversations: Conversation[];
 }
@@ -44,6 +48,9 @@ export interface RankifyAiViewModelActions {
   submitQuery: (query: string, boosterOverride?: PromptBooster) => Promise<void>;
   regeneratePrompt: (messageId: string) => Promise<void>;
   toggleBooster: (booster: PromptBooster) => void;
+  setActiveMode: (mode: AiMode) => void;
+  setIsToolsPanelOpen: (open: boolean) => void;
+  toggleToolsPanel: () => void;
   updatePromptOptions: (opts: Partial<SmartPromptOptions>) => void;
   copyPrompt: (text: string, messageId?: string) => Promise<boolean>;
   toggleFavorite: (messageId?: string) => void;
@@ -74,11 +81,22 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeFilter, setActiveFilter] = useState<TimeFilterOption>('all');
   const [activeBooster, setActiveBooster] = useState<PromptBooster | null>(null);
+  const [activeMode, setActiveModeState] = useState<AiMode>('Tutor');
+  const [isToolsPanelOpen, setIsToolsPanelOpen] = useState<boolean>(true);
   const [promptOptions, setPromptOptions] = useState<SmartPromptOptions>({
     level: 'Board Level',
     depth: 'Default',
     language: 'Auto',
   });
+
+  const setActiveMode = useCallback((mode: AiMode) => {
+    setActiveModeState(mode);
+    toast.success(`Switched AI Mode: ${mode} 🎯`, { duration: 2000 });
+  }, []);
+
+  const toggleToolsPanel = useCallback(() => {
+    setIsToolsPanelOpen((prev) => !prev);
+  }, []);
 
   // Reload conversations from repository
   const refreshConversations = useCallback(() => {
@@ -322,19 +340,15 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
       refreshConversations();
 
       // Auto-copy newly regenerated prompt with haptic feedback
-      try {
-        if (typeof navigator !== 'undefined' && navigator.clipboard) {
-          triggerHapticFeedback();
-          await navigator.clipboard.writeText(freshPrompt.generatedPrompt);
-          setCopiedMessageId(targetMsg.id);
-          toast.success('Prompt copied', {
-            icon: '📋',
-            duration: 2500,
-          });
-          setTimeout(() => setCopiedMessageId(null), 3000);
-        }
-      } catch {
-        // Safe clipboard fallback
+      triggerHapticFeedback();
+      const autoCopied = await copyTextToClipboard(freshPrompt.generatedPrompt);
+      if (autoCopied) {
+        setCopiedMessageId(targetMsg.id);
+        toast.success('Prompt copied', {
+          icon: '📋',
+          duration: 2500,
+        });
+        setTimeout(() => setCopiedMessageId(null), 3000);
       }
 
       setIsLoading(false);
@@ -344,28 +358,24 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
 
   // Copy prompt to clipboard manually with haptics
   const copyPrompt = useCallback(async (text: string, messageId?: string): Promise<boolean> => {
-    try {
-      if (typeof navigator !== 'undefined' && navigator.clipboard) {
-        triggerHapticFeedback();
-        await navigator.clipboard.writeText(text);
-        if (messageId) {
-          setCopiedMessageId(messageId);
-          if (currentConversationId) {
-            chatRepository.updateLastUsed(currentConversationId, messageId);
-          }
-          setTimeout(() => setCopiedMessageId(null), 2500);
+    triggerHapticFeedback();
+    const ok = await copyTextToClipboard(text);
+    if (ok) {
+      if (messageId) {
+        setCopiedMessageId(messageId);
+        if (currentConversationId) {
+          chatRepository.updateLastUsed(currentConversationId, messageId);
         }
-        toast.success('Prompt copied', {
-          icon: '📋',
-          duration: 2500,
-        });
-        return true;
+        setTimeout(() => setCopiedMessageId(null), 2500);
       }
-      return false;
-    } catch {
-      toast.error('Failed to copy to clipboard');
-      return false;
+      toast.success('Prompt copied', {
+        icon: '📋',
+        duration: 2500,
+      });
+      return true;
     }
+    toast.error('Failed to copy to clipboard');
+    return false;
   }, [currentConversationId]);
 
   // Toggle favorite on prompt or conversation
@@ -461,6 +471,8 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
     searchQuery,
     activeFilter,
     activeBooster,
+    activeMode,
+    isToolsPanelOpen,
     promptOptions,
     filteredConversations,
     startNewConversation,
@@ -472,6 +484,9 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
     submitQuery,
     regeneratePrompt,
     toggleBooster,
+    setActiveMode,
+    setIsToolsPanelOpen,
+    toggleToolsPanel,
     updatePromptOptions,
     copyPrompt,
     toggleFavorite,

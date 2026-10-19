@@ -20,7 +20,7 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
           value={value}
           onChange={onChange}
           placeholder="Search subjects, chapters, questions..."
-          className="h-10 w-full rounded-xl bg-slate-100/90 dark:bg-slate-800/80 pl-10 pr-16 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:bg-white dark:focus:bg-slate-900 transition-all border border-transparent focus:border-purple-300 dark:focus:border-purple-700/50"
+          className="h-10 w-full rounded-xl bg-muted/80 pl-10 pr-16 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:bg-card transition-all border border-border focus:border-purple-400"
           {...props}
         />
         <div className="absolute right-3 flex items-center gap-1.5">
@@ -28,13 +28,13 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
             <button
               type="button"
               onClick={onClear}
-              className="p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer"
+              className="p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
             >
               <X className="h-3.5 w-3.5" />
             </button>
           )}
           {shortcutBadge && !hasValue && (
-            <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground shadow-xs">
+            <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded border border-border bg-card px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground shadow-xs">
               <span className="text-xs">⌘</span>K
             </kbd>
           )}

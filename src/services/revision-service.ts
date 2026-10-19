@@ -238,13 +238,17 @@ class SmartRevisionService {
     }
   }
 
+  private getStorageKey(): string {
+    return `${REVISION_STORAGE_KEY}_${this.currentUserId || 'guest'}`;
+  }
+
   private loadLocalCache(): SmartRevisionEngineData | null {
-    return safeLocalStorage.getItem<SmartRevisionEngineData | null>(REVISION_STORAGE_KEY, null);
+    return safeLocalStorage.getItem<SmartRevisionEngineData | null>(this.getStorageKey(), null);
   }
 
   private saveLocalCache(data: SmartRevisionEngineData) {
     this.memoryCache = data;
-    safeLocalStorage.setItem(REVISION_STORAGE_KEY, data);
+    safeLocalStorage.setItem(this.getStorageKey(), data);
     this.notify();
   }
 
@@ -273,16 +277,22 @@ class SmartRevisionService {
           await setDoc(docRef, computed, { merge: true });
         }
 
-        this.unsubscribeFirestore = onSnapshot(docRef, (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data() as SmartRevisionEngineData;
-            if (data) {
-              this.memoryCache = data;
-              safeLocalStorage.setItem(REVISION_STORAGE_KEY, data);
-              this.notify();
+        this.unsubscribeFirestore = onSnapshot(
+          docRef,
+          (docSnap) => {
+            if (docSnap.exists()) {
+              const data = docSnap.data() as SmartRevisionEngineData;
+              if (data) {
+                this.memoryCache = data;
+                safeLocalStorage.setItem(REVISION_STORAGE_KEY, data);
+                this.notify();
+              }
             }
+          },
+          (err) => {
+            console.warn('[SmartRevisionService] Firestore onSnapshot warning:', err);
           }
-        });
+        );
       } catch (err) {
         console.warn('SmartRevisionService Firestore init warning:', err);
       }
@@ -369,7 +379,7 @@ class SmartRevisionService {
     lectureWatched: boolean
   ): RevisionMethod {
     if (!lectureWatched && accuracy < 60) {
-      return 'Lecture Rewatch';
+      return 'Concept Revision';
     }
     if (formulaRatio < 0.6) {
       return 'Formula Revision';

@@ -26,9 +26,9 @@ export const OnboardingContainer: React.FC = () => {
   const { currentScreen, isSaving } = useOnboarding();
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-foreground flex flex-col justify-between selection:bg-purple-500 selection:text-white">
-      {/* Top Glass Navbar with Progress & Auto-Save Indicator */}
-      <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-white/70 dark:bg-slate-950/70 border-b border-slate-200/60 dark:border-white/10 px-4 sm:px-8 py-3">
+    <div className="min-h-screen bg-background text-foreground flex flex-col justify-between selection:bg-purple-500 selection:text-white">
+      {/* Top Solid Navbar with Progress & Auto-Save Indicator */}
+      <header className="sticky top-0 z-40 w-full bg-card border-b border-border px-4 sm:px-8 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           {/* Logo & Step indicator */}
           <div className="flex items-center gap-3">
@@ -123,8 +123,7 @@ export const OnboardingContainer: React.FC = () => {
       {/* Subtle Apple-style Footer */}
       <footer className="w-full py-4 text-center text-[11px] text-muted-foreground border-t border-slate-200/40 dark:border-white/5">
         <div className="flex items-center justify-center gap-2 font-medium">
-          <Sparkles className="w-3.5 h-3.5 text-purple-500" />
-          <span>Rankify Intelligent Academic Engine • Auto-persisted to local cache & cloud Firestore</span>
+          <span>Rankify - Precision Learning for CBSE Students</span>
         </div>
       </footer>
     </div>

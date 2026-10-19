@@ -3,30 +3,35 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/utils/cn';
 
 export const buttonVariants = cva(
-  'inline-flex items-center justify-center font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 select-none cursor-pointer active:scale-[0.98]',
+  'inline-flex items-center justify-center font-bold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 select-none cursor-pointer active:scale-[0.98] touch-target',
   {
     variants: {
       variant: {
         primary:
-          'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-500/25 hover:from-purple-500 hover:to-indigo-500 hover:shadow-lg hover:shadow-purple-500/30',
+          'bg-primary text-primary-foreground shadow-md shadow-primary/20 hover:opacity-92 hover:shadow-lg',
         secondary:
-          'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md shadow-blue-500/20 hover:from-blue-500 hover:to-cyan-500 hover:shadow-lg hover:shadow-blue-500/30',
-        glass:
-          'bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border border-slate-200/80 dark:border-white/10 text-foreground shadow-sm hover:bg-white/90 dark:hover:bg-slate-800/80',
+          'bg-muted text-foreground hover:bg-muted/80 border border-border shadow-xs',
+        surface:
+          'bg-card border border-border text-foreground shadow-xs hover:bg-muted',
         outline:
-          'border border-purple-200 dark:border-purple-900/60 bg-transparent text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40',
+          'border border-border bg-transparent text-foreground hover:bg-muted',
         ghost:
-          'bg-transparent text-foreground/80 hover:text-foreground hover:bg-slate-100 dark:hover:bg-slate-800/60',
+          'bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted',
         subtle:
-          'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50',
-        destructive:
-          'bg-red-600 text-white hover:bg-red-700 shadow-sm shadow-red-500/20',
+          'bg-accent text-accent-foreground hover:bg-accent/80 border border-border/50',
+        danger:
+          'bg-destructive text-destructive-foreground hover:opacity-90 shadow-xs',
+        success:
+          'bg-emerald-600 text-white hover:bg-emerald-500 shadow-xs dark:bg-emerald-500 dark:hover:bg-emerald-400',
+        floating:
+          'bg-primary text-primary-foreground shadow-xl hover:scale-105 rounded-full p-3.5',
       },
       size: {
-        sm: 'h-8 px-3 text-xs rounded-xl gap-1.5',
-        md: 'h-10 px-4 text-sm rounded-xl gap-2',
-        lg: 'h-12 px-6 text-base rounded-2xl gap-2.5 font-semibold',
-        icon: 'h-10 w-10 rounded-xl',
+        sm: 'h-9 px-3.5 text-xs rounded-xl gap-1.5',
+        md: 'h-11 px-4.5 text-xs sm:text-sm rounded-2xl gap-2',
+        lg: 'h-12 px-6 text-sm sm:text-base rounded-2xl gap-2.5 font-extrabold',
+        icon: 'h-10 w-10 rounded-xl p-0',
+        floating: 'h-12 w-12 rounded-full p-0 flex items-center justify-center',
       },
     },
     defaultVariants: {
@@ -53,7 +58,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       >
         {isLoading && (
           <svg
-            className="animate-spin h-4 w-4 text-current"
+            className="animate-spin h-4 w-4 text-current shrink-0"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"

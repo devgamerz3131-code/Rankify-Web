@@ -92,7 +92,7 @@ export const MistakeNotebookCard: React.FC = () => {
       {/* 4 Required Metric Pills */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-5 border-t border-white/10 relative z-10">
         {/* 1. Total Mistakes */}
-        <div className="p-3.5 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 space-y-1">
+        <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-1">
           <div className="flex items-center gap-1.5 text-xs text-rose-200/90 font-bold">
             <span className="text-base">📕</span>
             <span>Total Mistakes</span>
@@ -104,7 +104,7 @@ export const MistakeNotebookCard: React.FC = () => {
         </div>
 
         {/* 2. Mistakes to Revise Today */}
-        <div className="p-3.5 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 space-y-1">
+        <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-1">
           <div className="flex items-center gap-1.5 text-xs text-amber-200/90 font-bold">
             <span className="text-base">🔥</span>
             <span>Revise Today</span>
@@ -116,7 +116,7 @@ export const MistakeNotebookCard: React.FC = () => {
         </div>
 
         {/* 3. Last Revised */}
-        <div className="p-3.5 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 space-y-1">
+        <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-1">
           <div className="flex items-center gap-1.5 text-xs text-indigo-200/90 font-bold">
             <span className="text-base">📅</span>
             <span>Last Revised</span>
@@ -128,7 +128,7 @@ export const MistakeNotebookCard: React.FC = () => {
         </div>
 
         {/* 4. Accuracy Improvement */}
-        <div className="p-3.5 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 space-y-1">
+        <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-1">
           <div className="flex items-center gap-1.5 text-xs text-emerald-200/90 font-bold">
             <span className="text-base">🎯</span>
             <span>Accuracy Boost</span>

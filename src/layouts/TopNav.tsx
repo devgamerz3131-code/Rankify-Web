@@ -5,6 +5,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { RankifyLogo, Search, Sun, Moon, Laptop, LogIn, ChevronDown, User, LogOut, Shield, Settings } from '@/icons';
 import { Button } from '@/components/ui/button';
 import { PWAInstallButton } from '@/components/common/pwa-install-button';
+import { SyncStatusIndicator } from '@/components/common/SyncStatusIndicator';
 
 export const TopNav: React.FC = () => {
   const { toggleSearch, setActiveTab } = useNavigation();
@@ -15,7 +16,7 @@ export const TopNav: React.FC = () => {
   const isAdmin = user?.role === 'admin' || user?.email === 'devgamerz3131@gmail.com';
 
   return (
-    <header className="sticky top-0 z-40 w-full glass-nav transition-colors duration-200">
+    <header className="sticky top-0 z-40 w-full bg-card border-b border-border transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
         {/* Brand & Class Picker */}
         <div className="flex items-center gap-3 sm:gap-4">
@@ -45,13 +46,13 @@ export const TopNav: React.FC = () => {
         <div className="flex-1 max-w-md mx-3 hidden md:block">
           <button
             onClick={toggleSearch}
-            className="w-full h-9 flex items-center justify-between px-3.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 text-xs text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-slate-700/60 transition border border-transparent hover:border-slate-300 dark:hover:border-slate-700 cursor-pointer"
+            className="w-full h-9 flex items-center justify-between px-3.5 rounded-xl bg-muted text-xs text-muted-foreground hover:bg-muted/80 transition border border-border cursor-pointer"
           >
             <span className="flex items-center gap-2">
-              <Search className="h-3.5 w-3.5" />
+              <Search className="h-3.5 w-3.5 text-muted-foreground" />
               <span>Search subjects, chapters, formulas, PYQs...</span>
             </span>
-            <kbd className="inline-flex items-center gap-0.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-1.5 py-0.5 text-[10px] font-semibold shadow-xs">
+            <kbd className="inline-flex items-center gap-0.5 rounded border border-border bg-card px-1.5 py-0.5 text-[10px] font-semibold text-foreground shadow-xs">
               <span>⌘</span>K
             </kbd>
           </button>
@@ -70,6 +71,9 @@ export const TopNav: React.FC = () => {
 
           {/* PWA Install */}
           <PWAInstallButton variant="compact" />
+
+          {/* Minimal Sync Status Dot */}
+          <SyncStatusIndicator />
 
           {/* Theme Switcher */}
           <button
@@ -130,7 +134,7 @@ export const TopNav: React.FC = () => {
                       <button
                         onClick={() => {
                           setIsUserMenuOpen(false);
-                          setActiveTab('profile');
+                          setActiveTab('admin');
                         }}
                         className="w-full text-left px-3.5 py-2 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 flex items-center gap-2 cursor-pointer"
                       >

@@ -87,7 +87,7 @@ export const Screen3SubjectSelection: React.FC = () => {
                 {isSelected ? (
                   <CheckCircle2 className="w-5 h-5 text-purple-600" />
                 ) : (
-                  <Circle className="w-5 h-5 text-slate-300 dark:text-slate-600" />
+                  <Circle className="w-5 h-5 text-slate-400 dark:text-slate-600" />
                 )}
               </div>
             </button>

@@ -146,13 +146,17 @@ class FormulaService {
     };
   }
 
+  private getStorageKey(): string {
+    return `${FORMULA_STORAGE_KEY}_${this.currentUserId || 'guest'}`;
+  }
+
   private loadLocalCache(): FormulaIntelligenceState | null {
-    return safeLocalStorage.getItem<FormulaIntelligenceState | null>(FORMULA_STORAGE_KEY, null);
+    return safeLocalStorage.getItem<FormulaIntelligenceState | null>(this.getStorageKey(), null);
   }
 
   private saveLocalCache(state: FormulaIntelligenceState) {
     this.memoryCache = state;
-    safeLocalStorage.setItem(FORMULA_STORAGE_KEY, state);
+    safeLocalStorage.setItem(this.getStorageKey(), state);
     this.notify();
   }
 
@@ -183,16 +187,22 @@ class FormulaService {
           await setDoc(docRef, this.memoryCache, { merge: true });
         }
 
-        this.unsubscribeFirestore = onSnapshot(docRef, (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data() as FormulaIntelligenceState;
-            if (data) {
-              this.memoryCache = data;
-              safeLocalStorage.setItem(FORMULA_STORAGE_KEY, data);
-              this.notify();
+        this.unsubscribeFirestore = onSnapshot(
+          docRef,
+          (docSnap) => {
+            if (docSnap.exists()) {
+              const data = docSnap.data() as FormulaIntelligenceState;
+              if (data) {
+                this.memoryCache = data;
+                safeLocalStorage.setItem(this.getStorageKey(), data);
+                this.notify();
+              }
             }
+          },
+          (err) => {
+            console.warn('[FormulaService] Firestore onSnapshot warning:', err);
           }
-        });
+        );
       } catch (err) {
         console.warn('FormulaService Firestore sync warning:', err);
       }

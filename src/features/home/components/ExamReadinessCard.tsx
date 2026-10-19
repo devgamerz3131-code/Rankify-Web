@@ -147,7 +147,7 @@ export const ExamReadinessCard: React.FC = () => {
             {subjects.map((sub) => (
               <div
                 key={sub.subjectId}
-                className="p-2.5 rounded-xl bg-white/5 border border-white/10 backdrop-blur-xs flex items-center justify-between text-xs"
+                className="p-2.5 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between text-xs"
               >
                 <div className="flex items-center gap-2">
                   <div

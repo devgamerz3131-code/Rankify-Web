@@ -1,26 +1,22 @@
-import React, { useState } from 'react';
-import { useAuth } from '@/hooks/use-auth';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ProgressPercentage, ConfidenceLevel } from '@/types/onboarding';
 import {
   Sparkles,
-  Calendar,
-  Clock,
-  Zap,
   Target,
   CheckCircle2,
-  AlertTriangle,
-  Star,
-  Activity,
-  Layers,
-  ArrowRight,
-  TrendingUp,
-  TrendingDown,
   RotateCcw,
   BookOpen,
+  Activity,
+  Calendar,
+  Star,
 } from 'lucide-react';
+import {
+  getSubjectChapterCounts,
+  formatAccuracyDisplay,
+} from '@/services/chapter-service';
 
 const PROGRESS_PILLS: { value: ProgressPercentage; label: string }[] = [
   { value: 0, label: '0%' },
@@ -31,19 +27,41 @@ const PROGRESS_PILLS: { value: ProgressPercentage; label: string }[] = [
 ];
 
 export const ActiveStudyEngineView: React.FC = () => {
-  const { user } = useAuth();
   const {
-    aiStudyPlan,
     chapterProgressMap,
     updateChapterProgress,
-    weakSubjectAnalysis,
     studentDetails,
     setScreen,
   } = useOnboarding();
 
   const chapters = Object.values(chapterProgressMap);
+  const chapterCounts = getSubjectChapterCounts();
   const [selectedSubject, setSelectedSubject] = useState<'All' | 'Physics' | 'Chemistry' | 'Mathematics'>('All');
   const [completedDailyIds, setCompletedDailyIds] = useState<string[]>([]);
+  const subjectTabsRef = useRef<HTMLDivElement>(null);
+
+  const updateSubjectFade = useCallback(() => {
+    const el = subjectTabsRef.current;
+    if (!el) return;
+    el.setAttribute('data-fade-left', el.scrollLeft > 4 ? 'true' : 'false');
+    el.setAttribute(
+      'data-fade-right',
+      el.scrollLeft + el.clientWidth < el.scrollWidth - 4 ? 'true' : 'false'
+    );
+  }, []);
+
+  useEffect(() => {
+    const el = subjectTabsRef.current;
+    if (!el) return;
+    const activeBtn = el.querySelector('[data-active="true"]') as HTMLElement | null;
+    if (activeBtn && el.scrollWidth > el.clientWidth) {
+      const targetLeft = activeBtn.offsetLeft - el.clientWidth / 2 + activeBtn.clientWidth / 2;
+      el.scrollTo({ left: Math.max(0, targetLeft), behavior: 'smooth' });
+    }
+    updateSubjectFade();
+    window.addEventListener('resize', updateSubjectFade);
+    return () => window.removeEventListener('resize', updateSubjectFade);
+  }, [selectedSubject, updateSubjectFade]);
 
   const filteredChapters =
     selectedSubject === 'All'
@@ -65,19 +83,19 @@ export const ActiveStudyEngineView: React.FC = () => {
   return (
     <div className="space-y-8 max-w-6xl mx-auto pb-12">
       {/* Active AI Study Plan Hero Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-purple-950 via-indigo-950 to-slate-950 p-6 sm:p-10 text-white shadow-2xl border border-purple-500/20">
-        <div className="relative z-10 space-y-4">
+      <div className="rounded-2xl bg-slate-900 p-6 sm:p-10 text-white shadow-xl border border-slate-800">
+        <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-md px-3.5 py-1 text-xs font-semibold text-purple-200 border border-white/15">
+            <div className="inline-flex items-center gap-2 rounded-full bg-purple-900 px-3.5 py-1 text-xs font-semibold text-purple-200 border border-purple-800">
               <Sparkles className="h-3.5 w-3.5 text-purple-300" />
-              <span>CBSE Class 12 PCM Study Engine • 37 Official Chapters</span>
+              <span>CBSE Class 12 PCM Study Engine • {chapters.length || chapterCounts.total} Official Chapters</span>
             </div>
 
             <Button
-              variant="glass"
+              variant="outline"
               size="sm"
               onClick={() => setScreen(2)}
-              className="text-white border-white/20 hover:bg-white/10 text-xs font-semibold cursor-pointer"
+              className="text-white border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-semibold cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
               Adjust Routine & Target
@@ -88,34 +106,34 @@ export const ActiveStudyEngineView: React.FC = () => {
             Syllabus Tracker & Diagnostic Engine
           </h1>
 
-          <p className="text-sm text-purple-100/90 max-w-2xl leading-relaxed">
-            Full official CBSE Class 12 PCM curriculum covering Physics (14), Chemistry (10), and Mathematics (13). Track your progress percentages, confidence levels, and needs-focus topics.
+          <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
+            Full official CBSE Class 12 PCM curriculum covering Physics ({chapterCounts.physics}), Chemistry ({chapterCounts.chemistry}), and Mathematics ({chapterCounts.mathematics}). Track your progress percentages, confidence levels, and needs-focus topics.
           </p>
 
           {/* Quick Metrics */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3">
-            <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10">
+            <div className="p-3.5 rounded-xl bg-slate-800 border border-slate-700">
               <div className="flex items-center gap-1.5 text-xs text-purple-200">
                 <Target className="w-3.5 h-3.5" />
                 <span>Overall Coverage</span>
               </div>
-              <div className="text-xl font-extrabold font-mono mt-1">
+              <div className="text-xl font-extrabold font-mono mt-1 text-white">
                 {overallCoverage}% Done
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10">
+            <div className="p-3.5 rounded-xl bg-slate-800 border border-slate-700">
               <div className="flex items-center gap-1.5 text-xs text-purple-200">
                 <BookOpen className="w-3.5 h-3.5" />
                 <span>Assessed Chapters</span>
               </div>
-              <div className="text-xl font-extrabold font-mono mt-1">
+              <div className="text-xl font-extrabold font-mono mt-1 text-white">
                 {totalAssessed} / {chapters.length}
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10">
-              <div className="flex items-center gap-1.5 text-xs text-purple-200">
+            <div className="p-3.5 rounded-xl bg-slate-800 border border-slate-700">
+              <div className="flex items-center gap-1.5 text-xs text-rose-300">
                 <Activity className="w-3.5 h-3.5 text-rose-300" />
                 <span>Needs Focus</span>
               </div>
@@ -124,7 +142,7 @@ export const ActiveStudyEngineView: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10">
+            <div className="p-3.5 rounded-xl bg-slate-800 border border-slate-700">
               <div className="flex items-center gap-1.5 text-xs text-purple-200">
                 <Calendar className="w-3.5 h-3.5" />
                 <span>Target Score</span>
@@ -135,9 +153,6 @@ export const ActiveStudyEngineView: React.FC = () => {
             </div>
           </div>
         </div>
-
-        {/* Ambient glow */}
-        <div className="absolute -right-20 -bottom-20 w-80 h-80 rounded-full bg-purple-500/20 blur-3xl pointer-events-none" />
       </div>
 
       {/* Complete Syllabus Tracker Section */}
@@ -145,7 +160,7 @@ export const ActiveStudyEngineView: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold text-foreground tracking-tight">
-              Interactive 40-Chapter PCM Matrix
+              Interactive PCM Chapter Matrix
             </h2>
             <p className="text-xs text-muted-foreground">
               Every chapter is individually editable. Updates auto-sync to local cache and cloud Firestore.
@@ -153,18 +168,28 @@ export const ActiveStudyEngineView: React.FC = () => {
           </div>
 
           {/* Subject Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-            {(['All', 'Physics', 'Chemistry', 'Mathematics'] as const).map((s) => (
+          <div
+            ref={subjectTabsRef}
+            onScroll={updateSubjectFade}
+            className="flex items-center gap-1.5 overflow-x-auto flex-nowrap snap-x snap-mandatory pb-1 scrollbar-none scroll-edge-fade min-w-0"
+          >
+            {[
+              { id: 'All', label: `All (${chapters.length || chapterCounts.total})` },
+              { id: 'Physics', label: `Physics (${chapters.filter((c) => c.subjectName === 'Physics').length || chapterCounts.physics})` },
+              { id: 'Chemistry', label: `Chemistry (${chapters.filter((c) => c.subjectName === 'Chemistry').length || chapterCounts.chemistry})` },
+              { id: 'Mathematics', label: `Mathematics (${chapters.filter((c) => c.subjectName === 'Mathematics').length || chapterCounts.mathematics})` },
+            ].map((s) => (
               <button
-                key={s}
-                onClick={() => setSelectedSubject(s)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer border whitespace-nowrap ${
-                  selectedSubject === s
+                key={s.id}
+                data-active={selectedSubject === s.id}
+                onClick={() => setSelectedSubject(s.id as any)}
+                className={`px-3.5 py-2 lg:py-1.5 rounded-xl text-xs font-bold transition cursor-pointer border shrink-0 whitespace-nowrap snap-start min-h-[44px] lg:min-h-0 ${
+                  selectedSubject === s.id
                     ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
                     : 'bg-card border-slate-200 dark:border-white/10 text-muted-foreground'
                 }`}
               >
-                {s === 'All' ? `All (${chapters.length})` : s}
+                {s.label}
               </button>
             ))}
           </div>
@@ -174,9 +199,12 @@ export const ActiveStudyEngineView: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
           {filteredChapters.map((ch) => {
             const currentProgress = ch.progressPercentage ?? 0;
+            const attempted = (ch as any).attempted ?? (ch as any).questionsAttempted ?? ch.practiceQuestions ?? ch.questionSolved ?? 0;
+            const correct = (ch as any).correct ?? (ch as any).questionsCorrect;
+            const accResult = formatAccuracyDisplay(attempted, correct, ch.accuracy);
 
             return (
-              <Card key={ch.id} className="p-4 sm:p-5 flex flex-col justify-between space-y-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-slate-200/80 dark:border-white/10 shadow-xs">
+              <Card key={ch.id} className="p-4 sm:p-5 flex flex-col justify-between space-y-4 bg-card border-border shadow-xs">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-purple-500/10 text-purple-600 dark:text-purple-300">
@@ -197,11 +225,11 @@ export const ActiveStudyEngineView: React.FC = () => {
                   <h3 className="font-bold text-sm text-foreground">{ch.chapterName}</h3>
 
                   {ch.topics && ch.topics.length > 0 && (
-                    <div className="flex flex-wrap gap-1 pt-0.5">
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
                       {ch.topics.slice(0, 3).map((t, idx) => (
                         <span
                           key={idx}
-                          className="text-[10px] px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-muted-foreground"
+                          className="text-[10px] px-2.5 py-0.5 rounded-md bg-muted text-foreground/90 border border-border font-semibold"
                         >
                           {t}
                         </span>
@@ -214,13 +242,21 @@ export const ActiveStudyEngineView: React.FC = () => {
                     <span>•</span>
                     <span>Revisions: {ch.revisionCount || 0}</span>
                     <span>•</span>
-                    <span>Accuracy: {ch.accuracy || 70}%</span>
+                    <span>
+                      Accuracy:{' '}
+                      <span
+                        aria-label={accResult.ariaLabel}
+                        className="inline-block min-w-[3ch] text-center font-bold"
+                      >
+                        {accResult.display}
+                      </span>
+                    </span>
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
+                <div className="pt-3 border-t border-border flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-between gap-2">
                   {/* Progress Selector: 0%, 25%, 50%, 75%, Done */}
-                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-lg">
+                  <div className="grid grid-cols-5 sm:flex items-center gap-1 bg-muted p-1 rounded-xl border border-border">
                     {PROGRESS_PILLS.map((p) => {
                       const isCurrent = currentProgress === p.value;
                       return (
@@ -228,10 +264,10 @@ export const ActiveStudyEngineView: React.FC = () => {
                           key={p.value}
                           type="button"
                           onClick={() => updateChapterProgress(ch.id, { progressPercentage: p.value })}
-                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition cursor-pointer border ${
+                          className={`min-h-[44px] min-w-[44px] lg:min-h-0 lg:min-w-0 px-2 py-1.5 lg:py-0.5 flex items-center justify-center rounded-lg lg:rounded-md text-xs lg:text-[10px] font-bold transition cursor-pointer border whitespace-nowrap ${
                             isCurrent
                               ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
-                              : 'border-transparent text-muted-foreground hover:bg-slate-200 dark:hover:bg-slate-700'
+                              : 'border-transparent text-foreground/80 hover:text-foreground hover:bg-card'
                           }`}
                         >
                           {p.label}
@@ -241,19 +277,19 @@ export const ActiveStudyEngineView: React.FC = () => {
                   </div>
 
                   {/* Confidence Stars */}
-                  <div className="flex items-center gap-0.5">
+                  <div className="flex items-center justify-end gap-0.5">
                     {([1, 2, 3, 4, 5] as ConfidenceLevel[]).map((star) => (
                       <button
                         key={star}
                         type="button"
                         onClick={() => updateChapterProgress(ch.id, { confidence: star })}
-                        className="p-0.5 hover:scale-110 transition cursor-pointer"
+                        className="min-w-[44px] min-h-[44px] lg:min-w-0 lg:min-h-0 p-2 lg:p-0.5 flex items-center justify-center rounded-lg hover:scale-110 transition cursor-pointer"
                       >
                         <Star
-                          className={`w-3.5 h-3.5 ${
+                          className={`w-4 h-4 lg:w-3.5 lg:h-3.5 ${
                             ch.confidence >= star
                               ? 'fill-amber-400 text-amber-400'
-                              : 'text-slate-300 dark:text-slate-700'
+                              : 'text-slate-400 dark:text-slate-500'
                           }`}
                         />
                       </button>

@@ -1,7 +1,21 @@
-import { Home, Compass, BookOpen, Target, TrendingUp, User, Sparkles, Video, Settings, Shield, Bookmark, Award, Brain, BrainCircuit, History, RotateCcw, Zap } from '@/icons';
+import {
+  Home,
+  BookOpen,
+  User,
+  Sparkles,
+  Settings,
+  Shield,
+  Bookmark,
+  Brain,
+  MoreHorizontal,
+  TrendingUp,
+} from '@/icons';
 import { NavItem } from '@/types/navigation';
 
-export const NAV_ITEMS: NavItem[] = [
+/**
+ * The core permanent tabs for bottom navigation and primary desktop navigation
+ */
+export const PRIMARY_NAV_ITEMS: NavItem[] = [
   {
     id: 'home',
     label: 'Home',
@@ -9,99 +23,16 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Home,
   },
   {
-    id: 'command',
-    label: 'Command Center',
-    path: '/command',
-    icon: Compass,
-    badge: '30s Intelligence',
-  },
-  {
-    id: 'briefing',
-    label: 'Daily Briefing',
-    path: '/briefing',
-    icon: Sparkles,
-    badge: 'Morning Intelligence',
-  },
-  {
-    id: 'formula',
-    label: 'Formula Engine',
-    path: '/formula',
-    icon: Zap,
-    badge: 'Equations & Proofs',
-  },
-  {
-    id: 'ncert',
-    label: 'NCERT Intelligence',
-    path: '/ncert',
-    icon: BookOpen,
-    badge: 'Interactive AI',
-  },
-  {
-    id: 'revision',
-    label: 'Smart Revision',
-    path: '/revision',
-    icon: RotateCcw,
-    badge: 'Spaced Recall',
-  },
-  {
-    id: 'brain',
-    label: 'Rankify Brain',
-    path: '/brain',
-    icon: BrainCircuit,
-    badge: 'AI Study Coach',
-  },
-  {
-    id: 'replay',
-    label: 'Study Replay',
-    path: '/replay',
-    icon: History,
-    badge: 'Learning Diary',
-  },
-  {
-    id: 'readiness',
-    label: 'Exam Readiness',
-    path: '/readiness',
-    icon: Award,
-    badge: 'Deterministic',
-  },
-  {
-    id: 'weakness',
-    label: 'Weakness Analyzer',
-    path: '/weakness',
-    icon: Brain,
-    badge: 'Root Cause AI',
-  },
-  {
     id: 'study',
-    label: 'Rankify Smart Engine',
+    label: 'Study',
     path: '/study',
     icon: BookOpen,
   },
   {
-    id: 'practice',
-    label: 'Practice',
-    path: '/practice',
-    icon: Target,
-  },
-  {
-    id: 'mistakes',
-    label: 'Mistake Notebook',
-    path: '/mistakes',
-    icon: Bookmark,
-    badge: 'Spaced Repetition',
-  },
-  {
     id: 'ai',
-    label: 'Rankify AI',
+    label: 'AI Chat',
     path: '/ai',
     icon: Sparkles,
-    badge: 'Prompt Engine',
-  },
-  {
-    id: 'progress',
-    label: 'Progress',
-    path: '/progress',
-    icon: TrendingUp,
   },
   {
     id: 'profile',
@@ -110,10 +41,54 @@ export const NAV_ITEMS: NavItem[] = [
     icon: User,
   },
   {
+    id: 'more',
+    label: 'More',
+    path: '/more',
+    icon: MoreHorizontal,
+  },
+];
+
+/**
+ * Secondary items nested inside the 'More' tab
+ */
+export const MORE_NAV_ITEMS: NavItem[] = [
+  {
+    id: 'ncert',
+    label: 'NCERT',
+    path: '/ncert',
+    icon: BookOpen,
+    badge: 'Reader',
+  },
+  {
+    id: 'mistakes',
+    label: 'Mistakes',
+    path: '/mistakes',
+    icon: Bookmark,
+    badge: 'Notebook',
+  },
+  {
+    id: 'weakness',
+    label: 'Weakness',
+    path: '/weakness',
+    icon: Brain,
+    badge: 'Analyzer',
+  },
+];
+
+export const NAV_ITEMS: NavItem[] = [
+  ...PRIMARY_NAV_ITEMS,
+  ...MORE_NAV_ITEMS,
+  {
     id: 'settings',
     label: 'Settings',
     path: '/settings',
     icon: Settings,
+  },
+  {
+    id: 'halfyearly',
+    label: 'Half-Yearly Analyzer',
+    path: '/halfyearly',
+    icon: TrendingUp,
   },
   {
     id: 'admin',
@@ -122,3 +97,4 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Shield,
   },
 ];
+

@@ -366,7 +366,7 @@ export class MistakeService {
       id,
       userId: this.currentUserId,
       question: params.question.trim(),
-      options: params.options,
+      ...(params.options ? { options: params.options } : {}),
       correctAnswer: params.correctAnswer,
       studentAnswer: params.studentAnswer,
       explanation: params.explanation,
@@ -397,7 +397,11 @@ export class MistakeService {
     if (this.currentUserId && this.currentUserId !== 'guest') {
       try {
         const docRef = doc(db, 'users', this.currentUserId, 'mistake_notebook', id);
-        await setDoc(docRef, newMistake);
+        const payload: Record<string, any> = { ...newMistake };
+        Object.keys(payload).forEach((k) => {
+          if (payload[k] === undefined) delete payload[k];
+        });
+        await setDoc(docRef, payload);
       } catch (err) {
         console.warn('[MistakeService] Cloud write error (saved offline):', err);
       }
@@ -459,12 +463,12 @@ export class MistakeService {
       confidence: wasCorrect ? Math.min(5, (current.confidence || 1) + 1) : Math.max(1, (current.confidence || 2) - 1),
       lastRevisedAt: nowIso,
       nextRevisionDue: nextDue,
-      notes: notes || current.notes,
+      notes: notes || current.notes || '',
       revisionHistory: [
         {
           revisedAt: nowIso,
           wasCorrect,
-          notes,
+          ...(notes ? { notes } : {}),
           stageReached: newStage,
         },
         ...current.revisionHistory,

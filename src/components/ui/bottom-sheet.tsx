@@ -38,7 +38,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => onOpenChange(false)}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/50"
           />
 
           {/* Sheet */}
@@ -48,7 +48,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 28, stiffness: 300 }}
             className={cn(
-              'relative w-full max-h-[85vh] overflow-y-auto rounded-t-3xl bg-card border-t border-slate-200/80 dark:border-white/10 shadow-2xl p-6 z-10',
+              'relative w-full max-h-[85vh] overflow-y-auto rounded-t-3xl bg-card border-t border-border shadow-2xl p-6 z-10',
               className
             )}
           >

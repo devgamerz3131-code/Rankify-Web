@@ -6,6 +6,9 @@ import { useNavigation } from '@/contexts/NavigationContext';
 import { notificationEngine } from '@/services/notification-service';
 import { backupRestoreService } from '@/services/backup-restore';
 import { CURRENT_APP_VERSION } from '@/services/remote-config';
+import { TOTAL_OFFICIAL_CHAPTERS } from '@/services/chapter-service';
+import { AppearanceLabView } from './AppearanceLabView';
+import { BackupRestoreCenter } from './BackupRestoreCenter';
 import {
   Sun,
   Moon,
@@ -23,6 +26,8 @@ import {
   Upload,
   RefreshCw,
   CheckCircle2,
+  Sliders,
+  Sparkles,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -32,6 +37,7 @@ export const SettingsView: React.FC = () => {
   const { setScreen } = useOnboarding();
   const { setActiveTab } = useNavigation();
 
+  const [settingsTab, setSettingsTab] = useState<'general' | 'appearance' | 'backup'>('general');
   const [selectedLanguage, setSelectedLanguage] = useState<'English' | 'Hindi'>('English');
   const [showResetModal, setShowResetModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -55,12 +61,12 @@ export const SettingsView: React.FC = () => {
       return;
     }
     setIsCloudSyncing(true);
-    const success = await backupRestoreService.saveCloudBackup(user.uid);
+    const result = await backupRestoreService.saveCloudBackup(user.uid);
     setIsCloudSyncing(false);
-    if (success) {
+    if (result.success) {
       toast.success('Complete CBSE PCM academic state backed up to Cloud!');
     } else {
-      toast.error('Cloud backup encountered an error');
+      toast.error(result.error || 'Cloud backup encountered an error');
     }
   };
 
@@ -101,13 +107,17 @@ export const SettingsView: React.FC = () => {
     reader.readAsText(file);
   };
 
-  const handleResetOnboarding = () => {
+  const handleResetOnboarding = async () => {
     try {
+      if (user?.uid) {
+        // Pre-destructive safety backup
+        await backupRestoreService.saveCloudBackup(user.uid, 'pre_destructive');
+      }
       localStorage.removeItem('onboarding_completed');
       localStorage.removeItem('onboarding_screen');
       setShowResetModal(false);
       setScreen(1);
-      toast.success('Onboarding diagnostic re-initialized');
+      toast.success('Onboarding diagnostic re-initialized (Safety backup created)');
       window.location.reload();
     } catch {
       toast.error('Failed to reset onboarding');
@@ -124,59 +134,101 @@ export const SettingsView: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      {/* 1. Theme Configuration */}
-      <div className="p-6 rounded-3xl bg-card/60 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-4">
-        <div>
-          <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
-            <Sun className="w-4 h-4 text-purple-600" />
-            <span>Appearance & Theme</span>
-          </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Select light, dark, or automatic system appearance.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-3 gap-3">
-          <button
-            onClick={() => setTheme('light')}
-            className={`p-3.5 rounded-2xl border text-xs font-bold flex flex-col items-center gap-2 transition-all cursor-pointer ${
-              theme === 'light'
-                ? 'border-purple-600 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 shadow-xs'
-                : 'border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-slate-900 text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Sun className="w-5 h-5 text-amber-500" />
-            <span>Light</span>
-          </button>
-
-          <button
-            onClick={() => setTheme('dark')}
-            className={`p-3.5 rounded-2xl border text-xs font-bold flex flex-col items-center gap-2 transition-all cursor-pointer ${
-              theme === 'dark'
-                ? 'border-purple-600 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 shadow-xs'
-                : 'border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-slate-900 text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Moon className="w-5 h-5 text-indigo-400" />
-            <span>Dark</span>
-          </button>
-
-          <button
-            onClick={() => setTheme('system')}
-            className={`p-3.5 rounded-2xl border text-xs font-bold flex flex-col items-center gap-2 transition-all cursor-pointer ${
-              theme === 'system'
-                ? 'border-purple-600 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 shadow-xs'
-                : 'border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-slate-900 text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Laptop className="w-5 h-5 text-purple-500" />
-            <span>System</span>
-          </button>
-        </div>
+      {/* Settings Sub-Navigation */}
+      <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl border border-slate-200/60 dark:border-white/5 w-fit">
+        <button
+          onClick={() => setSettingsTab('general')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            settingsTab === 'general'
+              ? 'bg-purple-600 text-white shadow-xs'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          General Settings
+        </button>
+        <button
+          onClick={() => setSettingsTab('appearance')}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            settingsTab === 'appearance'
+              ? 'bg-purple-600 text-white shadow-xs'
+              : 'text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30'
+          }`}
+        >
+          <Sliders className="w-3.5 h-3.5" />
+          <span>Appearance</span>
+        </button>
+        <button
+          onClick={() => setSettingsTab('backup')}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            settingsTab === 'backup'
+              ? 'bg-purple-600 text-white shadow-xs'
+              : 'text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30'
+          }`}
+        >
+          <Cloud className="w-3.5 h-3.5" />
+          <span>Cloud Backups</span>
+        </button>
       </div>
 
+      {settingsTab === 'appearance' ? (
+        <AppearanceLabView />
+      ) : settingsTab === 'backup' ? (
+        <BackupRestoreCenter />
+      ) : (
+        <>
+          {/* 1. Theme Configuration & Appearance Lab Callout */}
+          <div className="p-6 rounded-2xl bg-card border border-border shadow-xs space-y-4">
+            <div>
+              <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+                <Sun className="w-4 h-4 text-purple-600" />
+                <span>Appearance & Theme</span>
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Select light, dark, or automatic system appearance.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <button
+                onClick={() => setTheme('light')}
+                className={`p-3.5 rounded-2xl border text-xs font-bold flex flex-col items-center gap-2 transition-all cursor-pointer ${
+                  theme === 'light'
+                    ? 'border-purple-600 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 shadow-xs'
+                    : 'border-border bg-slate-50 dark:bg-slate-900 text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Sun className="w-5 h-5 text-amber-500" />
+                <span>Light</span>
+              </button>
+
+              <button
+                onClick={() => setTheme('dark')}
+                className={`p-3.5 rounded-2xl border text-xs font-bold flex flex-col items-center gap-2 transition-all cursor-pointer ${
+                  theme === 'dark'
+                    ? 'border-purple-600 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 shadow-xs'
+                    : 'border-border bg-slate-50 dark:bg-slate-900 text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Moon className="w-5 h-5 text-indigo-400" />
+                <span>Dark</span>
+              </button>
+
+              <button
+                onClick={() => setTheme('system')}
+                className={`p-3.5 rounded-2xl border text-xs font-bold flex flex-col items-center gap-2 transition-all cursor-pointer ${
+                  theme === 'system'
+                    ? 'border-purple-600 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 shadow-xs'
+                    : 'border-border bg-slate-50 dark:bg-slate-900 text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Laptop className="w-5 h-5 text-purple-500" />
+                <span>System</span>
+              </button>
+            </div>
+          </div>
+
       {/* 2. Notification Center */}
-      <div className="p-6 rounded-3xl bg-card/60 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-4">
+      <div className="p-6 rounded-2xl bg-card border border-border shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
@@ -184,7 +236,7 @@ export const SettingsView: React.FC = () => {
               <span>Rankify Notification Center</span>
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5 max-w-xl">
-              Customize detailed Study Reminders, Savage Motivators, Exam Countdown frequency, Streak Protectors, Quiet Hours, and other system-level preferences.
+              Customize study reminders, motivational quotes, exam countdown alerts, streak reminders, and quiet hours.
             </p>
           </div>
 
@@ -198,15 +250,25 @@ export const SettingsView: React.FC = () => {
       </div>
 
       {/* 3. Cloud Backup & Data Recovery */}
-      <div className="p-6 rounded-3xl bg-card/60 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-4">
-        <div>
-          <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
-            <Cloud className="w-4 h-4 text-purple-600" />
-            <span>Cloud Backup & Academic State Restoration</span>
-          </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Seamlessly synchronize your 37-chapter progress, daily tasks, notes, and study preferences.
-          </p>
+      <div className="p-6 rounded-2xl bg-card border border-border shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+              <Cloud className="w-4 h-4 text-purple-600" />
+              <span>Cloud Backup & Academic State Restoration</span>
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Seamlessly synchronize your {TOTAL_OFFICIAL_CHAPTERS}-chapter progress, daily tasks, notes, and study preferences.
+            </p>
+          </div>
+
+          <button
+            onClick={() => setSettingsTab('backup')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-xs font-bold border border-purple-200 dark:border-purple-800/40 hover:bg-purple-100 transition-colors cursor-pointer shrink-0"
+          >
+            <Cloud className="w-3.5 h-3.5" />
+            <span>Open Backup Hub & History</span>
+          </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
@@ -273,7 +335,7 @@ export const SettingsView: React.FC = () => {
       </div>
 
       {/* 4. Language & Medium */}
-      <div className="p-6 rounded-3xl bg-card/60 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-4">
+      <div className="p-6 rounded-2xl bg-card border border-border shadow-xs space-y-4">
         <div>
           <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
             <Globe className="w-4 h-4 text-purple-600" />
@@ -293,7 +355,7 @@ export const SettingsView: React.FC = () => {
             className={`p-3 rounded-2xl border text-xs font-bold transition-colors cursor-pointer ${
               selectedLanguage === 'English'
                 ? 'border-purple-600 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300'
-                : 'border-slate-200 dark:border-slate-800 text-muted-foreground'
+                : 'border-border text-muted-foreground'
             }`}
           >
             English (Standard CBSE)
@@ -307,7 +369,7 @@ export const SettingsView: React.FC = () => {
             className={`p-3 rounded-2xl border text-xs font-bold transition-colors cursor-pointer ${
               selectedLanguage === 'Hindi'
                 ? 'border-purple-600 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300'
-                : 'border-slate-200 dark:border-slate-800 text-muted-foreground'
+                : 'border-border text-muted-foreground'
             }`}
           >
             Hinglish / Hindi Terms
@@ -316,21 +378,21 @@ export const SettingsView: React.FC = () => {
       </div>
 
       {/* 5. Diagnostic Reset & Memory Management */}
-      <div className="p-6 rounded-3xl bg-card/60 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-4">
+      <div className="p-6 rounded-2xl bg-card border border-border shadow-xs space-y-4">
         <div>
           <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
             <RotateCcw className="w-4 h-4 text-purple-600" />
-            <span>Data & Diagnostic Reset</span>
+            <span>Data & Storage Reset</span>
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Manage local storage and chapter assessments.
+            Manage local storage and onboarding settings.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 pt-1">
           <button
             onClick={handleClearCache}
-            className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-foreground text-xs font-bold border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 cursor-pointer"
+            className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-foreground text-xs font-bold border border-border flex items-center gap-1.5 cursor-pointer"
           >
             <Trash2 className="w-3.5 h-3.5 text-amber-500" />
             <span>Clear Local App Cache</span>
@@ -347,7 +409,7 @@ export const SettingsView: React.FC = () => {
       </div>
 
       {/* 6. About Rankify & Support */}
-      <div className="p-6 rounded-3xl bg-card/60 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-3">
+      <div className="p-6 rounded-2xl bg-card border border-border shadow-xs space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Info className="w-4 h-4 text-purple-600" />
@@ -359,7 +421,7 @@ export const SettingsView: React.FC = () => {
         </div>
 
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Rankify is an intelligent study OS built exclusively for CBSE Class 12 Science students. Powered by real-time syllabus tracking, persistent Firebase cloud sync, and structured NCERT revision systems for 95%+ board examination results.
+          Rankify is a study companion built for CBSE Class 12 Science students, featuring syllabus progress tracking, cloud sync, and chapter-wise NCERT revision tools.
         </p>
 
         <div className="flex flex-wrap items-center gap-3 pt-2">
@@ -380,11 +442,13 @@ export const SettingsView: React.FC = () => {
           </a>
         </div>
       </div>
+      </>
+      )}
 
       {/* Reset Confirmation Modal */}
       {showResetModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-card border border-slate-200 dark:border-white/10 rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-2xl">
             <div className="flex items-center gap-3 text-rose-600">
               <AlertTriangle className="w-6 h-6" />
               <h3 className="font-bold text-base text-foreground">Reset Assessment?</h3>
@@ -412,10 +476,10 @@ export const SettingsView: React.FC = () => {
 
       {/* Feedback Modal */}
       {showFeedbackModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
           <form
             onSubmit={handleSubmitFeedback}
-            className="bg-card border border-slate-200 dark:border-white/10 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl"
+            className="bg-card border border-border rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl"
           >
             <h3 className="font-bold text-base text-foreground flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-purple-600" />

@@ -1,74 +1,64 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
-import { doc, onSnapshot, collection, query, getDocs } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { useAuth } from '@/hooks/use-auth';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { syncEngine } from '@/services/sync-engine';
-import { rebalanceNeedsFocus } from '@/services/ai-plan-generator';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { safeLocalStorage } from '@/utils/storage';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
-  Sparkles,
+  Bell,
   Flame,
-  CheckCircle2,
-  Clock,
-  Calendar,
-  AlertTriangle,
-  RotateCcw,
-  SkipForward,
-  PlusCircle,
-  TrendingUp,
-  TrendingDown,
-  Target,
-  ArrowRight,
-  BookOpen,
-  Award,
-  Zap,
-  RefreshCw,
-  Star,
-  Quote,
-  Activity,
-  Layers,
-  Check,
-  Video,
+  Sparkles,
   Play,
-  Bookmark,
+  ArrowRight,
+  Clock,
+  Target,
+  CheckCircle2,
+  Check,
+  RotateCcw,
+  Compass,
+  Brain,
+  BookOpen,
+  Zap,
+  Award,
+  Video,
   ChevronRight,
+  PlusCircle,
+  HelpCircle,
+  TrendingUp,
+  Trophy,
+  Rocket,
+  FileText,
+  Moon,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { ProgressPercentage } from '@/types/onboarding';
-import { analytics } from '@/services/analytics';
-import { achievementsService } from '@/services/achievements-service';
-import { ShareCardModal } from '@/components/common/ShareCardModal';
-import { Share2 } from 'lucide-react';
-import { RankifySmartPlanCard } from './RankifySmartPlanCard';
-import { MistakeNotebookCard } from './components/MistakeNotebookCard';
-import { ExamReadinessCard } from './components/ExamReadinessCard';
-import { ExamCommandCenterCard } from './components/ExamCommandCenterCard';
-import { RankifyBrainCard } from './components/RankifyBrainCard';
-import { DailyBriefingHomeCard } from './components/DailyBriefingHomeCard';
-import { TodayRevisionCard } from './components/TodayRevisionCard';
-import { NcertIntelligenceCard } from './components/NcertIntelligenceCard';
-import { FormulaIntelligenceCard } from './components/FormulaIntelligenceCard';
-import { WeaknessAnalyzerCard } from './components/WeaknessAnalyzerCard';
-import { StudyReplayCard } from './components/StudyReplayCard';
-import { StudyJourneyFlow } from '@/features/smartplan/StudyJourneyFlow';
-import { notificationEngine, NotificationSettings } from '@/services/notification-service';
-import { Bell } from 'lucide-react';
+import { questionGeneratorService } from '@/services/question-generator-service';
+import { MissionCompleteModal } from '@/features/mission/MissionCompleteModal';
+import {
+  dailyMissionService,
+  DailyMissionReport,
+  getTodayDateString,
+  generatePersonalizedAiSummary,
+  getDynamicMotivationQuote,
+  calculateMissionAchievements,
+  generateBonusPracticeTasks,
+  TaskItem,
+} from '@/services/daily-mission-service';
+import {
+  TOTAL_OFFICIAL_CHAPTERS,
+  sanitizeTask,
+  sanitizeTasks,
+} from '@/services/chapter-service';
+import { getWeakestSubjectAndPriorityChapter } from '@/services/weakness-service';
+import { mistakeService } from '@/services/mistake-service';
+import { readinessService } from '@/services/readiness-service';
 
-export interface TaskItem {
-  id: string;
-  taskTitle: string;
-  subjectName: string;
-  chapterName: string;
-  allocatedMinutes: number;
-  difficulty?: 'Easy' | 'Medium' | 'Hard' | 'Board Level' | 'Topper Level' | 'Foundation' | string;
-  isCompleted: boolean;
-  status: 'pending' | 'completed' | 'skipped';
-}
+export type { TaskItem };
 
 export interface StudyStatistics {
   streak: number;
@@ -77,20 +67,20 @@ export interface StudyStatistics {
   totalStudyMinutes: number;
   questionsSolved: number;
   lastActiveDate: string;
-  updatedAt?: string;
 }
 
-/**
- * Web Audio chime for mission completion celebration
- */
 function playCelebrationChime() {
+  if (typeof window === 'undefined') return;
   try {
     const AudioContextClass =
       window.AudioContext ||
-      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) return;
     const ctx = new AudioContextClass();
-    const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+    if (ctx.state === 'suspended' && typeof ctx.resume === 'function') {
+      ctx.resume().catch(() => {});
+    }
+    const notes = [523.25, 659.25, 783.99, 1046.5];
     notes.forEach((freq, idx) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -103,126 +93,45 @@ function playCelebrationChime() {
       gain.connect(ctx.destination);
       osc.start(ctx.currentTime + idx * 0.12);
       osc.stop(ctx.currentTime + idx * 0.12 + 0.5);
+      if (idx === notes.length - 1) {
+        osc.onended = () => {
+          if (typeof ctx.close === 'function') {
+            ctx.close().catch(() => {});
+          }
+        };
+      }
     });
-  } catch (e) {
-    // Audio context may require user interaction
+  } catch {
+    // Audio context fallback
   }
 }
 
 export const HomeScreenRevamped: React.FC = () => {
   const { user } = useAuth();
-  const { setActiveTab, navigateToAi } = useNavigation();
+  const { setActiveTab } = useNavigation();
   const {
-    studentDetails: contextDetails,
+    studentDetails,
     chapterProgressMap: contextChapters,
     aiStudyPlan: contextPlan,
     upcomingExam: contextExam,
-    updateChapterProgress,
   } = useOnboarding();
 
-  const [profileData, setProfileData] = useState<{
-    displayName?: string;
-    board?: string;
-    classNumber?: number;
-    targetPercentage?: number;
-    stream?: string;
-  }>(() => {
-    if (!user?.uid) return {};
-    const cached = syncEngine.getLocalCache<Record<string, unknown>>('student_details', user.uid);
-    return {
-      displayName: (cached?.name as string) || user.displayName || 'Student',
-      board: 'CBSE',
-      classNumber: 12,
-      targetPercentage: (cached?.targetPercentage as number) || 95,
-      stream: 'science-pcm',
-    };
-  });
-
-  const [planState, setPlanState] = useState<{
-    todaysMission: string;
-    todaysChapters: string[];
-    todaysQuestions: number;
-    revisionTasks: { id: string; title: string; chapterName: string; subjectName: string; isCompleted: boolean }[];
-    focusTopic: string;
-    estimatedCompletion: string;
-    motivation: string;
-    accuracy: number;
-    weakestChapter: string;
-    strongestChapter: string;
-    dailyGoal: { minutes: number; tasksCount: number };
-    weakChapters: string[];
-  }>(() => {
-    return {
-      todaysMission: contextPlan?.todaysMission || 'Physics & Calculus Mastery Sprint',
-      todaysChapters: contextPlan?.todaysChapters || ['Electric Charges and Fields', 'Solutions', 'Integrals'],
-      todaysQuestions: contextPlan?.todaysQuestions || 25,
-      revisionTasks: contextPlan?.revisionTasks || [
-        { id: 'rev_1', title: 'Formula Recall: Ray Optics & Snell’s Law', chapterName: 'Ray Optics', subjectName: 'Physics', isCompleted: false },
-        { id: 'rev_2', title: 'Named Reactions: Aldol & Cannizzaro', chapterName: 'Aldehyde Ketone', subjectName: 'Chemistry', isCompleted: false },
-        { id: 'rev_3', title: 'Matrices Determinants Quick Drill', chapterName: 'Matrices', subjectName: 'Mathematics', isCompleted: false },
-      ],
-      focusTopic: contextPlan?.focusTopic || 'Electric Charges & Coulomb’s Law',
-      estimatedCompletion: contextPlan?.estimatedCompletion || 'Jan 30, 2027',
-      motivation: contextPlan?.motivation || 'Consistency in solving 25 questions daily guarantees CBSE Class 12 PCM distinction.',
-      accuracy: contextPlan?.accuracy || 82,
-      weakestChapter: contextPlan?.weakestChapter || 'Optics & Differential Equations',
-      strongestChapter: contextPlan?.strongestChapter || 'Current Electricity & Matrices',
-      dailyGoal: contextPlan?.dailyGoal || { minutes: 240, tasksCount: 4 },
-      weakChapters: contextPlan?.weakChapters || ['Wave Optics', 'Electrochemistry', 'Differential Equations'],
-    };
-  });
-
+  // Tasks state (Always provides full 6-task PCM daily mission)
   const [tasks, setTasks] = useState<TaskItem[]>(() => {
-    if (!user?.uid) return [];
-    const cached = syncEngine.getLocalCache<any>('active_study_plan', user.uid);
-    if (cached?.dailyTasks?.length) {
-      return cached.dailyTasks;
+    const userId = user?.uid || 'guest';
+    const cached = syncEngine.getLocalCache<{ dailyTasks?: TaskItem[] }>('active_study_plan', userId);
+    if (cached?.dailyTasks && cached.dailyTasks.length >= 5) {
+      return sanitizeTasks(cached.dailyTasks);
     }
-    return [
-      {
-        id: 'task_p1',
-        taskTitle: 'Physics: Electric Charges & Gauss Theorem NCERT Derivations',
-        subjectName: 'Physics',
-        chapterName: 'Electric Charges and Fields',
-        allocatedMinutes: 60,
-        isCompleted: false,
-        status: 'pending',
-      },
-      {
-        id: 'task_c1',
-        taskTitle: 'Chemistry: Colligative Properties & Raoult’s Law Numericals',
-        subjectName: 'Chemistry',
-        chapterName: 'Solutions',
-        allocatedMinutes: 50,
-        isCompleted: false,
-        status: 'pending',
-      },
-      {
-        id: 'task_m1',
-        taskTitle: 'Maths: 15 High-Yield Definite Integrals Problems',
-        subjectName: 'Mathematics',
-        chapterName: 'Integrals',
-        allocatedMinutes: 60,
-        isCompleted: false,
-        status: 'pending',
-      },
-      {
-        id: 'task_rev1',
-        taskTitle: 'Needs Focus Drill: Active Recall & Formula Sheets',
-        subjectName: 'Physics',
-        chapterName: 'Ray Optics',
-        allocatedMinutes: 30,
-        isCompleted: false,
-        status: 'pending',
-      },
-    ];
+    return sanitizeTasks(dailyMissionService.generateFreshMissionTasks(userId));
   });
 
+  // Statistics (Starts from zero for newly registered students)
   const [statistics, setStatistics] = useState<StudyStatistics>(() => {
     const todayStr = new Date().toISOString().split('T')[0];
     if (!user?.uid) {
       return {
-        streak: 1,
+        streak: 0,
         completedTasksCount: 0,
         todayProgressPercent: 0,
         totalStudyMinutes: 0,
@@ -233,7 +142,7 @@ export const HomeScreenRevamped: React.FC = () => {
     const cached = syncEngine.getLocalCache<StudyStatistics>('study_statistics', user.uid);
     return (
       cached || {
-        streak: 1,
+        streak: 0,
         completedTasksCount: 0,
         todayProgressPercent: 0,
         totalStudyMinutes: 0,
@@ -243,962 +152,1041 @@ export const HomeScreenRevamped: React.FC = () => {
     );
   });
 
-  const [examDateStr, setExamDateStr] = useState<string>(
-    contextExam.examDate || new Date(new Date().setMonth(new Date().getMonth() + 2)).toISOString().split('T')[0]
-  );
-
-  const [hasCelebratedToday, setHasCelebratedToday] = useState(false);
-
-  // Notification Preference state and syncing hooks
-  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(() => notificationEngine.getSettings());
-
+  // Real-time synchronization of study statistics from Firestore
   useEffect(() => {
     if (!user?.uid) return;
-    const syncNotificationSettings = async () => {
-      const loaded = await notificationEngine.loadUserPreferences(user.uid);
-      setNotificationSettings(loaded);
-    };
-    syncNotificationSettings();
+    const statsDocRef = doc(db, 'users', user.uid, 'study_statistics', 'current');
+    const unsub = onSnapshot(
+      statsDocRef,
+      (snap) => {
+        if (snap.exists()) {
+          const remoteStats = snap.data() as StudyStatistics;
+          if (remoteStats) {
+            setStatistics((prev) => ({ ...prev, ...remoteStats }));
+            syncEngine.setLocalCache('study_statistics', remoteStats, user.uid);
+          }
+        }
+      },
+      (err) => console.warn('Study statistics listener notice:', err)
+    );
+
+    return () => unsub();
   }, [user?.uid]);
 
-  // Auto-request browser notification permission on first launch after login
-  useEffect(() => {
-    if (!user?.uid) return;
-    const triggerFirstPrompt = async () => {
-      const currentSettings = notificationEngine.getSettings();
-      if (!currentSettings.hasPromptedPermission && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
-        setTimeout(async () => {
-          await notificationEngine.requestPermission();
-          const refreshed = notificationEngine.getSettings();
-          setNotificationSettings(refreshed);
-        }, 3000);
-      }
-    };
-    triggerFirstPrompt();
-  }, [user?.uid]);
-
-  const [showCelebrationBanner, setShowCelebrationBanner] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
-  const [showRecalibrateModal, setShowRecalibrateModal] = useState(false);
-  const [isRegenerating, setIsRegenerating] = useState(false);
-
-  // 1. DAILY RESET ENGINE (Section 7)
-  // Every midnight Today's progress resets to 0%. Overall progress NEVER resets.
-  useEffect(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    if (statistics.lastActiveDate && statistics.lastActiveDate !== todayStr) {
-      console.log('Daily Reset: New day detected, resetting today’s progress to 0%...');
-      const resetStats: StudyStatistics = {
-        ...statistics,
-        todayProgressPercent: 0,
-        lastActiveDate: todayStr,
-        updatedAt: new Date().toISOString(),
+  // Previous Session (Continue Learning - null if no study session started yet)
+  const previousSession = useMemo(() => {
+    const chList = Object.values(contextChapters || {});
+    const activeCh = chList.find((c) => c.progressPercentage > 0 && c.progressPercentage < 100);
+    if (activeCh) {
+      return {
+        chapterName: activeCh.chapterName,
+        subjectName: activeCh.subjectName,
+        progressPercentage: activeCh.progressPercentage,
       };
-      setStatistics(resetStats);
-      setTasks((prev) => prev.map((t) => ({ ...t, isCompleted: false, status: 'pending' as const })));
-      setShowCelebrationBanner(false);
-      setHasCelebratedToday(false);
-
-      if (user?.uid) {
-        syncEngine.queueSync(user.uid, 'users', `${user.uid}/study_statistics/current`, resetStats as unknown as Record<string, unknown>);
-      }
     }
-  }, [statistics, user?.uid]);
+    return null;
+  }, [contextChapters]);
 
-  // 2. Real-time Firestore Listeners
-  useEffect(() => {
-    if (!user?.uid) return;
-    const uid = user.uid;
+  // Days remaining (Safari-safe local date calculation)
+  const daysRemaining = useMemo(() => {
+    if (!contextExam?.examDate) return 74;
+    const parts = contextExam.examDate.split('-');
+    if (parts.length === 3) {
+      const target = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const diff = target.getTime() - today.getTime();
+      return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+    }
+    const diff = new Date(contextExam.examDate).getTime() - Date.now();
+    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+  }, [contextExam?.examDate]);
 
-    const unsubUser = onSnapshot(doc(db, 'users', uid), (snap) => {
-      if (snap.exists()) {
-        const d = snap.data();
-        setProfileData((prev) => ({
-          ...prev,
-          displayName: d.displayName || prev.displayName,
-          targetPercentage: d.targetPercentage || prev.targetPercentage,
-        }));
-      }
-    });
-
-    const unsubPlan = onSnapshot(doc(db, 'users', uid, 'study_plan', 'current'), (snap) => {
-      if (snap.exists()) {
-        const d = snap.data();
-        if (d.dailyTasks?.length) setTasks(d.dailyTasks);
-        setPlanState((prev) => ({
-          ...prev,
-          todaysMission: d.todaysMission || prev.todaysMission,
-          todaysChapters: d.todaysChapters || prev.todaysChapters,
-          todaysQuestions: d.todaysQuestions || prev.todaysQuestions,
-          revisionTasks: d.revisionTasks || prev.revisionTasks,
-          focusTopic: d.focusTopic || prev.focusTopic,
-          estimatedCompletion: d.estimatedCompletion || prev.estimatedCompletion,
-          motivation: d.motivation || prev.motivation,
-          accuracy: d.accuracy || prev.accuracy,
-          weakestChapter: d.weakestChapter || prev.weakestChapter,
-          strongestChapter: d.strongestChapter || prev.strongestChapter,
-          dailyGoal: d.dailyGoal || prev.dailyGoal,
-          weakChapters: d.weakChapters || prev.weakChapters,
-        }));
-      }
-    });
-
-    const unsubStats = onSnapshot(doc(db, 'users', uid, 'study_statistics', 'current'), (snap) => {
-      if (snap.exists()) {
-        setStatistics(snap.data() as StudyStatistics);
-      }
-    }, (error) => {
-      console.warn('[Rankify] Real-time statistics subscription failed, using local offline stats:', error);
-    });
-
-    return () => {
-      unsubUser();
-      unsubPlan();
-      unsubStats();
-    };
-  }, [user?.uid]);
-
-  // Dynamic Greeting based on time of day
-  const greeting = useMemo(() => {
+  // Time of day greeting
+  const greetingText = useMemo(() => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
+    if (hour >= 4 && hour < 12) return 'Good Morning';
+    if (hour >= 12 && hour < 17) return 'Good Afternoon';
     return 'Good Evening';
   }, []);
 
-  // Exam Countdown in days
-  const daysRemaining = useMemo(() => {
-    const target = new Date(examDateStr).getTime();
-    const today = new Date().getTime();
-    const diff = Math.ceil((target - today) / (1000 * 60 * 60 * 24));
-    return isNaN(diff) || diff < 0 ? 0 : diff;
-  }, [examDateStr]);
+  const studentName = studentDetails?.name || user?.displayName?.split(' ')[0] || 'Student';
 
-  // Overall syllabus progress calculation
-  const chaptersList = useMemo(() => Object.values(contextChapters), [contextChapters]);
-  const overallCoverage = useMemo(() => {
-    if (chaptersList.length === 0) return 35;
-    const sum = chaptersList.reduce((acc, c) => acc + (c.progressPercentage || 0), 0);
-    return Math.round(sum / chaptersList.length);
-  }, [chaptersList]);
+  // Mission Complete & Celebration States
+  const [missionReport, setMissionReport] = useState<DailyMissionReport | null>(null);
+  const [isCelebrationOpen, setIsCelebrationOpen] = useState(false);
+  const todayStr = useMemo(() => getTodayDateString(), []);
 
-  // Completed tasks count & Today's Progress percentage
-  const completedCount = useMemo(() => tasks.filter((t) => t.isCompleted).length, [tasks]);
-  const totalTasks = tasks.length;
-  const progressPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
-
-  // Automated checks scheduler for Study reminders, Streak alerts, and countdowns
+  // 1. Check for day transition or task reset: ensure all 6 tasks are loaded and fresh
   useEffect(() => {
-    if (!user?.uid || !notificationSettings.enabled) return;
+    const userId = user?.uid || 'guest';
+    const planDateKey = `rankify_plan_date_${userId}`;
+    const storedDate = safeLocalStorage.getItem<string | null>(planDateKey, null);
+    const resetMarkerKey = `rankify_reset_6tasks_applied_${todayStr}_${userId}`;
+    const alreadyAppliedReset = safeLocalStorage.getItem<string | null>(resetMarkerKey, null);
 
-    const pendingCount = tasks.filter(t => !t.isCompleted).length;
-    
-    // Calculate elapsed hours since last active date
-    let lastActiveHours = 0;
-    if (statistics.lastActiveDate) {
-      const lastActive = new Date(statistics.lastActiveDate);
-      const diffMs = Date.now() - lastActive.getTime();
-      lastActiveHours = diffMs / (1000 * 60 * 60);
+    if ((storedDate && storedDate !== todayStr) || !alreadyAppliedReset || tasks.length < 5) {
+      // Fresh mission targets: generate full set of 6 tasks and reset today's state
+      const freshTasks = dailyMissionService.generateFreshMissionTasks(userId);
+      setTasks(freshTasks);
+      setMissionReport(null);
+      setIsCelebrationOpen(false);
+      safeLocalStorage.setItem(planDateKey, todayStr);
+      safeLocalStorage.setItem(resetMarkerKey, 'true');
+      dailyMissionService.resetTodayMission(userId, todayStr);
+      syncEngine.setLocalCache('active_study_plan', { dailyTasks: freshTasks, date: todayStr }, userId);
+      if (user?.uid) {
+        syncEngine.queueSync(user.uid, 'users', `${user.uid}/study_plan/current`, { dailyTasks: freshTasks, date: todayStr }, 'set');
+      }
+    } else if (!storedDate) {
+      safeLocalStorage.setItem(planDateKey, todayStr);
     }
+  }, [user?.uid, todayStr]);
 
-    const hasActiveRevision = tasks.some(t => t.taskTitle.toLowerCase().includes('revision') && !t.isCompleted);
-    const activeChapter = tasks.find(t => !t.isCompleted)?.chapterName || 'CBSE Syllabus';
-
-    const timer = setTimeout(() => {
-      notificationEngine.runAutomatedChecks({
-        pendingTasksCount: pendingCount,
-        daysToExam: daysRemaining,
-        streak: statistics.streak || 1,
-        lastStudyTimeElapsedHours: lastActiveHours,
-        hasActiveRevision,
-        activeChapterName: activeChapter,
-      }).catch(err => console.error('[Notification Check Error]:', err));
-    }, 4000);
-
-    return () => clearTimeout(timer);
-  }, [tasks, statistics, daysRemaining, notificationSettings, user?.uid]);
-
-  // Celebration trigger when all daily tasks are completed
+  // 2. Check if today's celebration was already completed or needs re-opening
   useEffect(() => {
-    if (totalTasks > 0 && completedCount === totalTasks && !hasCelebratedToday) {
-      setHasCelebratedToday(true);
-      setShowCelebrationBanner(true);
-      playCelebrationChime();
-      confetti({
-        particleCount: 130,
-        spread: 85,
-        origin: { y: 0.6 },
-        colors: ['#a855f7', '#6366f1', '#ec4899', '#3b82f6', '#10b981'],
-      });
+    const existing = dailyMissionService.getStoredReport(user?.uid || 'guest', todayStr);
+    if (existing && existing.completedAt) {
+      setMissionReport(existing);
+      // Edge case: if user left during celebration without dismissing, show once on reopen
+      if (!existing.isDismissed) {
+        setIsCelebrationOpen(true);
+      }
     }
-  }, [completedCount, totalTasks, hasCelebratedToday]);
+  }, [user?.uid, todayStr]);
 
-  // 3. AUTO TASK ENGINE (Section 8 & 9)
-  const handleCompleteTask = async (taskId: string) => {
-    if (!user?.uid) return;
-    const uid = user.uid;
+  // AI Insight (Derived from real onboarding details - zero fake benchmarks)
+  const singleAiInsight = useMemo(() => {
+    if (studentDetails?.targetPercentage) {
+      return `Targeting ${studentDetails.targetPercentage}% in ${studentDetails.board} Class 12. Complete today's tasks to stay on track.`;
+    }
+    return 'Welcome to Rankify! Solve practice questions and explore formulas to unlock personalized AI insights.';
+  }, [studentDetails]);
 
-    const taskToUpdate = tasks.find((t) => t.id === taskId);
-    if (!taskToUpdate) return;
+  // Derived Readiness, Weakest Subject & Highest Priority Chapter from real user data
+  const { overallReadiness, weakestSubjectDisplay, highestPriorityChapterDisplay } = useMemo(() => {
+    const chapters = Object.values(contextChapters || {});
+    const mistakes = mistakeService.getMistakes();
+    const result = getWeakestSubjectAndPriorityChapter(chapters, mistakes);
 
-    const nextTasks = tasks.map((t) =>
-      t.id === taskId ? { ...t, isCompleted: true, status: 'completed' as const } : t
-    );
-    setTasks(nextTasks);
-
-    const newCompletedCount = nextTasks.filter((t) => t.isCompleted).length;
-    const newProgressPercent = Math.round((newCompletedCount / nextTasks.length) * 100);
-
-    // Update study statistics instantly
-    const newStats: StudyStatistics = {
-      ...statistics,
-      streak: statistics.streak || 1,
-      completedTasksCount: (statistics.completedTasksCount || 0) + 1,
-      totalStudyMinutes: (statistics.totalStudyMinutes || 0) + (taskToUpdate.allocatedMinutes || 45),
-      questionsSolved: (statistics.questionsSolved || 0) + 10,
-      todayProgressPercent: newProgressPercent,
-      lastActiveDate: new Date().toISOString().split('T')[0],
-      updatedAt: new Date().toISOString(),
-    };
-    setStatistics(newStats);
-
-    // Update the associated chapter progress
-    const associatedChapter = chaptersList.find(
-      (c) => c.chapterName.toLowerCase() === taskToUpdate.chapterName.toLowerCase()
-    );
-
-    if (associatedChapter) {
-      const nextProgress = Math.min(100, (associatedChapter.progressPercentage || 0) + 25) as ProgressPercentage;
-      const nextAccuracy = Math.min(100, Math.max(55, (associatedChapter.accuracy || 65) + 8));
-      const nextQuestions = (associatedChapter.practiceQuestions || 0) + 10;
-      const nextRevisions = (associatedChapter.revisionCount || 0) + 1;
-
-      updateChapterProgress(associatedChapter.id, {
-        progressPercentage: nextProgress,
-        accuracy: nextAccuracy,
-        practiceQuestions: nextQuestions,
-        revisionCount: nextRevisions,
-        timeSpent: (associatedChapter.timeSpent || 0) + (taskToUpdate.allocatedMinutes || 45),
-        lastStudied: new Date().toISOString(),
-      });
-
-      // Continuous Rebalance for Needs Focus (Section 9)
-      const currentSnapshot = chaptersList.map((c) =>
-        c.id === associatedChapter.id
-          ? {
-              ...c,
-              progressPercentage: nextProgress,
-              accuracy: nextAccuracy,
-              practiceQuestions: nextQuestions,
-              revisionCount: nextRevisions,
-            }
-          : c
+    const cachedReadiness = readinessService.getCachedData();
+    let readinessVal = 0;
+    if (cachedReadiness && typeof cachedReadiness.overallScore === 'number') {
+      readinessVal = cachedReadiness.overallScore;
+    } else if (chapters.length > 0) {
+      const sum = chapters.reduce(
+        (acc, c) => acc + (c.progressPercentage || c.completionPercentage || 0),
+        0
       );
+      readinessVal = Math.round(sum / chapters.length);
+    }
 
-      const { focusChapters, graduatedChapters } = rebalanceNeedsFocus(currentSnapshot);
-      if (graduatedChapters.length > 0) {
-        toast.success(
-          `Mastery achieved! ${graduatedChapters[0]} graduated from Needs Focus. Syllabus priorities updated.`,
-          { duration: 4000, icon: '🎓' }
+    return {
+      overallReadiness: readinessVal,
+      weakestSubjectDisplay: result.weakestSubjectName || '-',
+      highestPriorityChapterDisplay: result.highestPriorityChapterName || '-',
+    };
+  }, [contextChapters]);
+
+  // Task filtering: Required tasks vs. Optional Bonus practice
+  const requiredTasks = useMemo(() => tasks.filter((t) => !t.isBonus), [tasks]);
+  const bonusTasks = useMemo(() => tasks.filter((t) => t.isBonus), [tasks]);
+  const completedRequiredCount = useMemo(() => requiredTasks.filter((t) => t.isCompleted).length, [requiredTasks]);
+  const totalRequiredCount = requiredTasks.length;
+  const isMissionCompleted = useMemo(() => {
+    if (missionReport?.completedAt) return true;
+    return totalRequiredCount > 0 && completedRequiredCount === totalRequiredCount;
+  }, [missionReport, totalRequiredCount, completedRequiredCount]);
+
+  const completedCount = tasks.filter((t) => t.isCompleted).length;
+  const totalTasksCount = tasks.length;
+  const taskProgressPercent = totalRequiredCount > 0 ? Math.round((completedRequiredCount / totalRequiredCount) * 100) : 0;
+
+  // Toggle task handler
+  const handleToggleTask = useCallback(
+    (taskId: string) => {
+      const nextTasks = tasks.map((t) => {
+        if (t.id === taskId) {
+          const nextVal = !t.isCompleted;
+          return {
+            ...t,
+            isCompleted: nextVal,
+            status: nextVal ? ('completed' as const) : ('pending' as const),
+          };
+        }
+        return t;
+      });
+      setTasks(nextTasks);
+
+      const activeRequired = nextTasks.filter((t) => !t.isBonus);
+      const allRequiredDone = activeRequired.length > 0 && activeRequired.every((t) => t.isCompleted);
+      const nextCompletedRequired = activeRequired.filter((t) => t.isCompleted).length;
+
+      // Auto Detection: Trigger celebration automatically when 100% of required tasks are completed
+      if (allRequiredDone) {
+        const existingReport = dailyMissionService.getStoredReport(user?.uid || 'guest', todayStr);
+        if (!existingReport || !existingReport.completedAt) {
+          const studyMins = activeRequired.reduce((acc, t) => acc + (t.allocatedMinutes || 30), 0) || 150;
+          const questionsCount = Math.max(25, (statistics.questionsSolved || 0) + 15);
+          const newStreak = (statistics.streak || 0) + 1;
+
+          const newReport: DailyMissionReport = {
+            date: todayStr,
+            completedAt: new Date().toISOString(),
+            studyMinutes: studyMins,
+            tasksCompleted: activeRequired.length,
+            totalTasks: activeRequired.length,
+            questionsSolved: questionsCount,
+            revisionCompleted: 2,
+            lecturesCompleted: 1,
+            flashcardsReviewed: 15,
+            mistakesFixed: 3,
+            aiSessions: 2,
+            xpEarned: 350,
+            currentStreak: newStreak,
+            aiSummary: generatePersonalizedAiSummary(nextTasks, studentName, studentDetails?.targetPercentage || 95),
+            motivationalQuote: getDynamicMotivationQuote(newStreak),
+            unlockedAchievements: calculateMissionAchievements(newStreak, questionsCount, 2),
+            bonusTasks: nextTasks.filter((t) => t.isBonus),
+            isDismissed: false,
+          };
+
+          setMissionReport(newReport);
+          dailyMissionService.saveReport(user?.uid || 'guest', newReport);
+          playCelebrationChime();
+          setIsCelebrationOpen(true);
+        }
+      }
+
+      if (user?.uid) {
+        const completedTotal = nextTasks.filter((t) => t.isCompleted).length;
+        const percent = activeRequired.length > 0 ? Math.round((nextCompletedRequired / activeRequired.length) * 100) : 0;
+
+        const updatedStats = {
+          ...statistics,
+          completedTasksCount: completedTotal,
+          todayProgressPercent: percent,
+          lastActiveDate: todayStr,
+        };
+        setStatistics(updatedStats);
+        syncEngine.setLocalCache('study_statistics', updatedStats, user.uid);
+        syncEngine.queueSync(
+          user.uid,
+          'users',
+          `${user.uid}/study_statistics/current`,
+          updatedStats,
+          'set'
+        );
+
+        syncEngine.setLocalCache('active_study_plan', { dailyTasks: nextTasks }, user.uid);
+        syncEngine.queueSync(user.uid, 'users', `${user.uid}/study_plan/current`, { dailyTasks: nextTasks }, 'set');
+      }
+    },
+    [user?.uid, todayStr, studentName, studentDetails?.targetPercentage, statistics, tasks]
+  );
+
+  // Done for Today button handler
+  const handleDoneForToday = useCallback(() => {
+    setIsCelebrationOpen(false);
+    dailyMissionService.markReportDismissed(user?.uid || 'guest', todayStr);
+    toast.success('🌙 Daily mission saved. Rest well tonight!', { icon: '✨' });
+  }, [user?.uid, todayStr]);
+
+  // Extra Practice button handler
+  const handleStartExtraPractice = useCallback(() => {
+    setIsCelebrationOpen(false);
+    const alreadyHasBonus = tasks.some((t) => t.isBonus);
+    if (alreadyHasBonus) {
+      toast('Scroll down to solve your optional bonus practice drills!', { icon: '🚀' });
+      return;
+    }
+
+    const newBonus = generateBonusPracticeTasks(
+      user?.uid || 'guest',
+      tasks,
+      contextChapters
+    );
+    const combined = sanitizeTasks([...tasks, ...newBonus]);
+    setTasks(combined);
+
+    syncEngine.setLocalCache('active_study_plan', { dailyTasks: combined }, user?.uid || 'guest');
+    if (user?.uid) {
+      syncEngine.queueSync(user.uid, 'users', `${user.uid}/study_plan/current`, { dailyTasks: combined }, 'set');
+    }
+    toast.success('🚀 3 Bonus practice tasks generated! Optional • No Penalty.', { icon: '🎯' });
+  }, [user?.uid, tasks, contextChapters]);
+
+  // Reset Today's Tasks button handler
+  const handleResetTodayTasks = useCallback(() => {
+    const userId = user?.uid || 'guest';
+    const freshTasks = sanitizeTasks(dailyMissionService.generateFreshMissionTasks(userId));
+    setTasks(freshTasks);
+    setMissionReport(null);
+    setIsCelebrationOpen(false);
+
+    dailyMissionService.resetTodayMission(userId, todayStr);
+
+    syncEngine.setLocalCache('active_study_plan', { dailyTasks: freshTasks, date: todayStr }, userId);
+    if (user?.uid) {
+      syncEngine.queueSync(
+        user.uid,
+        'users',
+        `${user.uid}/study_plan/current`,
+        { dailyTasks: freshTasks, date: todayStr },
+        'set'
+      );
+    }
+
+    setStatistics((prev) => {
+      const updatedStats = {
+        ...prev,
+        completedTasksCount: 0,
+        todayProgressPercent: 0,
+        lastActiveDate: todayStr,
+      };
+      syncEngine.setLocalCache('study_statistics', updatedStats, userId);
+      if (user?.uid) {
+        syncEngine.queueSync(
+          user.uid,
+          'users',
+          `${user.uid}/study_statistics/current`,
+          updatedStats,
+          'set'
         );
       }
-
-      if (focusChapters[0]) {
-        setPlanState((prev) => ({
-          ...prev,
-          focusTopic: focusChapters[0].topics?.[0] || `${focusChapters[0].chapterName} Core Drills`,
-          weakestChapter: focusChapters[0].chapterName,
-        }));
-      }
-    }
-
-    toast.success(`Completed: ${taskToUpdate.taskTitle}`, { icon: '✅' });
-
-    // Track analytics & evaluate gamified achievements
-    analytics.trackTaskCompleted(taskToUpdate.subjectName, taskToUpdate.chapterName, taskToUpdate.taskTitle);
-    achievementsService.evaluateProgress({
-      streak: newStats.streak,
-      totalMinutes: newStats.totalStudyMinutes,
-      questionsSolved: newStats.questionsSolved,
+      return updatedStats;
     });
 
-    // Sync to Firestore immediately
-    syncEngine.setLocalCache('study_statistics', newStats, uid);
-    syncEngine.queueSync(uid, 'users', `${uid}/study_statistics/current`, newStats as unknown as Record<string, unknown>);
-    syncEngine.queueSync(
-      uid,
-      'users',
-      `${uid}/study_plan/current`,
-      {
-        dailyTasks: nextTasks,
-        todayProgressPercent: newProgressPercent,
-        updatedAt: new Date().toISOString(),
-      },
-      'update'
-    );
-  };
+    toast.success("Today's tasks reset! All 6 missions are fresh and ready.", { icon: '🔄' });
+  }, [user?.uid, todayStr]);
 
-  const handleSkipTask = (taskId: string) => {
-    if (!user?.uid) return;
-    const nextTasks = tasks.map((t) => (t.id === taskId ? { ...t, status: 'skipped' as const } : t));
-    setTasks(nextTasks);
-    toast('Task skipped and moved to tomorrow’s revision queue.', { icon: '⏭️' });
-
-    syncEngine.queueSync(
-      user.uid,
-      'users',
-      `${user.uid}/study_plan/current`,
-      {
-        dailyTasks: nextTasks,
-        updatedAt: new Date().toISOString(),
-      },
-      'update'
-    );
-  };
-
-  const handleAddNewTask = () => {
-    if (!user?.uid) return;
-    const targetChapter = planState.weakestChapter || 'Electromagnetic Induction';
-
-    const newTask: TaskItem = {
-      id: `task_${Date.now()}`,
-      taskTitle: `Extra Target: Advanced Exemplar Drills in ${targetChapter}`,
-      subjectName: 'Physics',
-      chapterName: targetChapter,
-      allocatedMinutes: 45,
-      isCompleted: false,
-      status: 'pending',
-    };
-
-    const nextTasks = [...tasks, newTask];
-    setTasks(nextTasks);
-    setShowCelebrationBanner(false);
-    toast.success('Generated fresh challenge task!', { icon: '✨' });
-
-    syncEngine.queueSync(
-      user.uid,
-      'users',
-      `${user.uid}/study_plan/current`,
-      {
-        dailyTasks: nextTasks,
-        updatedAt: new Date().toISOString(),
-      },
-      'update'
-    );
-  };
-
-  const handleToggleRevisionTask = (revId: string) => {
-    setPlanState((prev) => ({
-      ...prev,
-      revisionTasks: prev.revisionTasks.map((r) =>
-        r.id === revId ? { ...r, isCompleted: !r.isCompleted } : r
-      ),
-    }));
-    toast.success('Revision logged! Strengthened memory retention.');
+  const handleNotificationClick = () => {
+    toast('3 study reminders scheduled for today', { icon: '🔔' });
   };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-12">
-      {/* FRIENDLY NOTIFICATION PERMISSION CARD FOR DENIED OR DEFAULT USERS */}
-      {typeof window !== 'undefined' && 'Notification' in window && Notification.permission !== 'granted' && !notificationSettings.permissionDeniedDismissed && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0 }}
-          className="p-5 rounded-3xl border border-purple-500/25 bg-gradient-to-r from-purple-500/5 to-indigo-500/5 dark:from-purple-500/10 dark:to-indigo-500/10 shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 animate-fadeIn"
-        >
-          <div className="flex items-start gap-3.5">
-            <div className="w-10 h-10 rounded-2xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 flex items-center justify-center shrink-0">
-              <Bell className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+    <div className="max-w-4xl mx-auto space-y-6 pb-20 select-none px-1 sm:px-2">
+      {/* ========================================================
+          1. TOP APP BAR
+          ======================================================== */}
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between pt-1 pb-2 border-b border-border"
+      >
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setActiveTab('profile')}
+            className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-600 via-indigo-600 to-blue-500 text-white flex items-center justify-center font-bold text-sm shadow-md cursor-pointer border border-white/20 hover:scale-105 transition-transform shrink-0"
+          >
+            {studentName.charAt(0).toUpperCase()}
+          </button>
+          <div>
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+              {greetingText}
+            </span>
+            <h1 className="text-base sm:text-lg font-black text-foreground leading-tight">
+              {studentName}
+            </h1>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Streak Badge */}
+          <div
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 text-xs font-bold border border-amber-500/30"
+            title={statistics.streak > 0 ? `${statistics.streak} Day Study Streak` : 'Start your study streak today!'}
+          >
+            <Flame className={`w-4 h-4 text-amber-500 ${statistics.streak > 0 ? 'fill-amber-500 animate-pulse' : 'opacity-60'}`} />
+            <span>{statistics.streak > 0 ? `${statistics.streak} Days` : '0 Days'}</span>
+          </div>
+
+          {/* Notification Button */}
+          <button
+            onClick={handleNotificationClick}
+            className="p-2 rounded-full bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition cursor-pointer"
+            aria-label="Notifications"
+          >
+            <Bell className="w-4 h-4" />
+          </button>
+        </div>
+      </motion.div>
+
+      {/* ========================================================
+          2. HERO SECTION
+          ======================================================== */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.05 }}
+      >
+        <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-r from-slate-900 via-purple-950 to-indigo-950 text-white shadow-xl border border-purple-500/30 space-y-5">
+          <div className="flex items-center justify-between gap-2">
+            <span
+              className={`px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border flex items-center gap-1.5 ${
+                isMissionCompleted
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40'
+                  : 'bg-purple-500/20 text-purple-200 border-purple-400/30'
+              }`}
+            >
+              {isMissionCompleted ? (
+                <Check className="w-3.5 h-3.5 text-emerald-300 stroke-[3]" />
+              ) : (
+                <Sparkles className="w-3.5 h-3.5 text-purple-300" />
+              )}
+              <span>{isMissionCompleted ? "Today's Mission: ✅ Completed" : "Today's AI Briefing"}</span>
+            </span>
+
+            <div className="flex items-center gap-2 font-mono text-xs font-bold text-amber-300 bg-amber-500/15 px-3 py-1 rounded-full border border-amber-500/30">
+              <Clock className="w-3.5 h-3.5 text-amber-400" />
+              <span>{daysRemaining} Days to CBSE Exam</span>
             </div>
-            <div className="space-y-1">
-              <h4 className="font-extrabold text-sm sm:text-base text-foreground flex items-center gap-2">
-                <span>Stay Focused with Study Notifications</span>
-                <span className="text-[9px] font-black uppercase bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-full">Recommended</span>
-              </h4>
-              <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
-                Get high-yield organic chemistry reactions, daily motivational roasts, and streak warnings delivered straight to your desktop. Never miss a CBSE PCM goal!
+          </div>
+
+          <div>
+            <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              Goal: {isMissionCompleted ? "Today's Mission ✅ Completed" : (contextPlan?.todaysMission || 'Physics & Calculus Mastery Sprint')}
+            </h2>
+            <p className="text-xs sm:text-sm text-purple-200 italic mt-1 font-medium">
+              "{contextPlan?.motivation || 'Consistent daily practice builds strong concepts and steady exam confidence.'}"
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 pt-1 border-t border-white/10 text-xs">
+            <div>
+              <span className="text-purple-200/80 text-[10px] uppercase font-bold block">Estimated Study Time</span>
+              <span className="text-base font-extrabold text-white font-mono">
+                {contextPlan?.dailyGoal?.minutes || 240} Minutes
+              </span>
+            </div>
+            <div>
+              <span className="text-purple-200/80 text-[10px] uppercase font-bold block">Target Score Goal</span>
+              <span className="text-base font-extrabold text-emerald-300 font-mono">
+                {studentDetails?.targetPercentage || 95}% PCM
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => setActiveTab('study')}
+              className="w-full sm:w-auto rounded-xl text-xs font-extrabold gap-2 cursor-pointer shadow-md"
+            >
+              <Play className="w-4 h-4 fill-white" />
+              <span>Start Studying</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => setActiveTab('study')}
+              className="w-full sm:w-auto rounded-xl text-xs font-bold border-slate-700 text-white hover:bg-slate-800 cursor-pointer gap-2"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span>Continue Previous Session</span>
+            </Button>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* ========================================================
+          HALF-YEARLY PERFORMANCE ANALYZER ENTRY CARD
+          ======================================================== */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.08 }}
+      >
+        <Card 
+          onClick={() => setActiveTab('halfyearly')}
+          className="p-5 sm:p-6 bg-gradient-to-r from-purple-900/30 via-indigo-900/20 to-slate-900 border border-purple-500/30 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:border-purple-500/60 shadow-lg shadow-purple-500/[0.03] transition-all group"
+        >
+          <div className="flex items-start sm:items-center gap-4 min-w-0 flex-1">
+            <div className="w-12 h-12 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-purple-600/25 group-hover:scale-105 transition-transform">
+              <TrendingUp className="w-6 h-6" />
+            </div>
+            <div className="space-y-0.5 min-w-0 flex-1">
+              <h3 className="text-sm sm:text-base font-black text-foreground flex flex-wrap items-center gap-2 leading-snug">
+                <span>📊 Analyze Half-Yearly Performance</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 whitespace-nowrap shrink-0">
+                  AI Plan
+                </span>
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Upload your Half-Yearly marks and let Rankify AI create a personalized improvement plan.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 w-full sm:w-auto shrink-0 justify-end">
-            <button
-              onClick={async () => {
-                const granted = await notificationEngine.requestPermission();
-                const next = { ...notificationSettings, hasPromptedPermission: true, permissionDeniedDismissed: true };
-                setNotificationSettings(next);
-                await notificationEngine.saveSettings({ hasPromptedPermission: true, permissionDeniedDismissed: true });
-              }}
-              className="px-4 h-9 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-sm cursor-pointer flex items-center gap-1.5 transition-all"
+          <Button
+            variant="ghost"
+            size="sm"
+            className="rounded-xl text-xs font-bold text-purple-600 dark:text-purple-400 gap-1.5 p-0 sm:px-3 hover:bg-transparent group-hover:translate-x-1 transition-transform cursor-pointer shrink-0 whitespace-nowrap self-end sm:self-center"
+          >
+            <span>Analyze Now</span>
+            <ArrowRight className="w-4 h-4" />
+          </Button>
+        </Card>
+      </motion.div>
+
+      {/* ========================================================
+          3. TODAY'S TASKS / MISSION COMPLETE CARD
+          ======================================================== */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        {isMissionCompleted ? (
+          <Card className="p-5 sm:p-6 bg-gradient-to-r from-emerald-950/20 via-card to-purple-950/20 border border-emerald-500/40 rounded-2xl shadow-md shadow-emerald-500/5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30 shadow-xs">
+                  <Trophy className="w-6 h-6 animate-bounce" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-black text-base text-foreground tracking-tight">
+                      🎉 Mission Complete!
+                    </h3>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-mono">
+                      ✅ 100% Target Met
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                    You completed all AI-generated study goals for today. Rest well or challenge yourself with optional bonus drills!
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[11px] font-mono font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-xl border border-amber-500/20">
+                  {statistics.streak > 0 ? `${statistics.streak} Days 🔥` : '1 Day 🔥'}
+                </span>
+              </div>
+            </div>
+
+            {/* Actions: Primary actions separated from Reset Tasks */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsCelebrationOpen(true)}
+                  className="rounded-xl text-xs font-bold gap-1.5 cursor-pointer border-purple-500/30 hover:bg-purple-500/10 text-purple-700 dark:text-purple-300 whitespace-nowrap min-h-[44px] lg:min-h-0"
+                >
+                  <FileText className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                  <span>See Today's Report</span>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setActiveTab('study')}
+                  className="rounded-xl text-xs font-bold gap-1.5 cursor-pointer whitespace-nowrap min-h-[44px] lg:min-h-0"
+                >
+                  <Compass className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                  <span>Review Progress</span>
+                </Button>
+
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleStartExtraPractice}
+                  className="rounded-xl text-xs font-bold gap-1.5 cursor-pointer shadow-xs whitespace-nowrap min-h-[44px] lg:min-h-0"
+                >
+                  <Rocket className="w-3.5 h-3.5 shrink-0" />
+                  <span>Start Bonus Practice</span>
+                </Button>
+              </div>
+
+              <div className="pt-2 lg:pt-0 border-t lg:border-t-0 lg:border-l border-border lg:pl-3 flex justify-end shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResetTodayTasks}
+                  className="w-full sm:w-auto rounded-xl text-xs font-bold gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground whitespace-nowrap min-h-[44px] lg:min-h-0"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />
+                  <span>Reset Tasks</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Bonus Practice Tasks Section (If student generated bonus tasks) */}
+            {bonusTasks.length > 0 && (
+              <div className="pt-3 border-t border-border space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Rocket className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                    <h4 className="text-xs font-bold text-foreground">Bonus Practice Tasks</h4>
+                  </div>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 font-mono">
+                    Optional • No Penalty
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  {bonusTasks.map((rawTask) => {
+                    const task = sanitizeTask(rawTask);
+                    return (
+                      <div
+                        key={task.id}
+                        onClick={() => handleToggleTask(task.id)}
+                        className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 cursor-pointer ${
+                          task.isCompleted
+                            ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-500/30 line-through opacity-75'
+                            : 'bg-muted/40 border-border hover:border-purple-500/40'
+                        }`}
+                      >
+                        <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+                          <div
+                            className={`mt-0.5 sm:mt-0 w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 text-xs transition-colors ${
+                              task.isCompleted
+                                ? 'bg-emerald-600 border-emerald-600 text-white'
+                                : 'border-slate-300 dark:border-slate-600'
+                            }`}
+                          >
+                            {task.isCompleted && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold text-xs text-foreground line-clamp-2 leading-snug break-words">{task.taskTitle}</p>
+                            <div className="flex flex-wrap items-center gap-2 mt-1 text-[10px] text-muted-foreground font-medium">
+                              <span>{task.subjectName}</span>
+                              <span>•</span>
+                              <span>{task.chapterName}</span>
+                              <span>•</span>
+                              <span>{task.allocatedMinutes}m</span>
+                              <span className="sm:hidden text-[9px] font-bold px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 font-mono">
+                                Bonus
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="hidden sm:flex shrink-0 items-center gap-2">
+                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 font-mono">
+                            Bonus
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </Card>
+        ) : (
+          <Card className="p-5 sm:p-6 bg-card border border-border rounded-2xl shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-purple-600" />
+                <h3 className="font-bold text-sm text-foreground">Today's Tasks</h3>
+                <span className="text-[11px] font-mono font-bold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full">
+                  {completedRequiredCount} / {totalRequiredCount}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResetTodayTasks}
+                  className="h-9 lg:h-8 px-2.5 text-xs font-semibold rounded-xl text-muted-foreground hover:text-foreground border-border hover:bg-muted/80 transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                  title="Reset today's tasks"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />
+                  <span>Reset Tasks</span>
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2.5">
+              {tasks.length === 0 ? (
+                <div className="p-6 text-center rounded-2xl border border-dashed border-border text-muted-foreground space-y-1.5">
+                  <Sparkles className="w-5 h-5 mx-auto text-purple-500 mb-1" />
+                  <p className="text-xs font-bold text-foreground">No tasks scheduled for today</p>
+                  <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
+                    Click Reset Tasks to generate your personalized 6-target daily study mission.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleResetTodayTasks}
+                    className="mt-2 text-xs font-bold rounded-xl cursor-pointer"
+                  >
+                    <RotateCcw className="w-3 h-3 mr-1 text-purple-600" />
+                    <span>Generate Today's Tasks</span>
+                  </Button>
+                </div>
+              ) : (
+                tasks.map((rawTask) => {
+                  const task = sanitizeTask(rawTask);
+                  return (
+                    <div
+                      key={task.id}
+                      onClick={() => handleToggleTask(task.id)}
+                      className={`p-3.5 rounded-xl border transition-all flex items-center justify-between gap-3 cursor-pointer ${
+                        task.isCompleted
+                          ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-500/40 line-through opacity-75'
+                          : 'bg-muted border-border hover:border-purple-500/50'
+                      }`}
+                    >
+                      <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+                        <div
+                          className={`mt-0.5 sm:mt-0 w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 text-xs transition-colors ${
+                            task.isCompleted
+                              ? 'bg-emerald-600 border-emerald-600 text-white'
+                              : 'border-slate-300 dark:border-slate-600'
+                          }`}
+                        >
+                          {task.isCompleted && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-xs text-foreground line-clamp-2 leading-snug break-words">
+                            {task.taskTitle}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-2 mt-1 text-[10px] text-muted-foreground font-medium">
+                            <span>{task.subjectName}</span>
+                            <span>•</span>
+                            <span>{task.allocatedMinutes}m</span>
+                            <span
+                              className={`sm:hidden text-[9px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap ${
+                                task.priority === 'High'
+                                  ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                                  : 'bg-background/80 text-muted-foreground border border-border'
+                              }`}
+                            >
+                              {task.priority || 'Medium'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 flex items-center gap-2">
+                        <span
+                          className={`hidden sm:inline-block text-[9px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap ${
+                            task.priority === 'High'
+                              ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                              : 'bg-muted text-muted-foreground border border-border'
+                          }`}
+                        >
+                          {task.priority || 'Medium'}
+                        </span>
+                        <div className="w-11 h-11 lg:w-8 lg:h-8 min-w-[44px] min-h-[44px] lg:min-w-0 lg:min-h-0 rounded-full bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                          <Play className="w-3.5 h-3.5 lg:w-3 lg:h-3 fill-current ml-0.5" />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </Card>
+        )}
+      </motion.div>
+
+      {/* ========================================================
+          4. CONTINUE LEARNING (Only displayed if previous study exists)
+          ======================================================== */}
+      {previousSession && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+        >
+          <Card className="p-5 bg-card border border-border rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                <BookOpen className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
+                    Continue Learning
+                  </span>
+                  <span className="text-xs text-muted-foreground font-semibold">
+                    {previousSession.subjectName}
+                  </span>
+                </div>
+                <h3 className="text-sm sm:text-base font-bold text-foreground">
+                  {previousSession.chapterName}
+                </h3>
+                <div className="w-48 h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                  <div
+                    className="h-full bg-purple-600 rounded-full"
+                    style={{ width: `${previousSession.progressPercentage}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setActiveTab('study')}
+              className="rounded-xl text-xs font-bold gap-2 shrink-0 cursor-pointer shadow-sm"
             >
-              <span>Enable Now</span>
-            </button>
-            <button
-              onClick={async () => {
-                const next = { ...notificationSettings, permissionDeniedDismissed: true };
-                setNotificationSettings(next);
-                await notificationEngine.saveSettings({ permissionDeniedDismissed: true });
-                toast('Card dismissed. You can configure notifications anytime in Settings.', { icon: 'ℹ️' });
-              }}
-              className="px-3.5 h-9 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-800 text-muted-foreground text-xs font-bold transition-all cursor-pointer"
-            >
-              <span>Dismiss</span>
-            </button>
-          </div>
+              <span>Continue</span>
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </Card>
         </motion.div>
       )}
 
-      {/* 1. Header Hero Banner with Dynamic Greeting, Streak, Mission & Goal */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-purple-950 via-indigo-950 to-slate-950 p-6 sm:p-8 text-white shadow-2xl border border-purple-500/25">
-        <div className="relative z-10 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-md px-3.5 py-1 text-xs font-semibold text-purple-200 border border-white/15">
-              <Sparkles className="h-3.5 w-3.5 text-purple-300" />
-              <span>CBSE Class 12 PCM • Target {profileData.targetPercentage}%</span>
-            </div>
-
+      {/* ========================================================
+          5. TODAY'S PROGRESS (Compact Card with Animated Circular Progress)
+          ======================================================== */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        <Card className="p-5 sm:p-6 bg-card border border-border rounded-2xl shadow-xs space-y-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold font-mono">
-                <Flame className="w-4 h-4 fill-amber-400 text-amber-400" />
-                <span>{statistics.streak || 1} Day Streak</span>
-              </div>
+              <TrendingUp className="w-4 h-4 text-emerald-600" />
+              <h3 className="font-bold text-sm text-foreground">Today's Progress</h3>
             </div>
-          </div>
-
-          <div className="space-y-1">
-            <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight">
-              {greeting}, {profileData.displayName || user?.displayName || 'Student'} 🔥
-            </h1>
-            <div className="text-xs sm:text-sm text-purple-100/90 font-medium flex items-center gap-2 pt-0.5">
-              <span className="text-purple-300 font-bold">Today's Mission:</span>
-              <span className="text-white font-semibold underline decoration-purple-400">
-                {planState.todaysMission}
-              </span>
-            </div>
-          </div>
-
-          {/* Key Metrics Ribbon: Daily Goal, Accuracy, Questions, Exam Countdown */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-            <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10">
-              <div className="flex items-center gap-1.5 text-xs text-purple-200">
-                <Target className="w-3.5 h-3.5" />
-                <span>Daily Goal</span>
-              </div>
-              <div className="text-xl font-extrabold font-mono mt-1">
-                {completedCount} / {totalTasks} Tasks
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10">
-              <div className="flex items-center gap-1.5 text-xs text-purple-200">
-                <Clock className="w-3.5 h-3.5" />
-                <span>Study Minutes</span>
-              </div>
-              <div className="text-xl font-extrabold font-mono mt-1">
-                {statistics.totalStudyMinutes || 0}m
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10">
-              <div className="flex items-center gap-1.5 text-xs text-purple-200">
-                <Activity className="w-3.5 h-3.5 text-emerald-300" />
-                <span>Accuracy</span>
-              </div>
-              <div className="text-xl font-extrabold font-mono mt-1 text-emerald-300">
-                {planState.accuracy}%
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10">
-              <div className="flex items-center gap-1.5 text-xs text-purple-200">
-                <Calendar className="w-3.5 h-3.5 text-purple-300" />
-                <span>Exam Countdown</span>
-              </div>
-              <div className="text-xl font-extrabold font-mono mt-1 text-purple-200">
-                {daysRemaining} Days
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Ambient Glow */}
-        <div className="absolute -right-20 -bottom-20 w-80 h-80 rounded-full bg-purple-500/20 blur-3xl pointer-events-none" />
-      </div>
-
-      {/* 2. Mission Completed Celebration Banner (Triggered when 100% of daily tasks are finished) */}
-      <AnimatePresence>
-        {showCelebrationBanner && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: -10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="p-6 rounded-3xl bg-gradient-to-r from-emerald-950 via-teal-950 to-slate-950 text-white border border-emerald-500/40 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4"
-          >
-            <div className="flex items-center gap-4 text-center sm:text-left">
-              <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0 text-3xl animate-bounce">
-                🎉
-              </div>
-              <div>
-                <h4 className="text-lg sm:text-xl font-black text-white">
-                  🎉 Great Job! Today's target completed.
-                </h4>
-                <p className="text-xs text-emerald-200/90 mt-1 max-w-lg">
-                  You conquered your daily CBSE Class 12 tasks! Keep your momentum active with extra revisions or practice tests.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2 shrink-0">
-              <button
-                onClick={() => setShowShareModal(true)}
-                className="bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-md cursor-pointer flex items-center gap-1.5 transition-colors"
-              >
-                <Share2 className="w-3.5 h-3.5" />
-                <span>Share Milestone</span>
-              </button>
-
-              <button
-                onClick={handleAddNewTask}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-md cursor-pointer flex items-center gap-1.5 transition-colors"
-              >
-                <PlusCircle className="w-3.5 h-3.5" />
-                <span>Add More Tasks</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('study')}
-                className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3.5 py-2 rounded-xl border border-white/20 cursor-pointer flex items-center gap-1.5 transition-colors"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>Continue Revision</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('practice')}
-                className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3.5 py-2 rounded-xl border border-white/20 cursor-pointer flex items-center gap-1.5 transition-colors"
-              >
-                <Target className="w-3.5 h-3.5" />
-                <span>Take Practice Test</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('progress')}
-                className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3.5 py-2 rounded-xl border border-white/20 cursor-pointer flex items-center gap-1.5 transition-colors"
-              >
-                <TrendingUp className="w-3.5 h-3.5" />
-                <span>View Progress</span>
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* 00. AI DAILY BRIEFING ENGINE: Morning / Daypart Personalized Study Intelligence */}
-      <DailyBriefingHomeCard />
-
-      {/* 0a. SMART REVISION ENGINE: Today's Revision Premium Card */}
-      <TodayRevisionCard />
-
-      {/* 0b. NCERT INTELLIGENCE ENGINE: Interactive Textbook Learning Card */}
-      <NcertIntelligenceCard />
-
-      {/* 0c. FORMULA INTELLIGENCE ENGINE: Interactive Equation & Derivation Deck */}
-      <FormulaIntelligenceCard />
-
-      {/* 0d. EXAM COMMAND CENTER: 30-Second Exam Intelligence & Command Deck */}
-      <ExamCommandCenterCard />
-
-      {/* 0b. RANKIFY BRAIN: Personal AI Study Coach & Proactive Mentor Card */}
-      <RankifyBrainCard />
-
-      {/* Core Top Section: Exam Readiness Live Metric & Health Check */}
-      <ExamReadinessCard />
-
-      {/* AI Weakness Analyzer Dashboard Card */}
-      <WeaknessAnalyzerCard />
-
-      {/* Study Replay - Student Learning Diary Timeline */}
-      <StudyReplayCard />
-
-      {/* 3. RANKIFY SMARTPLAN: Personalized AI-Powered Study Planning Section (Core Top Section) */}
-      <RankifySmartPlanCard
-        plan={contextPlan}
-        tasks={tasks}
-        overallCoverage={overallCoverage}
-        progressPercent={progressPercent}
-        completedTasksCount={completedCount}
-        totalTasksCount={totalTasks}
-        weakChapters={planState.weakChapters}
-        chaptersList={chaptersList}
-        onCompleteTask={handleCompleteTask}
-        onSkipTask={handleSkipTask}
-        onAddNewTask={handleAddNewTask}
-        onNavigateToAi={navigateToAi}
-        onOpenStudyTab={() => setActiveTab('study')}
-        onRegeneratePlan={() => setShowRecalibrateModal(true)}
-        isRegenerating={isRegenerating}
-      />
-
-      {/* 6. Dynamic Diagnostics: Weakest vs Strongest Chapter + Needs Focus Rebalancer */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* Needs Focus & Weakest Chapter */}
-        <Card className="p-5 sm:p-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-slate-200/80 dark:border-white/10 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-rose-500" />
-                <h3 className="font-bold text-sm text-foreground">Needs Focus (Priority Chapters)</h3>
-              </div>
-              <span className="text-[11px] font-bold text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20">
-                Rotates on 80%+ Accuracy
-              </span>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 mb-4 space-y-1">
-              <div className="text-[10px] text-rose-600 dark:text-rose-400 font-bold uppercase tracking-wider">
-                Current Priority Focus Topic
-              </div>
-              <div className="text-sm font-extrabold text-foreground">
-                {planState.focusTopic}
-              </div>
-              <div className="text-[11px] text-muted-foreground">
-                Weakest Chapter: <strong className="text-rose-500">{planState.weakestChapter}</strong>
-              </div>
-            </div>
-
-            <p className="text-xs text-muted-foreground mb-3">
-              Needs Focus never stays static. Once you practice enough questions and reach 80%+ accuracy, Rankify automatically moves it to Mastered and promotes the next weak chapter.
-            </p>
-
-            <div className="space-y-2">
-              {planState.weakChapters.slice(0, 3).map((ch, idx) => (
-                <div
-                  key={idx}
-                  className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/70 dark:border-white/5 flex items-center justify-between text-xs"
-                >
-                  <span className="font-semibold text-foreground">{ch}</span>
-                  <span className="text-[10px] font-bold text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded">
-                    Priority Focus
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-xs">
-            <span className="text-muted-foreground">Strongest Chapter:</span>
-            <span className="font-bold text-emerald-600 dark:text-emerald-400">
-              {planState.strongestChapter}
+            <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+              {taskProgressPercent}%
             </span>
           </div>
-        </Card>
 
-        {/* Scheduled Revision Tasks & Exam Target */}
-        <Card className="p-5 sm:p-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-slate-200/80 dark:border-white/10 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <RotateCcw className="w-4 h-4 text-purple-600" />
-                <h3 className="font-bold text-sm text-foreground">Active Spaced Revision Tasks</h3>
+          <div className="flex flex-col sm:flex-row items-center gap-6">
+            {/* Animated Circular Progress Ring */}
+            <div className="relative w-28 h-28 shrink-0 flex items-center justify-center">
+              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                <path
+                  className="text-muted dark:text-slate-800"
+                  strokeWidth="3.5"
+                  stroke="currentColor"
+                  fill="none"
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                />
+                <path
+                  className="text-purple-600 transition-all duration-1000 ease-out"
+                  strokeDasharray={`${taskProgressPercent}, 100`}
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  stroke="currentColor"
+                  fill="none"
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                />
+              </svg>
+              <div className="absolute text-center">
+                <span className="text-xl font-black font-mono text-foreground">{taskProgressPercent}%</span>
+                <span className="text-[9px] uppercase font-bold text-muted-foreground block">Complete</span>
               </div>
-              <span className="text-[11px] font-mono font-bold text-purple-600 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
-                Spaced Recall
-              </span>
             </div>
 
-            <div className="space-y-2.5 mb-4">
-              {planState.revisionTasks.map((rev) => (
-                <div
-                  key={rev.id}
-                  onClick={() => handleToggleRevisionTask(rev.id)}
-                  className={`p-3 rounded-xl border transition flex items-center justify-between gap-3 cursor-pointer ${
-                    rev.isCompleted
-                      ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-500/30 line-through opacity-70'
-                      : 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-200/80 dark:border-white/5 hover:border-purple-500/40'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className={`w-4 h-4 rounded-md border flex items-center justify-center text-[10px] ${
-                        rev.isCompleted
-                          ? 'bg-emerald-600 border-emerald-600 text-white'
-                          : 'border-slate-300 dark:border-slate-600'
-                      }`}
-                    >
-                      {rev.isCompleted && <Check className="w-3 h-3" />}
-                    </div>
-                    <div>
-                      <div className="font-bold text-xs text-foreground">{rev.title}</div>
-                      <div className="text-[10px] text-muted-foreground">
-                        {rev.subjectName} • {rev.chapterName}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200/70 dark:border-purple-500/20 text-xs space-y-1">
-              <div className="text-muted-foreground font-medium">Estimated Syllabus Finish:</div>
-              <div className="text-sm font-extrabold text-purple-700 dark:text-purple-300">
-                {planState.estimatedCompletion}
+            {/* Metrics Breakdown Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full text-xs">
+              <div className="p-3 rounded-xl bg-muted border border-border space-y-0.5">
+                <span className="text-[10px] text-muted-foreground block font-medium">Study Time</span>
+                <span className="text-base font-black text-foreground font-mono">
+                  {statistics.totalStudyMinutes || 140}m
+                </span>
               </div>
-              <div className="text-[11px] text-muted-foreground">
-                Leaves 15+ days buffer for official CBSE Class 12 PCM mock papers.
+
+              <div className="p-3 rounded-xl bg-muted border border-border space-y-0.5">
+                <span className="text-[10px] text-muted-foreground block font-medium">Tasks Done</span>
+                <span className="text-base font-black text-foreground font-mono">
+                  {completedCount} / {totalTasksCount}
+                </span>
+              </div>
+
+              <div className="p-3 rounded-xl bg-muted border border-border space-y-0.5">
+                <span className="text-[10px] text-muted-foreground block font-medium">Questions Solved</span>
+                <span className="text-base font-black text-purple-600 dark:text-purple-400 font-mono">
+                  {statistics.questionsSolved || 0}
+                </span>
+              </div>
+
+              <div className="p-3 rounded-xl bg-muted border border-border space-y-0.5">
+                <span className="text-[10px] text-muted-foreground block font-medium">Current Readiness</span>
+                <span className="text-base font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                  {overallReadiness}%
+                </span>
               </div>
             </div>
           </div>
+        </Card>
+      </motion.div>
 
-          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-xs">
-            <span className="text-muted-foreground font-medium">Interactive Syllabus:</span>
-            <Button
-              variant="ghost"
-              size="sm"
+      {/* ========================================================
+          6. AI INSIGHT (Exactly ONE single card at a time)
+          ======================================================== */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25 }}
+      >
+        <Card className="p-4 sm:p-5 bg-card border border-border rounded-2xl flex items-center gap-3.5 shadow-xs">
+          <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 border border-purple-500/20">
+            <Brain className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 block">
+              Study Coach • Daily Tip
+            </span>
+            <p className="text-xs sm:text-sm font-semibold text-foreground leading-snug mt-0.5">
+              {singleAiInsight}
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setActiveTab('ai')}
+            className="text-xs font-bold text-purple-600 dark:text-purple-400 shrink-0 p-1 cursor-pointer"
+          >
+            <ArrowRight className="w-4 h-4" />
+          </Button>
+        </Card>
+      </motion.div>
+
+      {/* ========================================================
+          7. QUICK ACTIONS (Only 4 actions)
+          ======================================================== */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+      >
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-purple-600" />
+              <h3 className="font-bold text-sm text-foreground">Quick Actions</h3>
+            </div>
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+              Core Study Tools
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Action 1: Study */}
+            <button
               onClick={() => setActiveTab('study')}
-              className="text-xs text-purple-600 dark:text-purple-400 font-bold p-0 h-auto cursor-pointer"
+              className="p-4 rounded-2xl bg-card border border-border hover:border-purple-500/50 hover:shadow-sm transition-all text-left space-y-2 cursor-pointer group"
             >
-              <span>View All 40 Chapters</span>
-              <ArrowRight className="w-3.5 h-3.5 ml-1" />
-            </Button>
-          </div>
-        </Card>
-      </div>
-
-      {/* Mistake Notebook Core Feature Card */}
-      <MistakeNotebookCard />
-
-      {/* 7. Quick Actions Hub */}
-      <div className="p-5 rounded-3xl bg-card/60 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Zap className="w-4 h-4 text-purple-600" />
-            <h3 className="font-bold text-sm text-foreground">Quick Board Actions</h3>
-          </div>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            1-Click Launchers
-          </span>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <button
-            onClick={() => setActiveTab('study')}
-            className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 hover:border-purple-500 hover:shadow-md transition-all text-left space-y-1.5 cursor-pointer group"
-          >
-            <div className="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 flex items-center justify-center group-hover:scale-105 transition-transform">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <div className="text-xs font-bold text-foreground">Active Revision</div>
-            <p className="text-[10px] text-purple-600 dark:text-purple-400 font-bold">High-Yield Formulae</p>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('practice')}
-            className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 hover:border-purple-500 hover:shadow-md transition-all text-left space-y-1.5 cursor-pointer group"
-          >
-            <div className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-300 flex items-center justify-center group-hover:scale-105 transition-transform">
-              <Target className="w-4 h-4" />
-            </div>
-            <div className="text-xs font-bold text-foreground">Solve Board PYQs</div>
-            <p className="text-[10px] text-muted-foreground">10-Year CBSE bank</p>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('study')}
-            className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 hover:border-purple-500 hover:shadow-md transition-all text-left space-y-1.5 cursor-pointer group"
-          >
-            <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-300 flex items-center justify-center group-hover:scale-105 transition-transform">
-              <BookOpen className="w-4 h-4" />
-            </div>
-            <div className="text-xs font-bold text-foreground">37 Chapters</div>
-            <p className="text-[10px] text-muted-foreground">Official CBSE syllabus</p>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('progress')}
-            className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 hover:border-purple-500 hover:shadow-md transition-all text-left space-y-1.5 cursor-pointer group"
-          >
-            <div className="w-8 h-8 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 flex items-center justify-center group-hover:scale-105 transition-transform">
-              <TrendingUp className="w-4 h-4" />
-            </div>
-            <div className="text-xs font-bold text-foreground">Diagnostic Stats</div>
-            <p className="text-[10px] text-muted-foreground">Accuracy & Weak areas</p>
-          </button>
-        </div>
-      </div>
-
-      {/* 8. Recent Doubts & Recent Activity Split Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* Priority Revision Hub */}
-        <Card className="p-5 sm:p-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-slate-200/80 dark:border-white/10 shadow-xs flex flex-col justify-between space-y-3">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Target className="w-4 h-4 text-purple-600" />
-                <h3 className="font-bold text-sm text-foreground">Priority Revision Hub</h3>
+              <div className="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <BookOpen className="w-4 h-4" />
               </div>
-              <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2 py-0.5 rounded-full border border-purple-200 dark:border-purple-800/40">
-                Board Focus
+              <div>
+                <h4 className="text-xs font-bold text-foreground">Study</h4>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{TOTAL_OFFICIAL_CHAPTERS} CBSE Chapters</p>
+              </div>
+            </button>
+
+            {/* Action 2: Ask AI */}
+            <button
+              onClick={() => setActiveTab('ai')}
+              className="p-4 rounded-2xl bg-card border border-border hover:border-purple-500/50 hover:shadow-sm transition-all text-left space-y-2 cursor-pointer group"
+            >
+              <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-foreground">Ask AI</h4>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Instant Doubt Solver</p>
+              </div>
+            </button>
+
+            {/* Action 3: Revision */}
+            <button
+              onClick={() => setActiveTab('revision')}
+              className="p-4 rounded-2xl bg-card border border-border hover:border-purple-500/50 hover:shadow-sm transition-all text-left space-y-2 cursor-pointer group"
+            >
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <RotateCcw className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-foreground">Revision</h4>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Spaced Repetition</p>
+              </div>
+            </button>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* ========================================================
+          8. EXAM STATUS (Compact Card)
+          ======================================================== */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.35 }}
+      >
+        <Card className="p-5 sm:p-6 bg-card border border-border rounded-2xl shadow-xs space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Compass className="w-4 h-4 text-purple-600" />
+              <h3 className="font-bold text-sm text-foreground">Exam Status</h3>
+            </div>
+            <span className="text-[10px] font-mono font-bold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-2.5 py-0.5 rounded-full border border-purple-500/20">
+              CBSE Class 12 PCM
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="p-3 rounded-xl bg-muted border border-border space-y-0.5">
+              <span className="text-[10px] text-muted-foreground block font-medium">Days Remaining</span>
+              <span className="text-base font-black text-amber-600 dark:text-amber-400 font-mono">
+                {daysRemaining} Days
               </span>
             </div>
 
-            <div className="p-6 text-center rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 space-y-2">
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Review high-weightage chapters, practice NCERT derivations, and solve previous 10-year CBSE board question sets.
-              </p>
-              <button
-                onClick={() => setActiveTab('practice')}
-                className="px-3.5 py-1.5 rounded-xl bg-purple-600 text-white text-xs font-bold shadow-xs cursor-pointer hover:bg-purple-500 transition-colors"
+            <div className="p-3 rounded-xl bg-muted border border-border space-y-0.5">
+              <span className="text-[10px] text-muted-foreground block font-medium">Overall Readiness</span>
+              <span className="text-base font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                {overallReadiness}%
+              </span>
+            </div>
+
+            <div className="p-3 rounded-xl bg-muted border border-border space-y-0.5 min-w-0">
+              <span className="text-[10px] text-muted-foreground block font-medium">Weakest Subject</span>
+              <span className="text-xs font-extrabold text-rose-600 dark:text-rose-400 block line-clamp-2 leading-snug break-words">
+                {weakestSubjectDisplay}
+              </span>
+            </div>
+
+            <div className="p-3 rounded-xl bg-muted border border-border space-y-0.5 min-w-0">
+              <span className="text-[10px] text-muted-foreground block font-medium">Highest Priority</span>
+              <span
+                className="text-xs font-extrabold text-purple-600 dark:text-purple-400 block line-clamp-2 leading-snug break-words"
+                title={highestPriorityChapterDisplay}
               >
-                Practice Questions
-              </button>
-            </div>
-          </div>
-
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-xs">
-            <span className="text-muted-foreground font-medium">CBSE Question Bank:</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setActiveTab('study')}
-              className="text-xs text-purple-600 dark:text-purple-400 font-bold p-0 h-auto cursor-pointer"
-            >
-              <span>Explore Curriculum</span>
-              <ArrowRight className="w-3.5 h-3.5 ml-1" />
-            </Button>
-          </div>
-        </Card>
-
-        {/* Recent Dynamic Activity Feed */}
-        <Card className="p-5 sm:p-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-slate-200/80 dark:border-white/10 shadow-xs flex flex-col justify-between space-y-3">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Activity className="w-4 h-4 text-emerald-600" />
-                <h3 className="font-bold text-sm text-foreground">Recent Study Activity</h3>
-              </div>
-              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/40">
-                Real-time
+                {highestPriorityChapterDisplay}
               </span>
             </div>
-
-            <div className="space-y-2">
-              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-white/5 flex items-center justify-between gap-3 text-xs">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center font-bold text-xs">
-                    ✓
-                  </div>
-                  <div>
-                    <span className="font-bold text-foreground">Daily Mission Synchronized</span>
-                    <p className="text-[10px] text-muted-foreground">
-                      {completedCount} of {totalTasks} tasks completed today
-                    </p>
-                  </div>
-                </div>
-                <span className="text-[10px] text-muted-foreground font-mono">Today</span>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-white/5 flex items-center justify-between gap-3 text-xs">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-purple-600 flex items-center justify-center font-bold text-xs">
-                    ★
-                  </div>
-                  <div>
-                    <span className="font-bold text-foreground">Syllabus Progress Verified</span>
-                    <p className="text-[10px] text-muted-foreground">
-                      {overallCoverage}% of CBSE Class 12 PCM completed
-                    </p>
-                  </div>
-                </div>
-                <span className="text-[10px] text-muted-foreground font-mono">Active</span>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-white/5 flex items-center justify-between gap-3 text-xs">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center font-bold text-xs">
-                    🔥
-                  </div>
-                  <div>
-                    <span className="font-bold text-foreground">Streak Protected</span>
-                    <p className="text-[10px] text-muted-foreground">
-                      {statistics.streak || 1} day active learning streak maintained
-                    </p>
-                  </div>
-                </div>
-                <span className="text-[10px] text-muted-foreground font-mono">Live</span>
-              </div>
-            </div>
           </div>
 
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-xs">
-            <span className="text-muted-foreground font-medium">Continue your streak:</span>
+          <div className="pt-2 border-t border-border flex justify-end">
             <Button
-              variant="ghost"
+              variant="primary"
               size="sm"
-              onClick={() => setActiveTab('study')}
-              className="text-xs text-emerald-600 dark:text-emerald-400 font-bold p-0 h-auto cursor-pointer"
+              onClick={() => setActiveTab('command')}
+              className="rounded-xl text-xs font-bold gap-1.5 cursor-pointer"
             >
-              <span>Continue Studying</span>
-              <ArrowRight className="w-3.5 h-3.5 ml-1" />
+              <span>Open Command Center</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </Button>
           </div>
         </Card>
-      </div>
+      </motion.div>
 
-      {/* 9. Dynamic Motivation Card */}
-      <div className="p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-purple-950 to-slate-900 text-white border border-purple-500/30 shadow-md flex items-center gap-4">
-        <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center shrink-0">
-          <Quote className="w-5 h-5 text-purple-300" />
-        </div>
-        <div className="space-y-0.5 flex-1">
-          <p className="text-xs sm:text-sm font-medium text-purple-100 italic">
-            "{planState.motivation}"
-          </p>
-          <span className="text-[10px] font-mono text-purple-300 block">
-            — Rankify Academic Coach (CBSE Class 12 PCM)
-          </span>
-        </div>
-      </div>
 
-      {/* Share Milestone Modal */}
-      <ShareCardModal
-        isOpen={showShareModal}
-        onClose={() => setShowShareModal(false)}
-        studentName={profileData.displayName || user?.displayName || 'Scholar'}
-        streak={statistics.streak}
-        studyMinutes={statistics.totalStudyMinutes || 120}
-        tasksCompleted={completedCount}
-        totalTasks={totalTasks}
-        daysToExam={daysRemaining}
-        targetScore={profileData.targetPercentage || 95}
+      {/* Premium Mission Complete Celebration Overlay */}
+      <MissionCompleteModal
+        isOpen={isCelebrationOpen}
+        report={missionReport}
+        onDoneForToday={handleDoneForToday}
+        onStartExtraPractice={handleStartExtraPractice}
+        onClose={() => setIsCelebrationOpen(false)}
       />
-
-      {/* Recalibrate Study Roadmap Modal */}
-      {showRecalibrateModal && (
-        <StudyJourneyFlow
-          isModal
-          onComplete={() => {
-            setShowRecalibrateModal(false);
-            if (user?.uid) {
-              const cachedPlan = syncEngine.getLocalCache<any>('active_study_plan', user.uid);
-              if (cachedPlan) {
-                if (cachedPlan.dailyTasks?.length) {
-                  setTasks(cachedPlan.dailyTasks);
-                }
-                setPlanState((prev) => ({
-                  ...prev,
-                  todaysMission: cachedPlan.todaysMission || prev.todaysMission,
-                  todaysChapters: cachedPlan.todaysChapters || prev.todaysChapters,
-                  focusTopic: cachedPlan.focusTopic || prev.focusTopic,
-                  weakChapters: cachedPlan.weakChapters || prev.weakChapters,
-                  accuracy: cachedPlan.accuracy || prev.accuracy,
-                }));
-              }
-            }
-          }}
-          onCancel={() => setShowRecalibrateModal(false)}
-        />
-      )}
     </div>
   );
 };

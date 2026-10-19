@@ -133,7 +133,7 @@ export const RankifySmartPlanCard: React.FC<RankifySmartPlanCardProps> = ({
   const pendingTasksCount = tasks.filter((t) => !t.isCompleted && t.status !== 'skipped').length;
 
   return (
-    <Card className="relative overflow-hidden rounded-3xl border-2 border-purple-500/30 dark:border-purple-500/20 bg-gradient-to-br from-white/95 via-purple-50/40 to-slate-50/95 dark:from-slate-900/95 dark:via-purple-950/20 dark:to-slate-950/95 backdrop-blur-2xl shadow-xl shadow-purple-500/5 transition-all">
+    <Card className="relative overflow-hidden rounded-3xl border-2 border-purple-500/30 dark:border-purple-500/20 bg-card shadow-xl shadow-purple-500/5 transition-all">
       {/* Top Banner & Header */}
       <div className="p-5 sm:p-6 pb-4 border-b border-purple-100 dark:border-white/5 relative z-10">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -206,7 +206,7 @@ export const RankifySmartPlanCard: React.FC<RankifySmartPlanCardProps> = ({
             5. 📈 Daily Progress */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mt-5">
           {/* 1. 🔥 Today's Mission */}
-          <div className="col-span-2 lg:col-span-1 p-3.5 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/5 shadow-xs flex flex-col justify-between">
+          <div className="col-span-2 lg:col-span-1 p-3.5 rounded-2xl bg-card border border-border shadow-xs flex flex-col justify-between">
             <div>
               <div className="flex items-center gap-1.5 text-[11px] font-bold text-purple-600 dark:text-purple-400">
                 <Target className="w-3.5 h-3.5" />
@@ -222,7 +222,7 @@ export const RankifySmartPlanCard: React.FC<RankifySmartPlanCardProps> = ({
           </div>
 
           {/* 2. ⏳ Estimated Time */}
-          <div className="p-3.5 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/5 shadow-xs flex flex-col justify-between">
+          <div className="p-3.5 rounded-2xl bg-card border border-border shadow-xs flex flex-col justify-between">
             <div>
               <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-600 dark:text-amber-400">
                 <Clock className="w-3.5 h-3.5" />
@@ -238,7 +238,7 @@ export const RankifySmartPlanCard: React.FC<RankifySmartPlanCardProps> = ({
           </div>
 
           {/* 3. 📚 Current Chapter */}
-          <div className="p-3.5 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/5 shadow-xs flex flex-col justify-between">
+          <div className="p-3.5 rounded-2xl bg-card border border-border shadow-xs flex flex-col justify-between">
             <div>
               <div className="flex items-center gap-1.5 text-[11px] font-bold text-blue-600 dark:text-blue-400">
                 <Compass className="w-3.5 h-3.5" />
@@ -270,7 +270,7 @@ export const RankifySmartPlanCard: React.FC<RankifySmartPlanCardProps> = ({
           </div>
 
           {/* 5. 📈 Daily Progress */}
-          <div className="p-3.5 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/5 shadow-xs flex flex-col justify-between">
+          <div className="p-3.5 rounded-2xl bg-card border border-border shadow-xs flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
@@ -298,7 +298,7 @@ export const RankifySmartPlanCard: React.FC<RankifySmartPlanCardProps> = ({
 
         {/* Smart Recommendations Banner */}
         {plan?.recommendations && plan.recommendations.length > 0 && (
-          <div className="mt-4 p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative overflow-hidden z-10">
+          <div className="mt-4 p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative overflow-hidden z-10">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-xl bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
                 <Sparkles className="w-4 h-4 animate-pulse" />
@@ -341,13 +341,13 @@ export const RankifySmartPlanCard: React.FC<RankifySmartPlanCardProps> = ({
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
                 isActive
                   ? 'bg-purple-600 text-white shadow-sm'
-                  : 'bg-white/80 dark:bg-slate-800/80 text-muted-foreground hover:text-foreground hover:bg-white dark:hover:bg-slate-800 border border-slate-200/60 dark:border-white/5'
+                  : 'bg-card text-muted-foreground hover:text-foreground border border-border'
               }`}
             >
               <span>{tab.label}</span>
               <span
                 className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                  isActive ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-muted-foreground'
+                  isActive ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'
                 }`}
               >
                 {tab.count}
@@ -385,12 +385,12 @@ export const RankifySmartPlanCard: React.FC<RankifySmartPlanCardProps> = ({
               return (
                 <div
                   key={task.id}
-                  className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                  className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-card-foreground ${
                     isDone
                       ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-500/30 opacity-75'
                       : isSkipped
-                      ? 'bg-slate-100/50 dark:bg-slate-900/30 border-slate-300/40 dark:border-white/5 opacity-60'
-                      : 'bg-white/90 dark:bg-slate-900/90 border-slate-200/80 dark:border-white/10 shadow-xs hover:border-purple-500/40'
+                      ? 'bg-muted/40 border-border opacity-60'
+                      : 'bg-card border-border shadow-xs hover:border-purple-500/40'
                   }`}
                 >
                   <div className="flex items-start gap-3 min-w-0">
@@ -550,7 +550,7 @@ export const RankifySmartPlanCard: React.FC<RankifySmartPlanCardProps> = ({
             ]).map((wt) => (
               <div
                 key={wt.id}
-                className="p-4 rounded-2xl bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-white/10 shadow-xs"
+                className="p-4 rounded-2xl bg-card border border-border text-card-foreground shadow-xs"
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-black text-purple-600 dark:text-purple-400 uppercase tracking-wider">
@@ -592,7 +592,7 @@ export const RankifySmartPlanCard: React.FC<RankifySmartPlanCardProps> = ({
               {weakChapters.map((ch, idx) => (
                 <div
                   key={idx}
-                  className="p-4 rounded-2xl bg-white/90 dark:bg-slate-900/90 border border-rose-200 dark:border-rose-950/40 shadow-xs space-y-2"
+                  className="p-4 rounded-2xl bg-card border border-rose-500/30 text-card-foreground shadow-xs space-y-2"
                 >
                   <div className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">
                     Priority #{idx + 1}
@@ -640,7 +640,7 @@ export const RankifySmartPlanCard: React.FC<RankifySmartPlanCardProps> = ({
                 ]).map((rev) => (
                   <div
                     key={rev.id}
-                    className="p-3.5 rounded-2xl bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-white/10 shadow-xs flex items-center justify-between gap-3"
+                    className="p-3.5 rounded-2xl bg-card border border-border text-card-foreground shadow-xs flex items-center justify-between gap-3"
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center shrink-0">
@@ -710,7 +710,7 @@ export const RankifySmartPlanCard: React.FC<RankifySmartPlanCardProps> = ({
                 ].map((item, idx) => (
                   <div
                     key={idx}
-                    className="p-3.5 rounded-2xl bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-white/10 shadow-xs space-y-2 flex flex-col justify-between"
+                    className="p-3.5 rounded-2xl bg-card border border-border text-card-foreground shadow-xs space-y-2 flex flex-col justify-between"
                   >
                     <div>
                       <div className="flex items-center justify-between">

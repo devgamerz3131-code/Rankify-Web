@@ -116,7 +116,7 @@ export const StudyReplayCard: React.FC = () => {
         {/* Key Metrics Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
           {/* Weekly Progress */}
-          <div className="p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xs space-y-1">
+          <div className="p-3 rounded-2xl bg-white/5 border border-white/10 space-y-1">
             <span className="text-[10px] text-slate-300 font-semibold uppercase tracking-wider block">
               Weekly Progress
             </span>
@@ -129,7 +129,7 @@ export const StudyReplayCard: React.FC = () => {
           </div>
 
           {/* Monthly Progress */}
-          <div className="p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xs space-y-1">
+          <div className="p-3 rounded-2xl bg-white/5 border border-white/10 space-y-1">
             <span className="text-[10px] text-slate-300 font-semibold uppercase tracking-wider block">
               Monthly Progress
             </span>
@@ -142,7 +142,7 @@ export const StudyReplayCard: React.FC = () => {
           </div>
 
           {/* Current Streak */}
-          <div className="p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xs space-y-1">
+          <div className="p-3 rounded-2xl bg-white/5 border border-white/10 space-y-1">
             <span className="text-[10px] text-slate-300 font-semibold uppercase tracking-wider block">
               Active Streak
             </span>
@@ -155,7 +155,7 @@ export const StudyReplayCard: React.FC = () => {
           </div>
 
           {/* Best Study Day */}
-          <div className="p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xs space-y-1">
+          <div className="p-3 rounded-2xl bg-white/5 border border-white/10 space-y-1">
             <span className="text-[10px] text-slate-300 font-semibold uppercase tracking-wider block">
               Best Study Day
             </span>

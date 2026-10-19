@@ -37,9 +37,9 @@ export const Dialog: React.FC<DialogProps> = ({ open, onOpenChange, children, cl
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.15 }}
             onClick={() => onOpenChange(false)}
-            className="fixed inset-0 bg-black/40 backdrop-blur-md"
+            className="fixed inset-0 bg-black/60"
           />
 
           {/* Modal Container */}
@@ -49,7 +49,7 @@ export const Dialog: React.FC<DialogProps> = ({ open, onOpenChange, children, cl
             animate="visible"
             exit="exit"
             className={cn(
-              'relative w-full max-w-lg overflow-hidden rounded-3xl bg-card border border-slate-200/80 dark:border-white/10 shadow-2xl p-6 sm:p-8 z-10',
+              'relative w-full max-w-lg max-h-[90dvh] overflow-y-auto overscroll-contain rounded-2xl bg-card border border-border shadow-2xl p-6 sm:p-8 z-10',
               className
             )}
           >

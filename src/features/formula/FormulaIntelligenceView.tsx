@@ -99,9 +99,6 @@ export const FormulaIntelligenceView: React.FC = () => {
     <div className="max-w-7xl mx-auto space-y-7 pb-28 select-none px-2 sm:px-4">
       {/* 1. HERO BANNER: FORMULA INTELLIGENCE ENGINE */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-950 via-amber-950/60 to-purple-950 p-6 sm:p-8 text-white shadow-2xl border border-amber-500/30">
-        <div className="absolute -right-20 -top-20 w-80 h-80 rounded-full bg-amber-500/15 blur-3xl pointer-events-none" />
-        <div className="absolute -left-20 -bottom-20 w-80 h-80 rounded-full bg-purple-600/20 blur-3xl pointer-events-none" />
-
         <div className="relative z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
           <div className="space-y-3 max-w-2xl">
             <div className="flex items-center gap-2 flex-wrap">
@@ -130,7 +127,7 @@ export const FormulaIntelligenceView: React.FC = () => {
 
           {/* Right Metrics Cards */}
           <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full lg:w-auto justify-around sm:justify-end">
-            <div className="p-4 rounded-3xl bg-amber-950/40 border border-amber-400/30 text-center min-w-[110px] shrink-0 backdrop-blur-md">
+            <div className="p-4 rounded-2xl bg-amber-950/40 border border-amber-400/30 text-center min-w-[110px] shrink-0">
               <span className="text-[10px] text-amber-200 font-bold uppercase tracking-wider block">
                 Mastered
               </span>
@@ -140,7 +137,7 @@ export const FormulaIntelligenceView: React.FC = () => {
               <span className="text-[10px] text-emerald-300 font-mono">Of {stats.totalFormulas} Formulas</span>
             </div>
 
-            <div className="p-4 rounded-3xl bg-rose-950/40 border border-rose-400/30 text-center min-w-[110px] shrink-0 backdrop-blur-md">
+            <div className="p-4 rounded-2xl bg-rose-950/40 border border-rose-400/30 text-center min-w-[110px] shrink-0">
               <span className="text-[10px] text-rose-200 font-bold uppercase tracking-wider block">
                 Weak / Due
               </span>
@@ -150,7 +147,7 @@ export const FormulaIntelligenceView: React.FC = () => {
               <span className="text-[10px] text-rose-300 font-mono">Requires Practice</span>
             </div>
 
-            <div className="p-4 rounded-3xl bg-purple-900/40 border border-purple-400/30 text-center min-w-[110px] shrink-0 backdrop-blur-md">
+            <div className="p-4 rounded-2xl bg-purple-900/40 border border-purple-400/30 text-center min-w-[110px] shrink-0">
               <span className="text-[10px] text-purple-200 font-bold uppercase tracking-wider block">
                 Mastery Rate
               </span>
@@ -171,7 +168,7 @@ export const FormulaIntelligenceView: React.FC = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search formula by name, symbol, chapter (e.g. 'drift velocity', 'Nernst', 'A⁻¹', 'vd')..."
-              className="w-full pl-10 pr-10 py-2.5 rounded-2xl bg-white/10 border border-white/20 text-white placeholder:text-amber-200/60 text-xs sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-400 backdrop-blur-md"
+              className="w-full pl-10 pr-10 py-2.5 rounded-2xl bg-white/10 border border-white/20 text-white placeholder:text-amber-200/60 text-xs sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-400"
             />
             {searchQuery && (
               <button
@@ -291,7 +288,7 @@ export const FormulaIntelligenceView: React.FC = () => {
                   </h3>
 
                   {/* High-visibility Mathematical Formula Display */}
-                  <div className="p-3 sm:p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 text-center font-mono font-black text-base sm:text-xl text-purple-600 dark:text-purple-300 shadow-xs inline-block max-w-full overflow-x-auto">
+                  <div className="p-3 sm:p-3.5 rounded-2xl bg-card border border-border text-center font-mono font-black text-base sm:text-xl text-purple-600 dark:text-purple-300 shadow-xs inline-block max-w-full overflow-x-auto">
                     {f.latex}
                   </div>
                 </div>
@@ -360,7 +357,7 @@ export const FormulaIntelligenceView: React.FC = () => {
                         {f.variables.map((v, vIdx) => (
                           <div
                             key={vIdx}
-                            className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/5 space-y-0.5"
+                            className="p-3 rounded-2xl bg-card border border-border text-card-foreground space-y-0.5"
                           >
                             <div className="flex items-center justify-between">
                               <span className="font-mono font-black text-purple-600 text-sm">
@@ -409,8 +406,8 @@ export const FormulaIntelligenceView: React.FC = () => {
                     {/* Subtab 1: AI Explanation */}
                     {activeSubTab === 'ai_dive' && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border space-y-2">
-                          <span className="text-[10px] font-black uppercase text-purple-600 font-mono flex items-center gap-1">
+                        <div className="p-4 rounded-2xl bg-card border border-border text-card-foreground space-y-2">
+                          <span className="text-[10px] font-black uppercase text-purple-600 dark:text-purple-400 font-mono flex items-center gap-1">
                             <Lightbulb className="w-3.5 h-3.5" />
                             <span>Intuitive Simple Explanation</span>
                           </span>
@@ -489,7 +486,7 @@ export const FormulaIntelligenceView: React.FC = () => {
                         {f.relatedQuestions.map((q) => (
                           <div
                             key={q.id}
-                            className="p-4 rounded-2xl bg-white dark:bg-slate-900 border space-y-2"
+                            className="p-4 rounded-2xl bg-card border border-border text-card-foreground space-y-2"
                           >
                             <div className="flex items-center justify-between">
                               <span className="text-[10px] font-mono font-black text-purple-600 uppercase">
@@ -540,7 +537,7 @@ export const FormulaIntelligenceView: React.FC = () => {
 
       {/* Quick Revision Modal (5-Min Blitz Sheet) */}
       {showQuickRevisionModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 select-none">
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-3 sm:p-4 select-none">
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}

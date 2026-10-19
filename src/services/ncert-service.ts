@@ -428,50 +428,106 @@ class NcertService {
 
   // Voice Mode (Web Speech API)
   public speakParagraph(paragraphId: string, text: string, rate: number = 1.0, onEnd?: () => void): void {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-      console.warn('SpeechSynthesis API not supported in this browser environment');
+    if (
+      typeof window === 'undefined' ||
+      !('speechSynthesis' in window) ||
+      !('SpeechSynthesisUtterance' in window) ||
+      !window.speechSynthesis
+    ) {
+      if (onEnd) onEnd();
       return;
     }
 
-    window.speechSynthesis.cancel();
+    try {
+      const synth = window.speechSynthesis;
+      synth.cancel();
 
-    this.speechUtterance = new SpeechSynthesisUtterance(text);
-    this.speechUtterance.rate = rate;
-    this.speechUtterance.pitch = 1.0;
-    this.speakingParagraphId = paragraphId;
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = rate;
+      utterance.pitch = 1.0;
+      this.speechUtterance = utterance;
+      this.speakingParagraphId = paragraphId;
 
-    this.speechUtterance.onend = () => {
+      const startSpeaking = () => {
+        try {
+          const voices = synth.getVoices();
+          const preferredVoice = voices.find(
+            (v) => v.lang.includes('en-IN') || v.lang.includes('hi-IN') || v.name.includes('India')
+          );
+          if (preferredVoice) {
+            utterance.voice = preferredVoice;
+          }
+        } catch {
+          // Ignore voice selection errors
+        }
+
+        utterance.onend = () => {
+          this.speakingParagraphId = null;
+          if (onEnd) onEnd();
+          this.notify();
+        };
+
+        utterance.onerror = () => {
+          this.speakingParagraphId = null;
+          if (onEnd) onEnd();
+          this.notify();
+        };
+
+        synth.speak(utterance);
+        this.notify();
+      };
+
+      const existingVoices = synth.getVoices();
+      if (existingVoices.length === 0) {
+        let started = false;
+        const onVoicesChanged = () => {
+          if (started) return;
+          started = true;
+          startSpeaking();
+        };
+        if (typeof synth.addEventListener === 'function') {
+          synth.addEventListener('voiceschanged', onVoicesChanged, { once: true });
+        }
+        window.setTimeout(onVoicesChanged, 250);
+      } else {
+        startSpeaking();
+      }
+    } catch {
       this.speakingParagraphId = null;
       if (onEnd) onEnd();
       this.notify();
-    };
-
-    this.speechUtterance.onerror = () => {
-      this.speakingParagraphId = null;
-      this.notify();
-    };
-
-    window.speechSynthesis.speak(this.speechUtterance);
-    this.notify();
+    }
   }
 
   public pauseVoice(): void {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.pause();
-      this.notify();
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis) {
+      try {
+        window.speechSynthesis.pause();
+        this.notify();
+      } catch {
+        // Ignore
+      }
     }
   }
 
   public resumeVoice(): void {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.resume();
-      this.notify();
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis) {
+      try {
+        window.speechSynthesis.resume();
+        this.notify();
+      } catch {
+        // Ignore
+      }
     }
   }
 
   public stopVoice(): void {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {
+        // Ignore
+      }
       this.speakingParagraphId = null;
       this.notify();
     }

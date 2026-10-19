@@ -79,7 +79,7 @@ export const RankifyBrainView: React.FC = () => {
     setIsSyncing(true);
     await brainService.updatePersonality(p);
     setIsSyncing(false);
-    toast.success(`Rankify Brain personality set to ${p.toUpperCase()} mode!`);
+    toast.success(`Coach personality set to ${p.toUpperCase()} mode!`);
   };
 
   const handleToggleMission = async (itemId: string) => {
@@ -102,7 +102,7 @@ export const RankifyBrainView: React.FC = () => {
       chapter: ctx.weakChapters[0]?.name || 'Current Electricity',
       query: ctx.suggestedInitialPrompt,
     });
-    toast.success('Rankify Brain context injected into Ask AI chat!');
+    toast.success('Study context sent to Ask AI chat!');
   };
 
   const advice = data?.dailyAdvice;
@@ -119,9 +119,6 @@ export const RankifyBrainView: React.FC = () => {
     <div className="max-w-7xl mx-auto space-y-6 pb-24 select-none px-2 sm:px-4">
       {/* Top Header Bar */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-950 via-purple-950 to-indigo-950 p-6 sm:p-8 text-white shadow-2xl border border-purple-500/25">
-        <div className="absolute -right-20 -top-20 w-80 h-80 rounded-full bg-purple-600/20 blur-3xl pointer-events-none" />
-        <div className="absolute -left-20 -bottom-20 w-80 h-80 rounded-full bg-indigo-600/20 blur-3xl pointer-events-none" />
-
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-5">
           <div className="space-y-2 max-w-2xl">
             <div className="flex items-center gap-2 flex-wrap">
@@ -140,11 +137,11 @@ export const RankifyBrainView: React.FC = () => {
             </div>
 
             <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-white">
-              Rankify Brain
+              AI Study Coach
             </h1>
 
             <p className="text-xs sm:text-sm text-purple-200/90 leading-relaxed font-normal">
-              Not a chatbot—your proactive learning mentor. Rankify Brain continuously monitors your study hours, consistency, question accuracy, mistakes, and exam countdown to deliver precision coaching.
+              Your personal study mentor—tracks your study hours, consistency, question accuracy, mistakes, and exam countdown to guide your daily prep.
             </p>
           </div>
 
@@ -155,7 +152,7 @@ export const RankifyBrainView: React.FC = () => {
               className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 text-white text-xs font-bold transition-all shadow-xl shadow-purple-600/30 flex items-center justify-center gap-2 cursor-pointer"
             >
               <Sparkles className="w-4 h-4 text-purple-200" />
-              <span>Ask AI With Brain Context</span>
+              <span>Ask AI With Study Context</span>
             </button>
 
             <button
@@ -163,7 +160,7 @@ export const RankifyBrainView: React.FC = () => {
                 setIsSyncing(true);
                 setTimeout(() => {
                   setIsSyncing(false);
-                  toast.success('Brain telemetry re-indexed with Firebase!');
+                  toast.success('Study coach insights refreshed!');
                 }, 700);
               }}
               className="px-3.5 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/15 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
@@ -202,8 +199,8 @@ export const RankifyBrainView: React.FC = () => {
               },
               {
                 id: 'savage' as const,
-                title: 'Savage Friend',
-                desc: 'Playful roasts & reality checks.',
+                title: 'Direct & Honest',
+                desc: 'Straightforward reality checks.',
                 emoji: '🔥',
               },
               {
@@ -596,21 +593,21 @@ export const RankifyBrainView: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-              <div className="p-3 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 space-y-1">
+              <div className="p-3 rounded-2xl bg-card border border-border space-y-1">
                 <strong className="text-foreground block">1. Stop Starting New Bulky Chapters</strong>
                 <p className="text-muted-foreground text-[11px]">
                   Preserve your cognitive bandwidth. Do not start completely unfamiliar topics in the final sprint.
                 </p>
               </div>
 
-              <div className="p-3 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 space-y-1">
+              <div className="p-3 rounded-2xl bg-card border border-border space-y-1">
                 <strong className="text-foreground block">2. 80% Time on High-Yield Revision</strong>
                 <p className="text-muted-foreground text-[11px]">
-                  Focus on guaranteed 5-mark board derivations (Lens Maker, Kirchhoff, Aldol Mechanism).
+                  Focus on high-weightage 5-mark board derivations (Lens Maker, Kirchhoff, Aldol Mechanism).
                 </p>
               </div>
 
-              <div className="p-3 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 space-y-1">
+              <div className="p-3 rounded-2xl bg-card border border-border space-y-1">
                 <strong className="text-foreground block">3. Timed Sectional PYQ Drills</strong>
                 <p className="text-muted-foreground text-[11px]">
                   Replace casual reading with active pen-and-paper solving to eliminate calculation errors.
@@ -703,7 +700,7 @@ export const RankifyBrainView: React.FC = () => {
             <div>
               <h3 className="font-extrabold text-base text-foreground flex items-center gap-2">
                 <Brain className="w-5 h-5 text-purple-600" />
-                <span>AI Memory Vault: What Rankify Brain Remembers About You</span>
+                <span>Saved Study Preferences & Habits</span>
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Persistently recorded across sessions to personalize notifications, timing alerts, and question difficulty.

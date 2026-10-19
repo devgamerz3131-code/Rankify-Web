@@ -116,7 +116,7 @@ export const RankifyBrainCard: React.FC = () => {
                   initial={{ opacity: 0, scale: 0.95, y: -4 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                  className="absolute right-0 top-9 z-30 w-44 rounded-2xl bg-slate-900 border border-purple-500/30 shadow-2xl p-1.5 space-y-1 backdrop-blur-xl"
+                  className="absolute right-0 top-9 z-30 w-44 rounded-2xl bg-slate-900 border border-purple-500/30 shadow-2xl p-1.5 space-y-1"
                 >
                   {(['strict', 'friendly', 'savage', 'mentor', 'calm'] as CoachPersonality[]).map((p) => (
                     <button
@@ -160,7 +160,7 @@ export const RankifyBrainCard: React.FC = () => {
         {/* Core Intelligence Grid: Today's Priority, Estimated Time, Exam Readiness */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
           {/* Today's Priority */}
-          <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xs space-y-1.5">
+          <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-1.5">
             <span className="text-[10px] text-purple-300 font-bold uppercase tracking-wider block">
               🎯 Today's AI Priority
             </span>
@@ -173,7 +173,7 @@ export const RankifyBrainCard: React.FC = () => {
           </div>
 
           {/* Estimated Study Time */}
-          <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xs space-y-1.5">
+          <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-1.5">
             <span className="text-[10px] text-indigo-300 font-bold uppercase tracking-wider block">
               ⏱️ Estimated Study Time
             </span>
@@ -187,7 +187,7 @@ export const RankifyBrainCard: React.FC = () => {
           </div>
 
           {/* Exam Readiness Live Score */}
-          <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xs space-y-1.5">
+          <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-1.5">
             <span className="text-[10px] text-emerald-300 font-bold uppercase tracking-wider block">
               🏆 Exam Readiness Gauge
             </span>

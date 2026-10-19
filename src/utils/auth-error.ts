@@ -38,7 +38,14 @@ export function formatAuthError(error: unknown): string {
   }
 
   if (rawMsg.includes('auth/popup-blocked')) {
-    return 'Google sign-in popup was blocked by your browser. Please allow popups for this site.';
+    return 'Google sign-in popup was blocked by your browser. Redirecting to sign in...';
+  }
+
+  if (
+    rawMsg.includes('auth/operation-not-supported-in-this-environment') ||
+    rawMsg.includes('auth/web-storage-unsupported')
+  ) {
+    return 'Browser storage or cookies are restricted. Please disable Private Browsing or allow cookies to sign in.';
   }
 
   if (rawMsg.includes('auth/too-many-requests')) {

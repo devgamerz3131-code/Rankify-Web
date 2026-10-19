@@ -2,6 +2,8 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   sendPasswordResetEmail,
   updateProfile,
@@ -12,6 +14,7 @@ import {
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, googleProvider, db } from '../config';
 import { UserProfile, UserRole } from '@/types/auth';
+import { isIOSDevice, isStandalonePWA } from '@/utils/browser-compat';
 
 /**
  * Fetches user profile from Firestore, creating one if it does not exist yet.
@@ -80,11 +83,39 @@ export async function registerWithEmail(
 }
 
 /**
- * Google Sign-in with popup
+ * Google Sign-in: uses popup on desktop browsers, and signInWithRedirect on mobile,
+ * standalone home-screen PWAs, in-app browsers, or when popups are blocked.
  */
-export async function loginWithGoogle(): Promise<UserProfile> {
-  const cred = await signInWithPopup(auth, googleProvider);
-  return getOrCreateUserProfile(cred.user);
+export async function loginWithGoogle(): Promise<UserProfile | null> {
+  const isIframe = typeof window !== 'undefined' && window.self !== window.top;
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
+  const isMobileOrInAppOrStandalone =
+    isIOSDevice() ||
+    isStandalonePWA() ||
+    /Android|iPhone|iPad|iPod|Mobile|FBAN|FBAV|Instagram|Line|Wv|WebView/i.test(ua);
+
+  if (isMobileOrInAppOrStandalone && !isIframe) {
+    await signInWithRedirect(auth, googleProvider);
+    return null;
+  }
+
+  try {
+    const cred = await signInWithPopup(auth, googleProvider);
+    return getOrCreateUserProfile(cred.user);
+  } catch (err: unknown) {
+    const rawMsg = err instanceof Error ? err.message : String(err);
+    const code = (err as { code?: string })?.code || '';
+    if (
+      code === 'auth/popup-blocked' ||
+      code === 'auth/operation-not-supported-in-this-environment' ||
+      rawMsg.includes('auth/popup-blocked') ||
+      rawMsg.includes('auth/operation-not-supported-in-this-environment')
+    ) {
+      await signInWithRedirect(auth, googleProvider);
+      return null;
+    }
+    throw err;
+  }
 }
 
 /**
@@ -102,11 +133,22 @@ export async function logoutUser(): Promise<void> {
 }
 
 /**
- * Subscribes to Firebase Auth state changes
+ * Subscribes to Firebase Auth state changes and resolves any pending OAuth redirect result
  */
 export function subscribeToAuthState(
   onUserChanged: (user: UserProfile | null) => void
 ): () => void {
+  getRedirectResult(auth)
+    .then(async (result) => {
+      if (result?.user) {
+        const profile = await getOrCreateUserProfile(result.user);
+        onUserChanged(profile);
+      }
+    })
+    .catch((err) => {
+      console.warn('[AuthService] Redirect result check notice:', err);
+    });
+
   return onAuthStateChanged(auth, async (firebaseUser) => {
     if (firebaseUser) {
       try {

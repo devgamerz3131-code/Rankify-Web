@@ -31,7 +31,7 @@ export const Screen4StudyRoutine: React.FC = () => {
 
       <div className="space-y-5">
         {/* Daily Self-Study Hours */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-white/10 backdrop-blur-xl shadow-xs space-y-3">
+        <div className="p-4 sm:p-5 rounded-2xl bg-card border border-border shadow-xs space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-purple-600" />
@@ -51,7 +51,7 @@ export const Screen4StudyRoutine: React.FC = () => {
                 className={`h-10 rounded-xl text-xs font-bold border transition cursor-pointer ${
                   studyRoutine.studyHoursPerDay === h
                     ? 'bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-600/20'
-                    : 'bg-slate-100/80 dark:bg-slate-800/80 border-transparent text-foreground hover:bg-slate-200 dark:hover:bg-slate-700'
+                    : 'bg-muted border-transparent text-foreground hover:bg-muted/80'
                 }`}
               >
                 {h}h
@@ -61,7 +61,7 @@ export const Screen4StudyRoutine: React.FC = () => {
         </div>
 
         {/* School Timings */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-white/10 backdrop-blur-xl shadow-xs space-y-3">
+        <div className="p-4 sm:p-5 rounded-2xl bg-card border border-border shadow-xs space-y-3">
           <div className="flex items-center gap-2">
             <School className="w-4 h-4 text-blue-600" />
             <label className="text-xs font-bold text-foreground">Regular School Timings</label>
@@ -77,7 +77,7 @@ export const Screen4StudyRoutine: React.FC = () => {
                     schoolTiming: { ...studyRoutine.schoolTiming, start: e.target.value },
                   })
                 }
-                className="w-full px-3 h-10 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-transparent text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
+                className="w-full px-3 h-10 rounded-xl bg-muted border border-transparent text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
               />
             </div>
             <div>
@@ -90,14 +90,14 @@ export const Screen4StudyRoutine: React.FC = () => {
                     schoolTiming: { ...studyRoutine.schoolTiming, end: e.target.value },
                   })
                 }
-                className="w-full px-3 h-10 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-transparent text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
+                className="w-full px-3 h-10 rounded-xl bg-muted border border-transparent text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
               />
             </div>
           </div>
         </div>
 
         {/* Coaching / Tuition Timings */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-white/10 backdrop-blur-xl shadow-xs space-y-3">
+        <div className="p-4 sm:p-5 rounded-2xl bg-card border border-border shadow-xs space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <BookCheck className="w-4 h-4 text-indigo-600" />
@@ -130,7 +130,7 @@ export const Screen4StudyRoutine: React.FC = () => {
                       coachingTiming: { ...studyRoutine.coachingTiming, start: e.target.value },
                     })
                   }
-                  className="w-full px-3 h-10 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-transparent text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  className="w-full px-3 h-10 rounded-xl bg-muted border border-transparent text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
                 />
               </div>
               <div>
@@ -143,7 +143,7 @@ export const Screen4StudyRoutine: React.FC = () => {
                       coachingTiming: { ...studyRoutine.coachingTiming, end: e.target.value },
                     })
                   }
-                  className="w-full px-3 h-10 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-transparent text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  className="w-full px-3 h-10 rounded-xl bg-muted border border-transparent text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
                 />
               </div>
             </div>
@@ -151,7 +151,7 @@ export const Screen4StudyRoutine: React.FC = () => {
         </div>
 
         {/* Wake and Sleep Schedule */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-white/10 backdrop-blur-xl shadow-xs space-y-3">
+        <div className="p-4 sm:p-5 rounded-2xl bg-card border border-border shadow-xs space-y-3">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="flex items-center gap-1.5 text-xs font-bold text-foreground mb-1.5">
@@ -162,7 +162,7 @@ export const Screen4StudyRoutine: React.FC = () => {
                 type="time"
                 value={studyRoutine.wakeTime}
                 onChange={(e) => updateStudyRoutine({ wakeTime: e.target.value })}
-                className="w-full px-3 h-10 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-transparent text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
+                className="w-full px-3 h-10 rounded-xl bg-muted border border-transparent text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
               />
             </div>
             <div>
@@ -174,14 +174,14 @@ export const Screen4StudyRoutine: React.FC = () => {
                 type="time"
                 value={studyRoutine.sleepTime}
                 onChange={(e) => updateStudyRoutine({ sleepTime: e.target.value })}
-                className="w-full px-3 h-10 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-transparent text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
+                className="w-full px-3 h-10 rounded-xl bg-muted border border-transparent text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
               />
             </div>
           </div>
         </div>
 
         {/* Holiday Selection */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-white/10 backdrop-blur-xl shadow-xs space-y-2">
+        <div className="p-4 sm:p-5 rounded-2xl bg-card border border-border shadow-xs space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-emerald-600" />

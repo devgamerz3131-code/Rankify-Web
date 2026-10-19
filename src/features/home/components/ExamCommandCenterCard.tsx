@@ -118,7 +118,7 @@ export const ExamCommandCenterCard: React.FC = () => {
 
         {/* 3 Quick Telemetry Snippets */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
-          <div className="p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xs text-xs space-y-1">
+          <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-xs space-y-1">
             <span className="text-[10px] text-indigo-300 font-bold uppercase tracking-wider block">
               🎯 Today's Command Focus
             </span>
@@ -127,7 +127,7 @@ export const ExamCommandCenterCard: React.FC = () => {
             </div>
           </div>
 
-          <div className="p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xs text-xs space-y-1">
+          <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-xs space-y-1">
             <span className="text-[10px] text-purple-300 font-bold uppercase tracking-wider block">
               ⚠️ Urgent Vulnerability
             </span>
@@ -136,7 +136,7 @@ export const ExamCommandCenterCard: React.FC = () => {
             </div>
           </div>
 
-          <div className="p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xs text-xs space-y-1">
+          <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-xs space-y-1">
             <span className="text-[10px] text-emerald-300 font-bold uppercase tracking-wider block">
               ⏱️ Golden Focus Window
             </span>

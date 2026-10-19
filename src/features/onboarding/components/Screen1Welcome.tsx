@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { Button } from '@/components/ui/button';
 import { Sparkles, ArrowRight, ShieldCheck, Zap, BrainCircuit, BookOpen } from 'lucide-react';
+import { TOTAL_OFFICIAL_CHAPTERS } from '@/services/chapter-service';
 
 export const Screen1Welcome: React.FC = () => {
   const { nextScreen, studentDetails, updateStudentDetails } = useOnboarding();
@@ -16,7 +17,7 @@ export const Screen1Welcome: React.FC = () => {
         transition={{ duration: 0.5 }}
         className="flex justify-center mb-6"
       >
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 dark:bg-purple-400/10 border border-purple-500/20 backdrop-blur-md text-xs font-semibold text-purple-600 dark:text-purple-300">
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 dark:bg-purple-400/10 border border-purple-500/20 text-xs font-semibold text-purple-600 dark:text-purple-300">
           <Sparkles className="w-4 h-4 text-purple-500 animate-pulse" />
           <span>CBSE Class 12 PCM • Dedicated AI Study Planner</span>
         </div>
@@ -53,7 +54,7 @@ export const Screen1Welcome: React.FC = () => {
             value={studentDetails.name}
             onChange={(e) => updateStudentDetails({ name: e.target.value })}
             placeholder="Enter your first name..."
-            className="w-full text-center text-lg font-semibold h-13 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/90 dark:border-white/10 shadow-lg shadow-purple-500/5 focus:outline-none focus:ring-2 focus:ring-purple-500 backdrop-blur-xl transition"
+            className="w-full text-center text-lg font-semibold h-13 rounded-2xl bg-card border border-border shadow-md focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
           />
         </div>
       </motion.div>
@@ -65,17 +66,17 @@ export const Screen1Welcome: React.FC = () => {
         transition={{ duration: 0.6, delay: 0.3 }}
         className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10"
       >
-        <div className="p-5 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/60 dark:border-white/10 backdrop-blur-xl shadow-sm hover:shadow-md transition">
+        <div className="p-5 rounded-2xl bg-card border border-border shadow-xs hover:shadow-md transition">
           <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-3">
             <BookOpen className="w-5 h-5" />
           </div>
-          <h3 className="font-bold text-sm text-foreground mb-1">Official CBSE Class 12</h3>
+          <h3 className="font-bold text-sm text-foreground mb-1">CBSE Class 12 Syllabus</h3>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Latest CBSE Class 12 PCM syllabus with all 40 chapters across Physics, Chemistry, and Mathematics.
+            Latest CBSE Class 12 PCM syllabus with all {TOTAL_OFFICIAL_CHAPTERS} chapters across Physics, Chemistry, and Mathematics.
           </p>
         </div>
 
-        <div className="p-5 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/60 dark:border-white/10 backdrop-blur-xl shadow-sm hover:shadow-md transition">
+        <div className="p-5 rounded-2xl bg-card border border-border shadow-xs hover:shadow-md transition">
           <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-3">
             <BrainCircuit className="w-5 h-5" />
           </div>
@@ -85,11 +86,11 @@ export const Screen1Welcome: React.FC = () => {
           </p>
         </div>
 
-        <div className="p-5 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/60 dark:border-white/10 backdrop-blur-xl shadow-sm hover:shadow-md transition">
+        <div className="p-5 rounded-2xl bg-card border border-border shadow-xs hover:shadow-md transition">
           <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3">
             <Zap className="w-5 h-5" />
           </div>
-          <h3 className="font-bold text-sm text-foreground mb-1">AI Study Engine</h3>
+          <h3 className="font-bold text-sm text-foreground mb-1">Smart Study Planner</h3>
           <p className="text-xs text-muted-foreground leading-relaxed">
             Creates adaptive 7-day daily tasks and 4-week milestones calibrated to your school timings.
           </p>

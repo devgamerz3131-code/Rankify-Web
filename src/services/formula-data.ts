@@ -295,7 +295,7 @@ export const FORMULA_LIBRARY_DATA: FormulaItem[] = [
       'Determinant |A| must be non-zero (|A| ≠ 0, i.e., non-singular). If |A| = 0, A⁻¹ does not exist.',
     ],
     applications: [
-      'Solving 3-variable linear systems AX = B via X = A⁻¹ B (guaranteed 5-mark CBSE question).',
+      'Solving 3-variable linear systems AX = B via X = A⁻¹ B (frequently asked 5-mark question).',
       'Computer graphics transformations, cryptography, and 3D rotational matrices.',
       'Evaluating matrix powers and Cayley-Hamilton characteristic equations.',
     ],

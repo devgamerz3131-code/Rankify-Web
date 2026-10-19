@@ -189,15 +189,15 @@ export const SmartSuggestions: React.FC<SmartSuggestionsProps> = ({
         <motion.div
           initial={{ opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mx-4 sm:mx-6 mt-3 p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-purple-500/10 border border-amber-500/30 text-xs text-amber-900 dark:text-amber-200 flex flex-wrap items-center justify-between gap-2 shadow-xs"
+          className="mx-4 sm:mx-6 mt-3 p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-purple-500/10 border border-amber-500/30 text-xs text-foreground flex flex-wrap items-center justify-between gap-2 shadow-xs"
         >
           <div className="flex items-center gap-2 min-w-0">
             <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500 text-white font-black text-[10px] uppercase tracking-wider shadow-xs">
               <Flame className="w-3 h-3 fill-white" />
               <span>Recommended Today</span>
             </span>
-            <span className="font-semibold truncate">
-              Focus on <strong>{needsFocusChapters[0].chapterName}</strong> ({needsFocusChapters[0].subjectName}) to boost overall board percentile!
+            <span className="font-semibold text-foreground truncate">
+              Focus on <strong className="text-amber-700 dark:text-amber-300 font-black">{needsFocusChapters[0].chapterName}</strong> ({needsFocusChapters[0].subjectName}) to boost overall board percentile!
             </span>
           </div>
 
@@ -264,7 +264,7 @@ export const SmartSuggestions: React.FC<SmartSuggestionsProps> = ({
                 key={btn.label}
                 type="button"
                 onClick={() => onSelectPrompt(btn.template(activeTargetChapterName))}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800/80 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-muted-foreground hover:text-purple-600 dark:hover:text-purple-300 border border-slate-200/80 dark:border-slate-700/60 font-semibold text-[11px] whitespace-nowrap transition cursor-pointer shrink-0 shadow-2xs"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted hover:bg-purple-500/15 text-foreground hover:text-purple-600 dark:hover:text-purple-300 border border-border font-semibold text-[11px] whitespace-nowrap transition cursor-pointer shrink-0 shadow-2xs"
               >
                 <Icon className="w-3 h-3 text-purple-500" />
                 <span>{btn.label}</span>

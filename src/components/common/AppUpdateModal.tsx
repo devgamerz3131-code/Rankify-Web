@@ -25,8 +25,8 @@ export const AppUpdateModal: React.FC = () => {
   // 1. Mandatory Update Blocking Screen
   if (updateInfo.required) {
     return (
-      <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
-        <div className="max-w-md w-full rounded-3xl bg-card border border-rose-500/30 p-8 text-center space-y-5 shadow-2xl">
+      <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4">
+        <div className="max-w-md w-full rounded-2xl bg-card border border-rose-500/30 p-8 text-center space-y-5 shadow-2xl">
           <div className="w-16 h-16 rounded-2xl bg-rose-500/20 text-rose-400 mx-auto flex items-center justify-center text-3xl">
             <ShieldAlert className="w-8 h-8" />
           </div>
@@ -50,8 +50,8 @@ export const AppUpdateModal: React.FC = () => {
   // 2. Optional Update Dialog
   if (updateInfo.optional && !dismissed) {
     return (
-      <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-        <div className="max-w-md w-full rounded-3xl bg-card border border-purple-500/30 p-6 sm:p-8 space-y-5 shadow-2xl">
+      <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+        <div className="max-w-md w-full rounded-2xl bg-card border border-purple-500/30 p-6 sm:p-8 space-y-5 shadow-2xl">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center text-xl shadow-lg">
               <Sparkles className="w-6 h-6" />

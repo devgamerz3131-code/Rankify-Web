@@ -14,6 +14,7 @@ import {
   Layers,
   Circle,
 } from 'lucide-react';
+import { TOTAL_OFFICIAL_CHAPTERS } from '@/services/chapter-service';
 
 const PROGRESS_OPTIONS: { value: ProgressPercentage; label: string; activeClass: string }[] = [
   { value: 0, label: 'Not Started', activeClass: 'bg-slate-700 text-white border-slate-700 shadow-sm' },
@@ -43,7 +44,7 @@ export const Screen7SyllabusTracker: React.FC = () => {
     return chapters.filter((c) => c.subjectId === activeTab);
   }, [chapters, activeTab]);
 
-  const totalChapters = chapters.length || 37;
+  const totalChapters = chapters.length || TOTAL_OFFICIAL_CHAPTERS;
   const evaluatedChapters = chapters.filter((c) => c.progressPercentage > 0 || c.confidence !== 3).length;
 
   const physicsCount = chapters.filter((c) => c.subjectId === 'physics').length;
@@ -73,7 +74,7 @@ export const Screen7SyllabusTracker: React.FC = () => {
       </div>
 
       {/* Live Diagnostic Ribbon */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-purple-950 to-slate-950 text-white border border-purple-500/30 shadow-xl mb-6 backdrop-blur-xl">
+      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-purple-950 to-slate-950 text-white border border-purple-500/30 shadow-xl mb-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-purple-200">
@@ -91,7 +92,7 @@ export const Screen7SyllabusTracker: React.FC = () => {
 
           <div className="flex items-center gap-2">
             <Button
-              variant="glass"
+              variant="outline"
               size="sm"
               onClick={() => {
                 // Quick preset: Mark unstarted as 25% or completed as desired
@@ -117,7 +118,7 @@ export const Screen7SyllabusTracker: React.FC = () => {
           className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer border ${
             activeTab === 'all'
               ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
-              : 'bg-white/70 dark:bg-slate-900/70 border-slate-200 dark:border-white/10 text-muted-foreground hover:text-foreground'
+              : 'bg-card border-border text-muted-foreground hover:text-foreground'
           }`}
         >
           All PCM Chapters ({totalChapters})
@@ -129,7 +130,7 @@ export const Screen7SyllabusTracker: React.FC = () => {
           className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer border ${
             activeTab === 'physics'
               ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
-              : 'bg-white/70 dark:bg-slate-900/70 border-slate-200 dark:border-white/10 text-muted-foreground hover:text-foreground'
+              : 'bg-card border-border text-muted-foreground hover:text-foreground'
           }`}
         >
           Physics ({physicsCount})
@@ -141,7 +142,7 @@ export const Screen7SyllabusTracker: React.FC = () => {
           className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer border ${
             activeTab === 'chemistry'
               ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
-              : 'bg-white/70 dark:bg-slate-900/70 border-slate-200 dark:border-white/10 text-muted-foreground hover:text-foreground'
+              : 'bg-card border-border text-muted-foreground hover:text-foreground'
           }`}
         >
           Chemistry ({chemistryCount})
@@ -153,7 +154,7 @@ export const Screen7SyllabusTracker: React.FC = () => {
           className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer border ${
             activeTab === 'mathematics'
               ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
-              : 'bg-white/70 dark:bg-slate-900/70 border-slate-200 dark:border-white/10 text-muted-foreground hover:text-foreground'
+              : 'bg-card border-border text-muted-foreground hover:text-foreground'
           }`}
         >
           Mathematics ({mathCount})
@@ -168,7 +169,7 @@ export const Screen7SyllabusTracker: React.FC = () => {
           return (
             <div
               key={ch.id}
-              className="p-4 sm:p-5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-white/10 backdrop-blur-xl shadow-xs transition hover:shadow-md"
+              className="p-4 sm:p-5 rounded-2xl bg-card border border-border shadow-xs transition hover:shadow-md"
             >
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 {/* Chapter Info */}
@@ -187,11 +188,11 @@ export const Screen7SyllabusTracker: React.FC = () => {
                   </h3>
 
                   {ch.topics && ch.topics.length > 0 && (
-                    <div className="flex flex-wrap gap-1 pt-1">
+                    <div className="flex flex-wrap gap-1.5 pt-1">
                       {ch.topics.slice(0, 3).map((topic, tIdx) => (
                         <span
                           key={tIdx}
-                          className="text-[10px] px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-muted-foreground"
+                          className="text-[10px] px-2.5 py-0.5 rounded-md bg-muted text-foreground/90 border border-border font-semibold"
                         >
                           {topic}
                         </span>
@@ -202,7 +203,7 @@ export const Screen7SyllabusTracker: React.FC = () => {
 
                 {/* Progress Selector: ○ Not Started, ○ 25%, ○ 50%, ○ 75%, ○ Completed */}
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3 shrink-0">
-                  <div className="flex flex-wrap items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-xl border border-slate-200/60 dark:border-white/5">
+                  <div className="flex flex-wrap items-center gap-1 bg-muted p-1.5 rounded-xl border border-border">
                     {PROGRESS_OPTIONS.map((opt) => {
                       const isSelected = currentProgress === opt.value;
                       return (
@@ -210,14 +211,14 @@ export const Screen7SyllabusTracker: React.FC = () => {
                           type="button"
                           key={opt.value}
                           onClick={() => updateChapterProgress(ch.id, { progressPercentage: opt.value })}
-                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border ${
+                          className={`min-h-[44px] lg:min-h-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border whitespace-nowrap ${
                             isSelected
                               ? opt.activeClass
-                              : 'border-transparent text-muted-foreground hover:text-foreground'
+                              : 'border-transparent text-foreground/80 hover:text-foreground hover:bg-card'
                           }`}
                         >
                           <span
-                            className={`w-3 h-3 rounded-full flex items-center justify-center border transition ${
+                            className={`w-3 h-3 rounded-full flex items-center justify-center border transition shrink-0 ${
                               isSelected
                                 ? 'border-white bg-white/20'
                                 : 'border-slate-400 dark:border-slate-600 bg-transparent'
@@ -243,13 +244,13 @@ export const Screen7SyllabusTracker: React.FC = () => {
                           type="button"
                           key={level}
                           onClick={() => updateChapterProgress(ch.id, { confidence: level })}
-                          className="p-1 rounded-md hover:scale-110 transition cursor-pointer"
+                          className="min-w-[44px] min-h-[44px] lg:min-w-0 lg:min-h-0 p-2 lg:p-1 flex items-center justify-center rounded-md hover:scale-110 transition cursor-pointer"
                         >
                           <Star
-                            className={`w-3.5 h-3.5 transition ${
+                            className={`w-4 h-4 lg:w-3.5 lg:h-3.5 transition ${
                               isActive
                                 ? 'fill-amber-400 text-amber-400'
-                                : 'text-slate-300 dark:text-slate-700'
+                                : 'text-slate-400 dark:text-slate-500'
                             }`}
                           />
                         </button>

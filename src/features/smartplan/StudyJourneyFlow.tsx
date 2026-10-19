@@ -358,7 +358,7 @@ export const StudyJourneyFlow: React.FC<StudyJourneyFlowProps> = ({
     <div
       className={
         isModal
-          ? 'fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-xl overflow-y-auto'
+          ? 'fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/90 overflow-y-auto'
           : 'min-h-screen bg-slate-50 dark:bg-slate-950 text-foreground py-8 px-4 sm:px-6 flex flex-col justify-center'
       }
     >
@@ -368,7 +368,7 @@ export const StudyJourneyFlow: React.FC<StudyJourneyFlowProps> = ({
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="text-center py-12 sm:py-20 px-6 rounded-3xl bg-white/90 dark:bg-slate-900/90 border border-purple-500/30 shadow-2xl backdrop-blur-2xl relative overflow-hidden"
+            className="text-center py-12 sm:py-20 px-6 rounded-3xl bg-card border border-purple-500/30 shadow-2xl relative overflow-hidden"
           >
             {/* Animated Glowing Brain Core */}
             <div className="relative w-44 h-44 mx-auto flex items-center justify-center mb-8">
@@ -379,18 +379,8 @@ export const StudyJourneyFlow: React.FC<StudyJourneyFlowProps> = ({
                 className="absolute inset-0 rounded-full border-2 border-dashed border-purple-500/40 pointer-events-none"
               />
 
-              {/* Glowing Ambient Halo */}
-              <motion.div
-                animate={{
-                  scale: [1, 1.25, 1],
-                  opacity: [0.35, 0.7, 0.35],
-                }}
-                transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-                className="absolute inset-2 rounded-full bg-gradient-to-tr from-purple-600 via-indigo-600 to-pink-500 blur-2xl pointer-events-none"
-              />
-
               {/* Center Core */}
-              <div className="relative z-10 w-28 h-28 rounded-3xl bg-slate-950 border border-purple-500/50 shadow-2xl flex flex-col items-center justify-center backdrop-blur-xl">
+              <div className="relative z-10 w-28 h-28 rounded-3xl bg-slate-950 border border-purple-500/50 shadow-2xl flex flex-col items-center justify-center">
                 <BrainCircuit className="w-12 h-12 text-purple-400 animate-pulse" />
                 <span className="text-[10px] font-mono font-bold text-purple-300 mt-1 uppercase tracking-wider">
                   SmartPlan AI
@@ -468,7 +458,7 @@ export const StudyJourneyFlow: React.FC<StudyJourneyFlowProps> = ({
           </motion.div>
         ) : (
           /* VIEW 2: INTERACTIVE QUESTIONNAIRE */
-          <Card className="rounded-3xl border-2 border-purple-500/30 dark:border-purple-500/20 bg-card/90 backdrop-blur-2xl shadow-2xl p-6 sm:p-8 space-y-6 relative overflow-hidden">
+          <Card className="rounded-2xl border-2 border-purple-500/30 dark:border-purple-500/20 bg-card shadow-xl p-6 sm:p-8 space-y-6 relative overflow-hidden">
             {/* Modal Close Button */}
             {isModal && onCancel && (
               <button

@@ -1,6 +1,6 @@
 import { safeLocalStorage } from '@/utils/storage';
 import { db } from '@/firebase/config';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import {
   WeaknessOverallData,
   ChapterWeaknessAnalysis,
@@ -17,11 +17,387 @@ import {
 } from '@/types/weakness';
 import { ChapterProgress, UpcomingExam } from '@/types/onboarding';
 import { mistakeService } from './mistake-service';
+import { MistakeItem } from '@/types/mistake';
 import toast from 'react-hot-toast';
+import {
+  computeAccuracy,
+  getChapterById,
+  getAllCanonicalChapters,
+} from './chapter-service';
 
 const STORAGE_KEY = 'rankify_weakness_analyzer_cache_';
+const SNAPSHOTS_KEY_PREFIX = 'rankify_weakness_snapshots_';
 
-// Curated CBSE Class 12 NCERT mapping & common mistake patterns
+/**
+ * Centralized Configuration Constants for Academic Weakness Engine
+ * All thresholds live in this config constant.
+ */
+export const WEAKNESS_CONFIG = {
+  // Score thresholds for strength score (0-100)
+  LEVEL_THRESHOLDS: {
+    CRITICAL_MAX: 39, // Strength score below 40 -> Critical
+    WEAK_MAX: 59,     // Strength score 40-59 -> Weak
+    AVERAGE_MAX: 74,  // Strength score 60-74 -> Average
+    STRONG_MIN: 75,   // Strength score 75+ -> Strong
+  },
+  // Minimum practice questions attempted before chapter is not flagged for "Low Practice"
+  MIN_PRACTICE_QUESTIONS: 20,
+  // Minimum attempted chapters required in a subject to evaluate subject weakness
+  MIN_CHAPTERS_FOR_SUBJECT_ANALYSIS: 1,
+  // Minimum sample size required to generate data-driven behavioral insights
+  MIN_INSIGHT_SAMPLE_SIZE: 5,
+  // Single labeled target benchmark
+  TARGET_BENCHMARK: 85,
+} as const;
+
+export interface ChapterWeaknessCalculation {
+  isAttempted: boolean;
+  attemptedCount: number;
+  correctCount: number | null;
+  accuracy: number | null;
+  completionPercentage: number;
+  revisionCount: number;
+  openMistakesCount: number;
+  strengthScore: number | null;
+  weaknessScore: number | null;
+  weaknessLevel: WeaknessLevel;
+  causeTags: RootCauseType[];
+}
+
+/**
+ * Chapter Strength Calculation Formula:
+ * 
+ * Rules:
+ * 1. Skip chapters with 0 attempted questions:
+ *    level = "Not started" (consistent with earlier accuracy fix).
+ *    strengthScore = null, weaknessScore = null.
+ *    They are never classified as Weak or Critical.
+ * 
+ * 2. For attempted chapters (attemptedCount > 0):
+ *    Compute strength score from real values only:
+ *    - Question Accuracy (50% weight): (correct / attempted) * 100 -> 0 to 50 pts
+ *    - Syllabus Completion (30% weight): completion percentage -> 0 to 30 pts
+ *    - Revision Count (up to +15 pts bonus): min(revisions, 5) * 3 -> 0 to 15 pts
+ *    - Open Mistakes Penalty (up to -25 pts): -5 pts per unresolved mistake in Mistake Vault, capped at -25 pts
+ * 
+ *    Formula:
+ *    Raw Strength = (accuracy * 0.50) + (completion * 0.30) + (min(revisions, 5) * 3) - (min(openMistakes, 5) * 5)
+ *    strengthScore = Math.max(0, Math.min(100, Math.round(Raw Strength)))
+ *    weaknessScore = 100 - strengthScore
+ * 
+ * 3. Levels from score (config):
+ *    Critical: below 40
+ *    Weak: 40 - 59
+ *    Average: 60 - 74
+ *    Strong: 75 and above
+ */
+export function getChapterWeakness(
+  chapter: ChapterProgress,
+  allMistakes: MistakeItem[] = []
+): ChapterWeaknessCalculation {
+  const attemptedCount = Math.max(
+    0,
+    (chapter as any).attempted ??
+      (chapter as any).questionsAttempted ??
+      chapter.practiceQuestions ??
+      chapter.questionSolved ??
+      0
+  );
+  const correctCount = (chapter as any).correct ?? (chapter as any).questionsCorrect ?? null;
+  const computedAcc = computeAccuracy(attemptedCount, correctCount, chapter.accuracy);
+  const isAttempted = attemptedCount > 0;
+
+  const canonical = getChapterById(chapter.chapterName || chapter.chapterId || chapter.id);
+  const chMistakes = allMistakes.filter((m) => {
+    if (m.status === 'Mastered') return false;
+    const mCanonical = getChapterById(m.chapter);
+    if (mCanonical.id && canonical.id && mCanonical.id === canonical.id) return true;
+    return (
+      m.chapter?.toLowerCase() === chapter.chapterName?.toLowerCase() ||
+      m.chapter?.toLowerCase() === chapter.id?.toLowerCase()
+    );
+  });
+  const openMistakesCount = chMistakes.length;
+
+  if (!isAttempted) {
+    return {
+      isAttempted: false,
+      attemptedCount: 0,
+      correctCount: null,
+      accuracy: null,
+      completionPercentage: chapter.progressPercentage ?? chapter.completionPercentage ?? 0,
+      revisionCount: chapter.revisionCount || 0,
+      openMistakesCount,
+      strengthScore: null,
+      weaknessScore: null,
+      weaknessLevel: 'Not started',
+      causeTags: [],
+    };
+  }
+
+  const accuracy = computedAcc !== null ? computedAcc : (chapter.accuracy ?? 0);
+  const completion = Math.max(0, Math.min(100, chapter.progressPercentage ?? chapter.completionPercentage ?? 0));
+  const revisions = Math.max(0, chapter.revisionCount || 0);
+
+  // Strength score formula
+  const rawStrength =
+    accuracy * 0.5 +
+    completion * 0.3 +
+    Math.min(revisions, 5) * 3 -
+    Math.min(openMistakesCount, 5) * 5;
+  const strengthScore = Math.max(0, Math.min(100, Math.round(rawStrength)));
+  const weaknessScore = 100 - strengthScore;
+
+  let weaknessLevel: WeaknessLevel = 'Average';
+  if (strengthScore < WEAKNESS_CONFIG.LEVEL_THRESHOLDS.CRITICAL_MAX + 1) {
+    weaknessLevel = 'Critical';
+  } else if (strengthScore <= WEAKNESS_CONFIG.LEVEL_THRESHOLDS.WEAK_MAX) {
+    weaknessLevel = 'Weak';
+  } else if (strengthScore <= WEAKNESS_CONFIG.LEVEL_THRESHOLDS.AVERAGE_MAX) {
+    weaknessLevel = 'Average';
+  } else {
+    weaknessLevel = 'Strong';
+  }
+
+  // Days since revision
+  let daysSinceRev = 0;
+  const lastDate = chapter.lastStudied || chapter.lastOpened || chapter.updatedAt;
+  if (lastDate) {
+    try {
+      const diffMs = Date.now() - new Date(lastDate).getTime();
+      daysSinceRev = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+    } catch {
+      daysSinceRev = 0;
+    }
+  }
+
+  // Real signal cause tags
+  const causeTags: RootCauseType[] = [];
+  if (attemptedCount < WEAKNESS_CONFIG.MIN_PRACTICE_QUESTIONS) {
+    causeTags.push('Low Practice');
+  }
+  if (chMistakes.some((m) => m.mistakeType === 'Formula Error')) {
+    causeTags.push('Formula Forgotten');
+  }
+  if (chMistakes.some((m) => m.mistakeType === 'Concept Error')) {
+    causeTags.push('Concept Gap');
+  }
+  if (chMistakes.some((m) => m.mistakeType === 'Calculation Error' || m.mistakeType === 'Silly Mistake')) {
+    causeTags.push('Calculation Slip');
+  }
+
+  const hasDueMistake = chMistakes.some((m) => {
+    if (!m.nextRevisionDue) return false;
+    try {
+      return new Date(m.nextRevisionDue).getTime() <= Date.now();
+    } catch {
+      return false;
+    }
+  });
+
+  if (daysSinceRev >= 7 || chapter.needsRevision || hasDueMistake) {
+    causeTags.push('Revision Due');
+  }
+
+  return {
+    isAttempted: true,
+    attemptedCount,
+    correctCount,
+    accuracy,
+    completionPercentage: completion,
+    revisionCount: revisions,
+    openMistakesCount,
+    strengthScore,
+    weaknessScore,
+    weaknessLevel,
+    causeTags,
+  };
+}
+
+/**
+ * Common helper for Home Exam Status and Weakness Analyzer:
+ * Weakest Subject: ONE subject with lowest average strength score across ATTEMPTED chapters.
+ * Highest Priority: Syllabus chapter name chosen by lowest score among attempted chapters,
+ * ties broken by open mistakes, then by weightage.
+ */
+export function getWeakestSubjectAndPriorityChapter(
+  chaptersProgress: ChapterProgress[] = [],
+  mistakes: MistakeItem[] = []
+): {
+  weakestSubjectName: string | null;
+  weakestSubjectScore: number | null;
+  highestPriorityChapterName: string | null;
+  highestPriorityChapterScore: number | null;
+  highestPriorityChapterId: string | null;
+} {
+  const subjectsMap: Record<string, { name: string; sumStrength: number; count: number }> = {
+    physics: { name: 'Physics', sumStrength: 0, count: 0 },
+    chemistry: { name: 'Chemistry', sumStrength: 0, count: 0 },
+    mathematics: { name: 'Mathematics', sumStrength: 0, count: 0 },
+  };
+
+  const attemptedChapters: {
+    canonicalName: string;
+    canonicalId: string;
+    strengthScore: number;
+    openMistakes: number;
+    weightage: number;
+  }[] = [];
+
+  for (const ch of chaptersProgress) {
+    const calc = getChapterWeakness(ch, mistakes);
+    if (!calc.isAttempted || calc.strengthScore === null) continue;
+
+    const subId = (ch.subjectId || 'physics').toLowerCase();
+    if (subjectsMap[subId]) {
+      subjectsMap[subId].sumStrength += calc.strengthScore;
+      subjectsMap[subId].count += 1;
+    }
+
+    const canonical = getChapterById(ch.chapterName || ch.chapterId || ch.id);
+    attemptedChapters.push({
+      canonicalName: canonical.name,
+      canonicalId: canonical.id,
+      strengthScore: calc.strengthScore,
+      openMistakes: calc.openMistakesCount,
+      weightage: ch.orderIndex || 8,
+    });
+  }
+
+  let weakestSubjectName: string | null = null;
+  let lowestAvgStrength = Infinity;
+  let weakestSubScore: number | null = null;
+
+  for (const sub of Object.values(subjectsMap)) {
+    if (sub.count >= WEAKNESS_CONFIG.MIN_CHAPTERS_FOR_SUBJECT_ANALYSIS) {
+      const avg = Math.round(sub.sumStrength / sub.count);
+      if (avg < lowestAvgStrength) {
+        lowestAvgStrength = avg;
+        weakestSubjectName = sub.name;
+        weakestSubScore = avg;
+      }
+    }
+  }
+
+  if (attemptedChapters.length === 0) {
+    return {
+      weakestSubjectName,
+      weakestSubjectScore: weakestSubScore,
+      highestPriorityChapterName: null,
+      highestPriorityChapterScore: null,
+      highestPriorityChapterId: null,
+    };
+  }
+
+  attemptedChapters.sort((a, b) => {
+    if (a.strengthScore !== b.strengthScore) {
+      return a.strengthScore - b.strengthScore;
+    }
+    if (a.openMistakes !== b.openMistakes) {
+      return b.openMistakes - a.openMistakes;
+    }
+    return b.weightage - a.weightage;
+  });
+
+  const topPriority = attemptedChapters[0];
+  return {
+    weakestSubjectName,
+    weakestSubjectScore: weakestSubScore,
+    highestPriorityChapterName: topPriority.canonicalName,
+    highestPriorityChapterScore: topPriority.strengthScore,
+    highestPriorityChapterId: topPriority.canonicalId,
+  };
+}
+
+/**
+ * ISO Week Key builder using UTC Y-M-D (Safari, iOS, Android safe)
+ */
+export function getIsoWeekKey(d: Date = new Date()): string {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}
+
+export interface WeaknessWeeklySnapshot {
+  weekKey: string;
+  weakChapterShare: number;
+  attemptedCount: number;
+  weakCount: number;
+  recordedAt: string;
+}
+
+export function getStoredWeaknessSnapshots(userId: string): WeaknessWeeklySnapshot[] {
+  try {
+    return (
+      safeLocalStorage.getItem<WeaknessWeeklySnapshot[]>(
+        `${SNAPSHOTS_KEY_PREFIX}${userId || 'guest'}`,
+        []
+      ) || []
+    );
+  } catch {
+    return [];
+  }
+}
+
+export function saveWeaknessWeeklySnapshot(
+  userId: string,
+  attemptedCount: number,
+  weakCount: number
+): WeaknessWeeklySnapshot[] {
+  if (attemptedCount === 0) {
+    return getStoredWeaknessSnapshots(userId);
+  }
+
+  const currentWeekKey = getIsoWeekKey();
+  const weakShare = Math.round((weakCount / attemptedCount) * 100);
+  const existing = getStoredWeaknessSnapshots(userId);
+
+  const foundIndex = existing.findIndex((s) => s.weekKey === currentWeekKey);
+  const updatedSnapshot: WeaknessWeeklySnapshot = {
+    weekKey: currentWeekKey,
+    weakChapterShare: weakShare,
+    attemptedCount,
+    weakCount,
+    recordedAt: new Date().toISOString(),
+  };
+
+  let updatedList: WeaknessWeeklySnapshot[];
+  if (foundIndex >= 0) {
+    updatedList = [...existing];
+    updatedList[foundIndex] = updatedSnapshot;
+  } else {
+    updatedList = [...existing, updatedSnapshot];
+  }
+
+  updatedList.sort((a, b) => a.weekKey.localeCompare(b.weekKey));
+  if (updatedList.length > 5) {
+    updatedList = updatedList.slice(-5);
+  }
+
+  try {
+    safeLocalStorage.setItem(`${SNAPSHOTS_KEY_PREFIX}${userId || 'guest'}`, updatedList);
+  } catch (err) {
+    console.warn('[WeaknessService] Storage error for snapshots:', err);
+  }
+
+  if (userId && userId !== 'guest') {
+    try {
+      const snapDoc = doc(db, 'users', userId, 'weakness_snapshots', currentWeekKey);
+      setDoc(snapDoc, updatedSnapshot, { merge: true }).catch((err) => {
+        console.warn('[WeaknessService] Firestore snapshot error:', err);
+      });
+    } catch (err) {
+      console.warn('[WeaknessService] Firestore snapshot write exception:', err);
+    }
+  }
+
+  return updatedList;
+}
+
+// Curated CBSE Class 12 NCERT mapping & common mistake patterns for surgery guidance
 const NCERT_TOPIC_GUIDES: Record<
   string,
   {
@@ -172,7 +548,7 @@ export class WeaknessService {
 
   /**
    * Continuous Non-Random AI Analysis Engine
-   * Evaluates student study behavior, question accuracy, mistake logs, revision recency, and skipped tasks.
+   * Evaluates student study behavior, question accuracy, mistake logs, revision recency from real data.
    */
   public analyze(
     chaptersProgress?: ChapterProgress[],
@@ -185,12 +561,40 @@ export class WeaknessService {
     upcomingExam?: UpcomingExam
   ): WeaknessOverallData {
     const mistakes = mistakeService.getMistakes();
-    const mistakeStats = mistakeService.getStatistics();
 
-    // Default chapters if not yet passed from context
-    const chapters = chaptersProgress && chaptersProgress.length > 0
-      ? chaptersProgress
-      : this.getDefaultChapters();
+    let chapters: ChapterProgress[];
+    if (chaptersProgress && chaptersProgress.length > 0) {
+      chapters = chaptersProgress;
+    } else {
+      // Build non-started chapters directly from official canonical syllabus
+      const canonicals = getAllCanonicalChapters();
+      chapters = canonicals.map((c, idx) => ({
+        id: c.id,
+        chapterId: c.id,
+        chapterName: c.name,
+        subjectId: c.subjectId as any,
+        subjectName: c.subjectName as any,
+        progressPercentage: 0,
+        confidence: 1 as any,
+        revisionCount: 0,
+        practiceQuestions: 0,
+        weakTopics: [],
+        strongTopics: [],
+        timeSpent: 0,
+        accuracy: 0,
+        completion: false,
+        needsRevision: false,
+        needsFocus: false,
+        lastOpened: null,
+        lastStudied: null,
+        orderIndex: idx,
+        updatedAt: new Date().toISOString(),
+        status: 'Not Started' as any,
+        completionPercentage: 0,
+        studyMinutes: 0,
+        questionSolved: 0,
+      }));
+    }
 
     const subjectGroups: Record<
       string,
@@ -223,191 +627,93 @@ export class WeaknessService {
     const subjectsSummary: Record<string, SubjectWeaknessSummary> = {};
 
     let totalWeaknessSum = 0;
-    let totalChaptersCount = 0;
+    let totalAttemptedChaptersCount = 0;
     let immediateAttentionCount = 0;
 
     // Process each chapter
     for (const [subId, subData] of Object.entries(subjectGroups)) {
       let subWeaknessSum = 0;
       let subStrengthSum = 0;
+      let subAttemptedCount = 0;
       let subCriticalCount = 0;
       let subWeakCount = 0;
       const subCausesCounts: Partial<Record<RootCauseType, number>> = {};
 
       for (const ch of subData.chapters) {
-        totalChaptersCount++;
+        // Calculate weakness using the ONE single calculation helper
+        const calc = getChapterWeakness(ch, mistakes);
+        const canonical = getChapterById(ch.chapterName || ch.chapterId || ch.id);
 
-        // 1. Gather Real Metrics
-        const daysSinceRevision = this.calculateDaysAgo(ch.lastStudied || ch.lastOpened || ch.updatedAt);
-        const questionAccuracy = typeof ch.accuracy === 'number' && ch.accuracy > 0 ? ch.accuracy : 70;
-        const questionsSolved = ch.practiceQuestions || ch.questionSolved || 18;
-        const timeSpent = ch.timeSpent || ch.studyMinutes || 180;
-        const syllabusCompleted =
-          typeof ch.progressPercentage === 'number'
-            ? ch.progressPercentage
-            : ch.completionPercentage || 75;
-
-        // Chapter mistakes from Mistake Notebook
-        const chMistakes = mistakes.filter(
-          (m) =>
-            m.chapter.toLowerCase() === ch.chapterName.toLowerCase() ||
-            (m.topic && m.topic.toLowerCase() === ch.chapterName.toLowerCase()) ||
-            m.subject.toLowerCase() === subData.subjectName.toLowerCase()
-        );
-
-        const unresolvedMistakes = chMistakes.filter((m) => m.status !== 'Mastered');
-        const formulaErrors = chMistakes.filter((m) => m.mistakeType === 'Formula Error');
-        const conceptErrors = chMistakes.filter((m) => m.mistakeType === 'Concept Error');
-        const calculationErrors = chMistakes.filter((m) => m.mistakeType === 'Calculation Error');
-        const sillyMistakes = chMistakes.filter((m) => m.mistakeType === 'Silly Mistake');
-
-        // Sub-accuracies
-        const formulaAccuracy = Math.max(
-          20,
-          Math.min(100, Math.round(questionAccuracy * 0.9 - formulaErrors.length * 8))
-        );
-        const conceptAccuracy = Math.max(
-          20,
-          Math.min(100, Math.round(questionAccuracy * 0.95 - conceptErrors.length * 9))
-        );
-
-        // 2. Multi-Factor Root Cause Analysis
-        const rootCauses: ChapterRootCause[] = [];
-
-        // Low Practice
-        if (questionsSolved < 25) {
-          rootCauses.push({
-            cause: 'Low Practice',
-            severity: questionsSolved < 15 ? 'Critical' : 'High',
-            evidence: `Only ${questionsSolved} practice questions solved (target is 50+ for Board PYQs).`,
-            fixRecommendation: 'Tackle a 20-question targeted numerical set.',
-          });
-          subCausesCounts['Low Practice'] = (subCausesCounts['Low Practice'] || 0) + 1;
+        let daysSinceRevision = 0;
+        const lastDate = ch.lastStudied || ch.lastOpened || ch.updatedAt;
+        if (lastDate) {
+          try {
+            const diffMs = Date.now() - new Date(lastDate).getTime();
+            daysSinceRevision = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+          } catch {
+            daysSinceRevision = 0;
+          }
         }
 
-        // No Revision
-        if (daysSinceRevision >= 10) {
-          rootCauses.push({
-            cause: 'No Revision',
-            severity: daysSinceRevision >= 14 ? 'Critical' : 'High',
-            evidence: `Not studied or revised for ${daysSinceRevision} days. Memory retention decays after 7 days without active recall.`,
-            fixRecommendation: 'Conduct a 20-minute active recall and summary review.',
-          });
-          subCausesCounts['No Revision'] = (subCausesCounts['No Revision'] || 0) + 1;
-        }
-
-        // Formula Forgotten
-        if (formulaErrors.length > 0 || formulaAccuracy < 65) {
-          rootCauses.push({
-            cause: 'Formula Forgotten',
-            severity: formulaErrors.length >= 2 ? 'Critical' : 'High',
-            evidence: `${formulaErrors.length} formula error(s) logged in Mistake Notebook. Formula recall accuracy is ${formulaAccuracy}%.`,
-            fixRecommendation: 'Write down and derive key formulas without looking at notes.',
-          });
-          subCausesCounts['Formula Forgotten'] = (subCausesCounts['Formula Forgotten'] || 0) + 1;
-        }
-
-        // Concept Confusion
-        if (conceptErrors.length > 0 || conceptAccuracy < 62) {
-          rootCauses.push({
-            cause: 'Concept Confusion',
-            severity: conceptErrors.length >= 2 ? 'Critical' : 'High',
-            evidence: `Core concept accuracy is ${conceptAccuracy}%. Misconceptions detected in fundamental definitions.`,
-            fixRecommendation: 'Review NCERT textbook theory and solve in-text example exercises.',
-          });
-          subCausesCounts['Concept Confusion'] = (subCausesCounts['Concept Confusion'] || 0) + 1;
-        }
-
-        // Calculation Errors
-        if (calculationErrors.length > 0 || (questionAccuracy < 70 && questionsSolved > 20)) {
-          rootCauses.push({
-            cause: 'Calculation Errors',
-            severity: 'Medium',
-            evidence: 'Repeated arithmetic or algebraic mistakes under time pressure.',
-            fixRecommendation: 'Write step-by-step units and avoid skipping mental intermediate steps.',
-          });
-          subCausesCounts['Calculation Errors'] = (subCausesCounts['Calculation Errors'] || 0) + 1;
-        }
-
-        // Skipping Numericals
-        if (subId !== 'chemistry' && questionsSolved < 20 && timeSpent > 120) {
-          rootCauses.push({
-            cause: 'Skipping Numericals',
-            severity: 'Medium',
-            evidence: 'High study time recorded but low numerical problem attempts.',
-            fixRecommendation: 'Spend at least 60% of chapter study time solving numericals.',
-          });
-          subCausesCounts['Skipping Numericals'] = (subCausesCounts['Skipping Numericals'] || 0) + 1;
-        }
-
-        // Incomplete Lecture
-        if (syllabusCompleted < 60) {
-          rootCauses.push({
-            cause: 'Incomplete Lecture',
+        const rootCauses: ChapterRootCause[] = calc.causeTags.map((tag) => {
+          subCausesCounts[tag] = (subCausesCounts[tag] || 0) + 1;
+          if (tag === 'Low Practice') {
+            return {
+              cause: 'Low Practice',
+              severity: calc.attemptedCount < 10 ? 'Critical' : 'High',
+              evidence: `${calc.attemptedCount} practice questions attempted (minimum target is ${WEAKNESS_CONFIG.MIN_PRACTICE_QUESTIONS}).`,
+              fixRecommendation: 'Solve a targeted 20-question practice set.',
+            };
+          }
+          if (tag === 'Formula Forgotten') {
+            return {
+              cause: 'Formula Forgotten',
+              severity: 'High',
+              evidence: 'Active formula errors recorded in your Mistake Vault.',
+              fixRecommendation: 'Derive key chapter formulas on paper without checking notes.',
+            };
+          }
+          if (tag === 'Concept Gap') {
+            return {
+              cause: 'Concept Gap',
+              severity: 'High',
+              evidence: 'Concept misconceptions recorded in Mistake Vault.',
+              fixRecommendation: 'Reread foundational NCERT theory and work through in-text examples.',
+            };
+          }
+          if (tag === 'Calculation Slip') {
+            return {
+              cause: 'Calculation Slip',
+              severity: 'Medium',
+              evidence: 'Arithmetic or algebraic calculation mistakes logged.',
+              fixRecommendation: 'Write complete intermediate steps on scratch paper.',
+            };
+          }
+          return {
+            cause: 'Revision Due',
             severity: 'High',
-            evidence: `Only ${syllabusCompleted}% of chapter syllabus content covered. Key subtopics unstudied.`,
-            fixRecommendation: 'Finish watching lecture modules for remaining subtopics.',
-          });
-          subCausesCounts['Incomplete Lecture'] = (subCausesCounts['Incomplete Lecture'] || 0) + 1;
+            evidence: daysSinceRevision >= 7 ? `Not revised in ${daysSinceRevision} days.` : 'Scheduled spaced revision is due.',
+            fixRecommendation: 'Conduct a 15-minute active recall review.',
+          };
+        });
+
+        if (calc.isAttempted && calc.strengthScore !== null && calc.weaknessScore !== null) {
+          totalAttemptedChaptersCount++;
+          subAttemptedCount++;
+          subWeaknessSum += calc.weaknessScore;
+          subStrengthSum += calc.strengthScore;
+          totalWeaknessSum += calc.weaknessScore;
+
+          if (calc.weaknessLevel === 'Critical') {
+            subCriticalCount++;
+            immediateAttentionCount++;
+          } else if (calc.weaknessLevel === 'Weak') {
+            subWeakCount++;
+            immediateAttentionCount++;
+          }
         }
 
-        // Low NCERT Reading
-        if (conceptAccuracy < 68 && syllabusCompleted >= 50) {
-          rootCauses.push({
-            cause: 'Low NCERT Reading',
-            severity: 'Medium',
-            evidence: 'CBSE Board exam questions frequently cite direct NCERT line-by-line questions.',
-            fixRecommendation: 'Read NCERT textbook line by line and highlight blue summary boxes.',
-          });
-          subCausesCounts['Low NCERT Reading'] = (subCausesCounts['Low NCERT Reading'] || 0) + 1;
-        }
-
-        // 3. Compute Strength & Weakness Scores
-        // Weakness Score (0-100, where 100 = critically weak)
-        let weaknessPenalty = 0;
-        if (daysSinceRevision >= 12) weaknessPenalty += 30;
-        else if (daysSinceRevision >= 8) weaknessPenalty += 18;
-
-        weaknessPenalty += Math.max(0, (78 - questionAccuracy) * 0.9);
-        weaknessPenalty += Math.max(0, (35 - questionsSolved) * 0.8);
-        weaknessPenalty += unresolvedMistakes.length * 7;
-        if (syllabusCompleted < 60) weaknessPenalty += 20;
-
-        const weaknessScore = Math.min(95, Math.max(5, Math.round(weaknessPenalty)));
-        const strengthScore = 100 - weaknessScore;
-        const confidence = Math.round(strengthScore * 0.85 + (syllabusCompleted * 0.15));
-
-        // 4. Classify Weakness Level & Priority
-        let weaknessLevel: WeaknessLevel = 'Average';
-        let priority: WeaknessPriority = 'Medium';
-
-        if (weaknessScore >= 60 || rootCauses.some((r) => r.severity === 'Critical')) {
-          weaknessLevel = 'Critical';
-          priority = 'Critical';
-          subCriticalCount++;
-          immediateAttentionCount++;
-        } else if (weaknessScore >= 42) {
-          weaknessLevel = 'Weak';
-          priority = 'High';
-          subWeakCount++;
-          immediateAttentionCount++;
-        } else if (weaknessScore >= 25) {
-          weaknessLevel = 'Average';
-          priority = 'Medium';
-        } else if (weaknessScore >= 12) {
-          weaknessLevel = 'Strong';
-          priority = 'Low';
-        } else {
-          weaknessLevel = 'Very Strong';
-          priority = 'No Revision Needed';
-        }
-
-        subWeaknessSum += weaknessScore;
-        subStrengthSum += strengthScore;
-        totalWeaknessSum += weaknessScore;
-
-        // 5. Rich Diagnostic Explanation: WHY, HOW, HOW MUCH, WHEN, WHAT
-        const guide = NCERT_TOPIC_GUIDES[ch.chapterId] || {
+        const guide = NCERT_TOPIC_GUIDES[canonical.id] || {
           ncertPages: 'NCERT Textbook, Recommended Chapters',
           keyFormulas: 'Fundamental chapter derivations & formulas',
           commonConceptTrap: 'Conceptual traps in multi-step questions',
@@ -415,20 +721,22 @@ export class WeaknessService {
           wrongNumericalType: 'Standard multi-step board numericals',
         };
 
-        const topCausesText = rootCauses.slice(0, 2).map((r) => `${r.cause} (${r.evidence})`).join(' and ');
-        const whyExplanation =
-          rootCauses.length > 0
-            ? `${ch.chapterName} is ${weaknessLevel.toLowerCase()} primarily due to ${topCausesText}. Current confidence is ${confidence}%, which is below target.`
-            : `${ch.chapterName} demonstrates high mastery with ${questionAccuracy}% accuracy and ${questionsSolved} practice questions completed.`;
+        const whyExplanation = !calc.isAttempted
+          ? `${canonical.name} has not been attempted yet. Complete practice questions to evaluate diagnostic mastery.`
+          : rootCauses.length > 0
+          ? `${canonical.name} is scored at ${calc.strengthScore}% primarily due to ${rootCauses.map((r) => r.cause).join(', ')}.`
+          : `${canonical.name} demonstrates solid mastery with ${calc.accuracy ?? 100}% accuracy across ${calc.attemptedCount} attempted questions.`;
 
-        const improvementNeededPct = Math.max(5, 85 - confidence);
-        const daysToNextRev = Math.max(1, Math.min(7, Math.floor(10 - daysSinceRevision)));
-        const whenToRevise =
-          daysSinceRevision >= 8
-            ? 'Today — Overdue Spaced Recall'
-            : `Revise in ${daysToNextRev} day(s) to safeguard retention`;
+        const improvementNeededPct = calc.strengthScore !== null ? Math.max(0, WEAKNESS_CONFIG.TARGET_BENCHMARK - calc.strengthScore) : 0;
+        const whenToRevise = !calc.isAttempted
+          ? 'Not started'
+          : daysSinceRevision >= 7
+          ? 'Today — Spaced revision overdue'
+          : `Revise in ${Math.max(1, 7 - daysSinceRevision)} day(s)`;
 
-        const howToImprove = `Boost confidence by +${improvementNeededPct}% by resolving your ${unresolvedMistakes.length} Mistake Notebook errors, completing 25 PYQs, and rereading ${guide.ncertPages}.`;
+        const howToImprove = !calc.isAttempted
+          ? 'Begin by reading NCERT theory and solving 15 in-text practice questions.'
+          : `Reach target (${WEAKNESS_CONFIG.TARGET_BENCHMARK}%) by resolving open mistakes in the Mistake Vault and solving 20 Board PYQs.`;
 
         const whatToStudy = [
           `Key Formulas: ${guide.keyFormulas}`,
@@ -437,24 +745,23 @@ export class WeaknessService {
           ...(ch.weakTopics && ch.weakTopics.length > 0 ? ch.weakTopics.map((t) => `Weak Topic: ${t}`) : []),
         ];
 
-        // 6. Estimated Recovery & Milestones
-        let estimatedRecoveryDays = 3;
-        if (weaknessLevel === 'Critical') estimatedRecoveryDays = 6;
-        else if (weaknessLevel === 'Weak') estimatedRecoveryDays = 4;
-        else if (weaknessLevel === 'Average') estimatedRecoveryDays = 2;
-        else estimatedRecoveryDays = 1;
+        let estimatedRecoveryDays = 2;
+        if (calc.weaknessLevel === 'Critical') estimatedRecoveryDays = 6;
+        else if (calc.weaknessLevel === 'Weak') estimatedRecoveryDays = 4;
+        else if (calc.weaknessLevel === 'Average') estimatedRecoveryDays = 2;
+        else if (calc.weaknessLevel === 'Strong') estimatedRecoveryDays = 1;
 
+        const baseConf = calc.strengthScore ?? 50;
         const recoveryMilestones: RecoveryMilestone[] = [
-          { day: 1, milestone: 'Formula derivation review & Mistake Notebook clean-up', confidenceTarget: confidence + 8 },
-          { day: Math.ceil(estimatedRecoveryDays / 2), milestone: 'Solve 20 Board PYQs under 40-minute timer', confidenceTarget: confidence + 18 },
-          { day: estimatedRecoveryDays, milestone: 'Full chapter diagnostic check (Target: 80%+ accuracy)', confidenceTarget: Math.min(95, confidence + improvementNeededPct) },
+          { day: 1, milestone: 'Formula derivation review & Mistake Vault clean-up', confidenceTarget: Math.min(100, baseConf + 8) },
+          { day: Math.ceil(estimatedRecoveryDays / 2), milestone: 'Solve 20 Board PYQs under timed conditions', confidenceTarget: Math.min(100, baseConf + 18) },
+          { day: estimatedRecoveryDays, milestone: `Full chapter diagnostic check (Target: ${WEAKNESS_CONFIG.TARGET_BENCHMARK}%+)`, confidenceTarget: Math.min(95, baseConf + improvementNeededPct) },
         ];
 
-        // 7. Smart Improvement Plan Steps
         const improvementPlan: ImprovementPlanStep[] = [
           {
             step: 1,
-            action: `Revise ${ch.chapterName} Formula Sheet & Key Identities`,
+            action: `Revise ${canonical.name} Formula Sheet & Key Identities`,
             resource: 'Rankify Formula Lab Deck',
             estMinutes: 20,
             ncertPages: guide.ncertPages,
@@ -462,14 +769,14 @@ export class WeaknessService {
           },
           {
             step: 2,
-            action: `Watch 15-minute high-yield concept review on ${ch.weakTopics?.[0] || 'core derivations'}`,
+            action: `Watch high-yield concept review on ${ch.weakTopics?.[0] || 'core derivations'}`,
             resource: 'Rankify Smart Engine Modules',
             estMinutes: 25,
             isCompleted: false,
           },
           {
             step: 3,
-            action: `Solve 20 CBSE Previous Year Questions (PYQs)`,
+            action: 'Solve 20 CBSE Previous Year Questions (PYQs)',
             resource: 'Rankify 10-Year Question Bank',
             estMinutes: 35,
             isCompleted: false,
@@ -484,14 +791,13 @@ export class WeaknessService {
           },
           {
             step: 5,
-            action: `Retake chapter diagnostic check after 2 Days`,
+            action: 'Retake chapter diagnostic check after 2 Days',
             resource: 'Rankify Spaced Recall Engine',
             estMinutes: 15,
             isCompleted: false,
           },
         ];
 
-        // 8. Common Mistakes
         const commonMistakes: ChapterCommonMistakes = {
           mostForgottenFormula: guide.keyFormulas,
           mostIncorrectConcept: guide.commonConceptTrap,
@@ -499,27 +805,32 @@ export class WeaknessService {
           mostWrongNumerical: guide.wrongNumericalType,
         };
 
-        const revisionStatus =
-          daysSinceRevision >= 10
-            ? `Overdue by ${daysSinceRevision - 7} days`
-            : daysSinceRevision >= 7
-            ? 'Due Today'
-            : `Due in ${7 - daysSinceRevision} days`;
+        const revisionStatus = !calc.isAttempted
+          ? 'Not started'
+          : daysSinceRevision >= 7
+          ? `Overdue by ${daysSinceRevision - 7} days`
+          : `Due in ${7 - daysSinceRevision} days`;
+
+        let priority: WeaknessPriority = 'Low';
+        if (calc.weaknessLevel === 'Critical') priority = 'Critical';
+        else if (calc.weaknessLevel === 'Weak') priority = 'High';
+        else if (calc.weaknessLevel === 'Average') priority = 'Medium';
+        else if (calc.weaknessLevel === 'Strong') priority = 'No Revision Needed';
 
         analyzedChapters.push({
-          chapterId: ch.chapterId,
-          chapterName: ch.chapterName,
+          chapterId: canonical.id,
+          chapterName: canonical.name,
           subjectId: subId,
           subjectName: subData.subjectName,
-          strengthScore,
-          weaknessScore,
-          confidence,
+          strengthScore: calc.strengthScore,
+          weaknessScore: calc.weaknessScore,
+          confidence: calc.strengthScore ?? 0,
           revisionStatus,
           lastRevisedDaysAgo: daysSinceRevision,
-          questionAccuracy,
-          formulaAccuracy,
-          conceptAccuracy,
-          weaknessLevel,
+          questionAccuracy: calc.accuracy,
+          formulaAccuracy: Math.max(20, Math.min(100, Math.round((calc.accuracy ?? 70) * 0.9))),
+          conceptAccuracy: Math.max(20, Math.min(100, Math.round((calc.accuracy ?? 70) * 0.95))),
+          weaknessLevel: calc.weaknessLevel,
           priority,
           rootCauses,
           whyExplanation,
@@ -531,15 +842,14 @@ export class WeaknessService {
           estimatedRecoveryDays,
           recoveryMilestones,
           commonMistakes,
-          timeSpentMinutes: timeSpent,
-          questionsSolved,
-          unresolvedMistakesCount: unresolvedMistakes.length,
+          timeSpentMinutes: ch.timeSpent || ch.studyMinutes || 0,
+          questionsSolved: calc.attemptedCount,
+          unresolvedMistakesCount: calc.openMistakesCount,
           weightage: ch.orderIndex || 8,
         });
       }
 
       // Subject summary aggregation
-      const count = subData.chapters.length || 1;
       let dominantCause: RootCauseType = 'Low Practice';
       let maxCauseCount = 0;
       for (const [cause, c] of Object.entries(subCausesCounts)) {
@@ -552,127 +862,352 @@ export class WeaknessService {
       subjectsSummary[subId] = {
         subjectId: subId,
         subjectName: subData.subjectName,
-        averageWeaknessScore: Math.round(subWeaknessSum / count),
-        averageStrengthScore: Math.round(subStrengthSum / count),
+        averageWeaknessScore: subAttemptedCount > 0 ? Math.round(subWeaknessSum / subAttemptedCount) : null,
+        averageStrengthScore: subAttemptedCount > 0 ? Math.round(subStrengthSum / subAttemptedCount) : null,
         criticalChaptersCount: subCriticalCount,
         weakChaptersCount: subWeakCount,
-        totalChapters: count,
+        attemptedChaptersCount: subAttemptedCount,
+        totalChapters: subData.chapters.length,
         dominantRootCause: dominantCause,
         color: subData.color,
       };
     }
 
-    // Sort chapters by weakness descending (worst first)
-    analyzedChapters.sort((a, b) => b.weaknessScore - a.weaknessScore);
-    const top3WeakChapters = analyzedChapters.slice(0, 3);
+    // Sort chapters: Attempted first (weakest first), unattempted last
+    analyzedChapters.sort((a, b) => {
+      if (a.weaknessLevel === 'Not started' && b.weaknessLevel !== 'Not started') return 1;
+      if (a.weaknessLevel !== 'Not started' && b.weaknessLevel === 'Not started') return -1;
+      return (b.weaknessScore ?? -1) - (a.weaknessScore ?? -1);
+    });
 
-    // Subject ranking
-    const subjectsList = Object.values(subjectsSummary);
-    const sortedByStrength = [...subjectsList].sort(
-      (a, b) => b.averageStrengthScore - a.averageStrengthScore
+    const top3WeakChapters = analyzedChapters
+      .filter((c) => c.weaknessLevel === 'Critical' || c.weaknessLevel === 'Weak')
+      .slice(0, 3);
+
+    // Subject and Priority Chapter calculation (using unified helper)
+    const priorityResult = getWeakestSubjectAndPriorityChapter(chapters, mistakes);
+
+    const strongestSubject = priorityResult.weakestSubjectName
+      ? (() => {
+          const attemptedSubs = Object.values(subjectsSummary).filter(
+            (s) => (s.attemptedChaptersCount || 0) > 0 && s.averageStrengthScore !== null
+          );
+          if (attemptedSubs.length === 0) return null;
+          attemptedSubs.sort((a, b) => (b.averageStrengthScore || 0) - (a.averageStrengthScore || 0));
+          return {
+            name: attemptedSubs[0].subjectName,
+            score: attemptedSubs[0].averageStrengthScore,
+            subjectId: attemptedSubs[0].subjectId,
+          };
+        })()
+      : null;
+
+    const weakestSubject = priorityResult.weakestSubjectName
+      ? {
+          name: priorityResult.weakestSubjectName,
+          score: priorityResult.weakestSubjectScore,
+          subjectId: priorityResult.weakestSubjectName.toLowerCase(),
+        }
+      : null;
+
+    const highestPriorityChapter = priorityResult.highestPriorityChapterName
+      ? {
+          name: priorityResult.highestPriorityChapterName,
+          score: priorityResult.highestPriorityChapterScore,
+          chapterId: priorityResult.highestPriorityChapterId || '',
+        }
+      : null;
+
+    const overallWeaknessScore = totalAttemptedChaptersCount > 0
+      ? Math.round(totalWeaknessSum / totalAttemptedChaptersCount)
+      : null;
+    const overallHealthScore = overallWeaknessScore !== null ? 100 - overallWeaknessScore : null;
+
+    // Behavioral AI Insights (Purely derived from real data, zero fake confidence %)
+    const aiInsights: BehavioralAiInsight[] = [];
+    const minSample = WEAKNESS_CONFIG.MIN_INSIGHT_SAMPLE_SIZE;
+
+    // 1. Cross-Subject Comparison (Needs at least 2 subjects with attempts)
+    const attemptedSubjects = Object.values(subjectsSummary).filter(
+      (s) => (s.attemptedChaptersCount || 0) > 0 && s.averageStrengthScore !== null
     );
-    const strongestSubject = sortedByStrength[0]
-      ? { name: sortedByStrength[0].subjectName, score: sortedByStrength[0].averageStrengthScore, subjectId: sortedByStrength[0].subjectId }
-      : { name: 'Mathematics', score: 86, subjectId: 'mathematics' };
 
-    const weakestSubject = sortedByStrength[sortedByStrength.length - 1]
-      ? { name: sortedByStrength[sortedByStrength.length - 1].subjectName, score: sortedByStrength[sortedByStrength.length - 1].averageStrengthScore, subjectId: sortedByStrength[sortedByStrength.length - 1].subjectId }
-      : { name: 'Chemistry', score: 62, subjectId: 'chemistry' };
+    if (attemptedSubjects.length >= 2) {
+      const sortedSubs = [...attemptedSubjects].sort(
+        (a, b) => (b.averageStrengthScore || 0) - (a.averageStrengthScore || 0)
+      );
+      const topSub = sortedSubs[0];
+      const bottomSub = sortedSubs[sortedSubs.length - 1];
+      const attemptedQuestionsTotal = analyzedChapters
+        .filter((c) => c.subjectId === topSub.subjectId || c.subjectId === bottomSub.subjectId)
+        .reduce((sum, c) => sum + c.questionsSolved, 0);
 
-    const overallWeaknessScore = totalChaptersCount > 0
-      ? Math.round(totalWeaknessSum / totalChaptersCount)
-      : 32;
-    const overallHealthScore = 100 - overallWeaknessScore;
+      if (attemptedQuestionsTotal >= minSample) {
+        aiInsights.push({
+          id: 'insight_subject_balance',
+          title: 'Subject Strength Distribution',
+          insight: `Score in ${topSub.subjectName} is ${topSub.averageStrengthScore}% vs ${bottomSub.averageStrengthScore}% in ${bottomSub.subjectName} (based on ${attemptedQuestionsTotal} attempted questions).`,
+          behaviorCategory: 'accuracy',
+          actionSuggestion: `Dedicate extra practice questions to ${bottomSub.subjectName} to equalize subject readiness.`,
+          iconType: 'activity',
+        });
+      }
+    }
 
-    // Behavioral AI Insights (Chronobiology, forgetting curve, accuracy trends)
-    const aiInsights: BehavioralAiInsight[] = [
-      {
-        id: 'insight_1',
-        title: 'Forgetting Curve Threshold',
-        insight: 'You forget formulas after 6 days without revision. Spaced interval review is overdue for Ray Optics.',
-        behaviorCategory: 'retention',
-        confidenceScore: 94,
-        actionSuggestion: 'Enable spaced formula flashcard reminder before day 5.',
-        iconType: 'brain',
-      },
-      {
-        id: 'insight_2',
-        title: 'Peak Cognitive Window',
-        insight: 'Your calculation accuracy is highest (88%) between 6:00 PM – 8:30 PM, but drops to 61% after 10:30 PM.',
+    // 2. Mistake Vault Pattern
+    const openMistakes = mistakes.filter((m) => m.status !== 'Mastered');
+    if (openMistakes.length >= 2) {
+      const formulaErrorsCount = openMistakes.filter((m) => m.mistakeType === 'Formula Error').length;
+      const calcErrorsCount = openMistakes.filter((m) => m.mistakeType === 'Calculation Error' || m.mistakeType === 'Silly Mistake').length;
+      const conceptErrorsCount = openMistakes.filter((m) => m.mistakeType === 'Concept Error').length;
+
+      if (formulaErrorsCount >= 2 && formulaErrorsCount >= calcErrorsCount && formulaErrorsCount >= conceptErrorsCount) {
+        aiInsights.push({
+          id: 'insight_mistake_formula',
+          title: 'Formula Retention Pattern',
+          insight: `${formulaErrorsCount} unresolved formula error(s) detected across your recent Mistake Vault entries.`,
+          behaviorCategory: 'retention',
+          actionSuggestion: 'Review chapter formula derivations before beginning new numerical sets.',
+          iconType: 'brain',
+        });
+      } else if (calcErrorsCount >= 2 && calcErrorsCount >= conceptErrorsCount) {
+        aiInsights.push({
+          id: 'insight_mistake_calc',
+          title: 'Calculation Slip Pattern',
+          insight: `${calcErrorsCount} calculation slip(s) logged in your recent problem solving attempts.`,
+          behaviorCategory: 'accuracy',
+          actionSuggestion: 'Write down intermediate arithmetic steps on rough paper to eliminate sign traps.',
+          iconType: 'zap',
+        });
+      } else if (conceptErrorsCount >= 2) {
+        aiInsights.push({
+          id: 'insight_mistake_concept',
+          title: 'Concept Misconceptions',
+          insight: `${conceptErrorsCount} fundamental concept error(s) logged in your Mistake Vault.`,
+          behaviorCategory: 'study_pattern',
+          actionSuggestion: 'Reread the relevant NCERT theory sections and solve in-text example questions.',
+          iconType: 'brain',
+        });
+      }
+    }
+
+    // 3. Spaced Revision Overdue
+    const overdueAttemptedChapters = analyzedChapters.filter(
+      (c) => c.weaknessLevel !== 'Not started' && c.lastRevisedDaysAgo >= 7
+    );
+    if (overdueAttemptedChapters.length > 0) {
+      const names = overdueAttemptedChapters.map((c) => c.chapterName);
+      aiInsights.push({
+        id: 'insight_spaced_overdue',
+        title: 'Spaced Revision Due',
+        insight: `${overdueAttemptedChapters.length} chapter(s) have not been revised in over 7 days (${names.slice(0, 2).join(', ')}${names.length > 2 ? ` +${names.length - 2} more` : ''}).`,
         behaviorCategory: 'timing',
-        confidenceScore: 91,
-        actionSuggestion: 'Solve heavy numerical sets in the evening, reserve late nights for light NCERT reading.',
-        iconType: 'sun',
-      },
-      {
-        id: 'insight_3',
-        title: 'Theory vs Numerical Imbalance',
-        insight: 'You solve theory and conceptual questions 24% more accurately than numerical derivations.',
-        behaviorCategory: 'accuracy',
-        confidenceScore: 89,
-        actionSuggestion: 'Allocate 30 minutes specifically for calculator-free step-by-step arithmetic drill.',
-        iconType: 'activity',
-      },
-      {
-        id: 'insight_4',
-        title: 'Speed & Guessing Anomaly',
-        insight: 'Questions answered in under 8 seconds have a 68% error rate, triggering preventable Silly Mistakes.',
+        actionSuggestion: 'Complete a 15-minute active recall review to preserve memory retention before the exam.',
+        iconType: 'clock',
+      });
+    }
+
+    // 4. Overall Question Volume
+    const totalAttemptedQuestions = analyzedChapters.reduce((sum, c) => sum + c.questionsSolved, 0);
+    const attemptedChaptersTotal = totalAttemptedChaptersCount;
+    if (totalAttemptedQuestions >= minSample && attemptedChaptersTotal > 0) {
+      const totalCorrect = analyzedChapters.reduce(
+        (sum, c) => sum + Math.round((c.questionsSolved * (c.questionAccuracy || 0)) / 100),
+        0
+      );
+      const overallAcc = Math.round((totalCorrect / totalAttemptedQuestions) * 100);
+      aiInsights.push({
+        id: 'insight_practice_volume',
+        title: 'Problem-Solving Volume',
+        insight: `${totalAttemptedQuestions} total questions attempted across ${attemptedChaptersTotal} chapter(s) with ${overallAcc}% overall accuracy.`,
         behaviorCategory: 'study_pattern',
-        confidenceScore: 87,
-        actionSuggestion: 'Pause 3 seconds before locking in MCQ options to verify units and negative signs.',
-        iconType: 'zap',
-      },
-    ];
+        actionSuggestion: 'Continue targeted PYQ sets to turn borderline chapters into high-scoring strengths.',
+        iconType: 'activity',
+      });
+    }
 
-    // Cognitive Radar Dimensions (Radar chart)
-    const radarDimensions: CognitiveRadarDimension[] = [
-      { dimension: 'Theory Mastery', score: Math.min(95, Math.round(overallHealthScore * 0.95 + 8)), benchmark: 85 },
-      { dimension: 'Numerical Solving', score: Math.max(35, Math.round(overallHealthScore * 0.85 - 6)), benchmark: 82 },
-      { dimension: 'Formula Recall', score: Math.max(40, Math.round(overallHealthScore * 0.88 - 4)), benchmark: 88 },
-      { dimension: 'Memory Retention', score: Math.max(40, Math.round(overallHealthScore * 0.82)), benchmark: 84 },
-      { dimension: 'Pacing & Speed', score: Math.min(92, Math.round(overallHealthScore * 0.9 + 2)), benchmark: 80 },
-      { dimension: 'Consistency', score: Math.min(96, Math.max(50, (studentStats?.streak || 4) * 18)), benchmark: 90 },
-    ];
+    // Cognitive Radar Dimensions (Only computable dimensions, no topper claims)
+    const radarDimensions: CognitiveRadarDimension[] = [];
+    const target = WEAKNESS_CONFIG.TARGET_BENCHMARK;
 
-    // Recovery Trend (Past weeks & forecasted projection)
-    const recoveryTrend = [
-      { week: 'Week 1', weaknessScore: Math.min(100, overallWeaknessScore + 18), recoveryRate: 15 },
-      { week: 'Week 2', weaknessScore: Math.min(100, overallWeaknessScore + 10), recoveryRate: 30 },
-      { week: 'Week 3', weaknessScore: Math.min(100, overallWeaknessScore + 4), recoveryRate: 48 },
-      { week: 'Current', weaknessScore: overallWeaknessScore, recoveryRate: 65 },
-      { week: 'Target', weaknessScore: Math.max(10, overallWeaknessScore - 18), recoveryRate: 88 },
-    ];
+    // 1. Theory Mastery (Derived from real completion percentage)
+    const totalChaptersWithData = chapters.length || 1;
+    const avgCompletion = Math.round(
+      chapters.reduce((sum, c) => sum + (c.progressPercentage || c.completionPercentage || 0), 0) /
+        totalChaptersWithData
+    );
+    radarDimensions.push({
+      dimension: 'Theory Mastery',
+      score: Math.min(100, Math.max(0, avgCompletion)),
+      benchmark: target,
+    });
+
+    // 2. Question Accuracy (Only when questions have been attempted)
+    if (totalAttemptedQuestions > 0) {
+      const totalCorrect = analyzedChapters.reduce(
+        (sum, c) => sum + Math.round((c.questionsSolved * (c.questionAccuracy || 0)) / 100),
+        0
+      );
+      const overallAcc = Math.round((totalCorrect / totalAttemptedQuestions) * 100);
+      radarDimensions.push({
+        dimension: 'Question Accuracy',
+        score: Math.min(100, Math.max(0, overallAcc)),
+        benchmark: target,
+      });
+    }
+
+    // 3. Revision Consistency (Only when attempted chapters exist)
+    if (attemptedChaptersTotal > 0) {
+      const revisedChaptersCount = analyzedChapters.filter(
+        (c) => c.weaknessLevel !== 'Not started' && (c as any).revisionCount > 0
+      ).length;
+      const revPct = Math.round((revisedChaptersCount / attemptedChaptersTotal) * 100);
+      radarDimensions.push({
+        dimension: 'Revision Consistency',
+        score: Math.min(100, Math.max(0, revPct)),
+        benchmark: target,
+      });
+    }
+
+    // 4. Study Consistency (Only when streak is tracked)
+    const streakDays = studentStats?.streak || 0;
+    if (streakDays > 0) {
+      const streakScore = Math.min(100, Math.round((streakDays / 7) * 100));
+      radarDimensions.push({
+        dimension: 'Consistency',
+        score: streakScore,
+        benchmark: target,
+      });
+    }
+
+    // If fewer than 3 dimensions can be computed, radar dimensions remain empty
+    const finalRadarDimensions = radarDimensions.length >= 3 ? radarDimensions : [];
+
+    // Record weekly snapshot and compute trend
+    let recoveryTrend: { week: string; weaknessScore: number; recoveryRate: number }[] = [];
+    let recoveryTrendSentence: string | undefined = undefined;
+
+    const criticalOrWeakCount = analyzedChapters.filter(
+      (c) => c.weaknessLevel === 'Critical' || c.weaknessLevel === 'Weak'
+    ).length;
+
+    const snapshots = saveWeaknessWeeklySnapshot(
+      this.currentUserId,
+      attemptedChaptersTotal,
+      criticalOrWeakCount
+    );
+
+    if (snapshots.length >= 1) {
+      recoveryTrend = snapshots.map((s) => ({
+        week: s.weekKey,
+        weaknessScore: s.weakChapterShare,
+        recoveryRate: 100 - s.weakChapterShare,
+      }));
+    }
+
+    // Days remaining to exam
+    let daysToExam: number | null = null;
+    if (upcomingExam?.examDate) {
+      try {
+        const diffMs = new Date(upcomingExam.examDate).getTime() - Date.now();
+        daysToExam = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+      } catch {
+        daysToExam = null;
+      }
+    }
+
+    if (snapshots.length >= 2) {
+      const latest = snapshots[snapshots.length - 1];
+      const previous = snapshots[snapshots.length - 2];
+      const diff = latest.weakChapterShare - previous.weakChapterShare;
+      const daysStr = daysToExam !== null ? ` • ${daysToExam} days left to exam` : '';
+
+      if (diff < 0) {
+        recoveryTrendSentence = `Weakness share improved by ${Math.abs(diff)}% since last week${daysStr}.`;
+      } else if (diff === 0) {
+        recoveryTrendSentence = `Weakness share held steady at ${latest.weakChapterShare}%${daysStr}.`;
+      } else {
+        recoveryTrendSentence = `Weakness share increased by ${diff}% since last week. Focus on critical chapters${daysStr}.`;
+      }
+    } else if (snapshots.length === 1) {
+      recoveryTrendSentence = 'Tracking starts this week. Complete weekly practice to measure weakness reduction.';
+    }
+
+    // Derive Global Common Mistakes from real Mistake Vault items
+    const formulaErrors = mistakes.filter((m) => m.mistakeType === 'Formula Error');
+    const conceptErrors = mistakes.filter((m) => m.mistakeType === 'Concept Error');
+    const calcErrors = mistakes.filter((m) => m.mistakeType === 'Calculation Error' || m.mistakeType === 'Silly Mistake');
+
+    const qTypeCounts: Record<string, number> = {};
+    for (const m of mistakes) {
+      if (m.questionType) {
+        qTypeCounts[m.questionType] = (qTypeCounts[m.questionType] || 0) + 1;
+      }
+    }
+    let topQType = 'No mistake records logged yet';
+    let maxQCount = 0;
+    for (const [qt, cnt] of Object.entries(qTypeCounts)) {
+      if (cnt > maxQCount) {
+        maxQCount = cnt;
+        topQType = `${qt} Questions (${cnt} errors logged)`;
+      }
+    }
 
     const commonMistakesGlobal = {
-      mostForgottenFormula: 'Lens Maker Formula in Media (μ_lens/μ_med - 1)(1/R1 - 1/R2) & Nernst Equation E° - (0.0591/n)logQ',
-      mostIncorrectConcept: 'Aldol Condensation (requires α-H) vs Cannizzaro Reaction (no α-H)',
-      mostWrongQuestionType: 'Assertion-Reasoning on Kirchhoff’s Sign Conventions & King’s Property Integrals',
-      mostWrongNumerical: 'Potentiometer balance point with secondary circuit internal resistance',
+      mostForgottenFormula:
+        formulaErrors.length > 0
+          ? `${formulaErrors[0].topic || formulaErrors[0].chapter}: ${formulaErrors[0].question.slice(0, 90)}...`
+          : 'No formula mistakes logged yet',
+      mostIncorrectConcept:
+        conceptErrors.length > 0
+          ? `${conceptErrors[0].topic || conceptErrors[0].chapter}: ${conceptErrors[0].question.slice(0, 90)}...`
+          : 'No concept mistakes logged yet',
+      mostWrongQuestionType: topQType,
+      mostWrongNumerical:
+        calcErrors.length > 0
+          ? `${calcErrors[0].topic || calcErrors[0].chapter}: ${calcErrors[0].question.slice(0, 90)}...`
+          : 'No numerical errors logged yet',
     };
 
-    const smartReminders = [
-      {
-        id: 'rem_1',
-        title: "Today's weakest chapter is waiting",
-        message: `${top3WeakChapters[0]?.chapterName || 'Current Electricity'} has ${top3WeakChapters[0]?.weaknessScore || 68}% weakness score. Complete your 5-day recovery plan.`,
-        urgency: 'high' as const,
+    // Derive smart reminders from real urgent items
+    const smartReminders: {
+      id: string;
+      title: string;
+      message: string;
+      urgency: 'high' | 'medium';
+      scheduledFor: string;
+    }[] = [];
+
+    if (overdueAttemptedChapters.length > 0) {
+      smartReminders.push({
+        id: 'rem_overdue',
+        title: `Spaced Revision Due: ${overdueAttemptedChapters[0].chapterName}`,
+        message: `${overdueAttemptedChapters[0].chapterName} has not been revised in ${overdueAttemptedChapters[0].lastRevisedDaysAgo} days. Conduct a quick active recall session.`,
+        urgency: 'high',
         scheduledFor: 'Today, 6:00 PM',
-      },
-      {
-        id: 'rem_2',
-        title: 'Formula revision overdue',
-        message: 'Ray Optics lens maker and magnification formulas need a 15-minute active recall drill.',
-        urgency: 'high' as const,
+      });
+    }
+
+    const topCritical = analyzedChapters.find((c) => c.weaknessLevel === 'Critical');
+    if (topCritical) {
+      smartReminders.push({
+        id: 'rem_critical',
+        title: `Critical Chapter Focus: ${topCritical.chapterName}`,
+        message: `${topCritical.chapterName} has score ${topCritical.strengthScore}%. Complete targeted practice.`,
+        urgency: 'high',
         scheduledFor: 'Tomorrow, 9:00 AM',
-      },
-      {
-        id: 'rem_3',
-        title: 'Practice numericals today',
-        message: 'Electrochemistry Nernst equation numericals accuracy is 58%. Solve 10 PYQs today.',
-        urgency: 'medium' as const,
-        scheduledFor: 'Today, 7:30 PM',
-      },
-    ];
+      });
+    }
+
+    if (openMistakes.length > 0) {
+      smartReminders.push({
+        id: 'rem_mistakes',
+        title: `${openMistakes.length} Unresolved Mistakes in Vault`,
+        message: 'Review and re-attempt unmastered errors in your Mistake Vault.',
+        urgency: 'medium',
+        scheduledFor: 'Today, 8:00 PM',
+      });
+    }
 
     const overallData: WeaknessOverallData = {
       userId: this.currentUserId,
@@ -680,20 +1215,26 @@ export class WeaknessService {
       overallHealthScore,
       strongestSubject,
       weakestSubject,
+      highestPriorityChapter,
       needsImmediateAttentionCount: immediateAttentionCount,
       top3WeakChapters,
       allChapters: analyzedChapters,
       subjects: subjectsSummary,
       commonMistakesGlobal,
       aiInsights,
-      radarDimensions,
+      radarDimensions: finalRadarDimensions,
       recoveryTrend,
+      recoveryTrendSentence,
       smartReminders,
       calculatedAt: new Date().toISOString(),
     };
 
     this.cachedData = overallData;
-    safeLocalStorage.setItem(`${STORAGE_KEY}${this.currentUserId}`, overallData);
+    try {
+      safeLocalStorage.setItem(`${STORAGE_KEY}${this.currentUserId}`, overallData);
+    } catch (err) {
+      console.warn('[WeaknessService] Storage cache write failed:', err);
+    }
     this.notify();
 
     // Firebase background sync
@@ -727,191 +1268,20 @@ export class WeaknessService {
     const updated = {
       ...this.cachedData,
       allChapters: updatedChapters,
-      top3WeakChapters: updatedChapters.slice(0, 3),
+      top3WeakChapters: updatedChapters
+        .filter((c) => c.weaknessLevel === 'Critical' || c.weaknessLevel === 'Weak')
+        .slice(0, 3),
     };
 
     this.cachedData = updated;
-    safeLocalStorage.setItem(`${STORAGE_KEY}${this.currentUserId}`, updated);
+    try {
+      safeLocalStorage.setItem(`${STORAGE_KEY}${this.currentUserId}`, updated);
+    } catch (err) {
+      console.warn('[WeaknessService] Storage cache write failed:', err);
+    }
     this.notify();
     toast.success('Action step logged! Recovery trajectory advancing.', { icon: '🎯' });
     return updated;
-  }
-
-  private calculateDaysAgo(dateStr?: string | null): number {
-    if (!dateStr) return 8;
-    try {
-      const d = new Date(dateStr);
-      const diffMs = Date.now() - d.getTime();
-      return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
-    } catch {
-      return 7;
-    }
-  }
-
-  private getDefaultChapters(): ChapterProgress[] {
-    const nowIso = new Date().toISOString();
-    const twelveDaysAgoIso = new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString();
-    const tenDaysAgoIso = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
-    const threeDaysAgoIso = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
-
-    return [
-      {
-        id: 'phy_ch3',
-        chapterId: 'phy_ch3',
-        chapterName: 'Current Electricity',
-        subjectId: 'physics',
-        subjectName: 'Physics',
-        progressPercentage: 75,
-        confidence: 2,
-        revisionCount: 1,
-        practiceQuestions: 22,
-        weakTopics: ['Wheatstone Bridge Sensitivity', 'Potentiometer internal resistance'],
-        strongTopics: ["Ohm's Law", 'Drift Velocity'],
-        timeSpent: 190,
-        accuracy: 58,
-        completion: false,
-        needsRevision: true,
-        needsFocus: true,
-        lastOpened: twelveDaysAgoIso,
-        lastStudied: twelveDaysAgoIso,
-        orderIndex: 3,
-        updatedAt: twelveDaysAgoIso,
-        status: 'Need Revision',
-        completionPercentage: 75,
-        studyMinutes: 190,
-        questionSolved: 22,
-      },
-      {
-        id: 'chem_ch2',
-        chapterId: 'chem_ch2',
-        chapterName: 'Electrochemistry',
-        subjectId: 'chemistry',
-        subjectName: 'Chemistry',
-        progressPercentage: 75,
-        confidence: 2,
-        revisionCount: 1,
-        practiceQuestions: 30,
-        weakTopics: ['Nernst Equation Concentration Cells', "Kohlrausch's Law numericals"],
-        strongTopics: ['Galvanic Cells', 'Standard Hydrogen Electrode'],
-        timeSpent: 260,
-        accuracy: 56,
-        completion: false,
-        needsRevision: true,
-        needsFocus: true,
-        lastOpened: tenDaysAgoIso,
-        lastStudied: tenDaysAgoIso,
-        orderIndex: 2,
-        updatedAt: tenDaysAgoIso,
-        status: 'Need Revision',
-        completionPercentage: 75,
-        studyMinutes: 260,
-        questionSolved: 30,
-      },
-      {
-        id: 'phy_ch9',
-        chapterId: 'phy_ch9',
-        chapterName: 'Ray Optics and Optical Instruments',
-        subjectId: 'physics',
-        subjectName: 'Physics',
-        progressPercentage: 75,
-        confidence: 3,
-        revisionCount: 1,
-        practiceQuestions: 28,
-        weakTopics: ['Lens Maker Formula in Media', 'Astronomical Telescope Magnification'],
-        strongTopics: ['Total Internal Reflection', 'Refraction through Prism'],
-        timeSpent: 240,
-        accuracy: 64,
-        completion: false,
-        needsRevision: true,
-        needsFocus: true,
-        lastOpened: tenDaysAgoIso,
-        lastStudied: tenDaysAgoIso,
-        orderIndex: 9,
-        updatedAt: tenDaysAgoIso,
-        status: 'Started',
-        completionPercentage: 75,
-        studyMinutes: 240,
-        questionSolved: 28,
-      },
-      {
-        id: 'chem_ch8',
-        chapterId: 'chem_ch8',
-        chapterName: 'Aldehydes, Ketones and Carboxylic Acids',
-        subjectId: 'chemistry',
-        subjectName: 'Chemistry',
-        progressPercentage: 75,
-        confidence: 3,
-        revisionCount: 1,
-        practiceQuestions: 35,
-        weakTopics: ['Aldol vs Cannizzaro Reaction', 'Clemmensen vs Wolff-Kishner Reduction'],
-        strongTopics: ["Fehling's & Tollen's Test", 'Nucleophilic Addition Mechanism'],
-        timeSpent: 310,
-        accuracy: 65,
-        completion: false,
-        needsRevision: true,
-        needsFocus: true,
-        lastOpened: threeDaysAgoIso,
-        lastStudied: threeDaysAgoIso,
-        orderIndex: 8,
-        updatedAt: nowIso,
-        status: 'Started',
-        completionPercentage: 75,
-        studyMinutes: 310,
-        questionSolved: 35,
-      },
-      {
-        id: 'math_ch7',
-        chapterId: 'math_ch7',
-        chapterName: 'Integrals',
-        subjectId: 'mathematics',
-        subjectName: 'Mathematics',
-        progressPercentage: 75,
-        confidence: 3,
-        revisionCount: 2,
-        practiceQuestions: 55,
-        weakTopics: ['Integration by Partial Fractions', 'Definite Integral Property IV'],
-        strongTopics: ['Integration by Substitution', 'Integration by Parts'],
-        timeSpent: 480,
-        accuracy: 72,
-        completion: false,
-        needsRevision: false,
-        needsFocus: true,
-        lastOpened: threeDaysAgoIso,
-        lastStudied: threeDaysAgoIso,
-        orderIndex: 7,
-        updatedAt: nowIso,
-        status: 'Started',
-        completionPercentage: 75,
-        studyMinutes: 480,
-        questionSolved: 55,
-      },
-      {
-        id: 'math_ch3',
-        chapterId: 'math_ch3',
-        chapterName: 'Matrices and Determinants',
-        subjectId: 'mathematics',
-        subjectName: 'Mathematics',
-        progressPercentage: 100,
-        confidence: 5,
-        revisionCount: 3,
-        practiceQuestions: 60,
-        weakTopics: [],
-        strongTopics: ['Inverse of Matrix by Adjoint', 'Matrix Method for Linear Equations'],
-        timeSpent: 400,
-        accuracy: 94,
-        completion: true,
-        needsRevision: false,
-        needsFocus: false,
-        lastOpened: threeDaysAgoIso,
-        lastStudied: threeDaysAgoIso,
-        orderIndex: 3,
-        updatedAt: nowIso,
-        status: 'Completed',
-        completionPercentage: 100,
-        studyMinutes: 400,
-        questionSolved: 60,
-      },
-    ];
   }
 }
 

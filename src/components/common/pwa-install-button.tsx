@@ -16,7 +16,7 @@ export const PWAInstallButton: React.FC<{ variant?: 'compact' | 'full' }> = ({ v
   if (isInstallable) {
     return (
       <Button
-        variant="glass"
+        variant="surface"
         size={variant === 'compact' ? 'sm' : 'md'}
         onClick={install}
         className="text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800/40 hover:bg-purple-50 dark:hover:bg-purple-950/40"
@@ -32,7 +32,7 @@ export const PWAInstallButton: React.FC<{ variant?: 'compact' | 'full' }> = ({ v
     return (
       <>
         <Button
-          variant="glass"
+          variant="surface"
           size={variant === 'compact' ? 'sm' : 'md'}
           onClick={() => setShowIOSGuide(true)}
           className="text-purple-600 dark:text-purple-400"
@@ -42,7 +42,7 @@ export const PWAInstallButton: React.FC<{ variant?: 'compact' | 'full' }> = ({ v
         </Button>
 
         {showIOSGuide && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
             <div className="relative w-full max-w-sm rounded-3xl bg-card p-6 shadow-2xl border border-slate-200/80 dark:border-white/10">
               <button
                 onClick={() => setShowIOSGuide(false)}

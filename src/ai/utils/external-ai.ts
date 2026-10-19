@@ -1,16 +1,11 @@
 import toast from 'react-hot-toast';
+import { copyTextToClipboard, isWebShareSupported, triggerSafeHaptic } from '@/utils/browser-compat';
 
 /**
  * Triggers lightweight tactile haptic feedback on supported mobile devices.
  */
 export function triggerHapticFeedback(): void {
-  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-    try {
-      navigator.vibrate([15, 30]);
-    } catch {
-      // Safe fallback for browsers blocking vibration
-    }
-  }
+  triggerSafeHaptic([15, 30]);
 }
 
 /**
@@ -33,13 +28,7 @@ export function openExternalUrl(url: string): void {
  */
 export async function openChatGPT(promptText: string): Promise<void> {
   triggerHapticFeedback();
-  try {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      await navigator.clipboard.writeText(promptText);
-    }
-  } catch {
-    // Clipboard write fallback handled gracefully
-  }
+  await copyTextToClipboard(promptText);
 
   toast.success('Prompt copied! Continuing with ChatGPT...', {
     icon: '🚀',
@@ -58,13 +47,7 @@ export async function openChatGPT(promptText: string): Promise<void> {
  */
 export async function openGemini(promptText: string): Promise<void> {
   triggerHapticFeedback();
-  try {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      await navigator.clipboard.writeText(promptText);
-    }
-  } catch {
-    // Clipboard write fallback handled gracefully
-  }
+  await copyTextToClipboard(promptText);
 
   toast.success('Prompt copied! Continuing with Gemini...', {
     icon: '✨',
@@ -83,7 +66,7 @@ export async function sharePrompt(
   subject: string,
   chapter: string
 ): Promise<void> {
-  if (typeof navigator !== 'undefined' && navigator.share) {
+  if (isWebShareSupported()) {
     try {
       await navigator.share({
         title: `CBSE Class 12 ${subject} - ${chapter} Study Prompt`,
@@ -96,14 +79,12 @@ export async function sharePrompt(
   }
 
   // Fallback to clipboard
-  try {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      await navigator.clipboard.writeText(promptText);
-      toast.success('Prompt copied to clipboard for sharing!', {
-        icon: '📋',
-      });
-    }
-  } catch {
-    toast.error('Unable to share prompt');
+  const copied = await copyTextToClipboard(promptText);
+  if (copied) {
+    toast.success('Prompt copied to clipboard for sharing!', {
+      icon: '📋',
+    });
+  } else {
+    toast.error('Could not copy prompt to clipboard.');
   }
 }

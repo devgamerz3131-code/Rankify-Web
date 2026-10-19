@@ -108,7 +108,7 @@ export const DailyBriefingView: React.FC = () => {
             </h1>
 
             {/* AI Personality Quote Callout */}
-            <div className="p-4 rounded-2xl bg-white/10 border border-white/20 backdrop-blur-md space-y-1">
+            <div className="p-4 rounded-2xl bg-white/10 border border-white/20 space-y-1">
               <span className="text-[10px] font-black uppercase tracking-wider text-amber-300 font-mono flex items-center gap-1">
                 <ToneIcon className="w-3.5 h-3.5" />
                 <span>AI Mentor Direct Message:</span>
@@ -121,7 +121,7 @@ export const DailyBriefingView: React.FC = () => {
 
           {/* Right Metrics cards */}
           <div className="flex flex-row sm:flex-row items-center gap-3 w-full lg:w-auto justify-around sm:justify-end">
-            <div className="p-4 rounded-3xl bg-purple-900/40 border border-purple-400/30 text-center min-w-[120px] shrink-0 backdrop-blur-md">
+            <div className="p-4 rounded-3xl bg-purple-900/60 border border-purple-400/30 text-center min-w-[120px] shrink-0">
               <span className="text-[10px] text-purple-200 font-bold uppercase tracking-wider block">
                 Estimated Time
               </span>
@@ -131,7 +131,7 @@ export const DailyBriefingView: React.FC = () => {
               <span className="text-[10px] text-purple-300 font-mono">Today's Target</span>
             </div>
 
-            <div className="p-4 rounded-3xl bg-indigo-900/40 border border-indigo-400/30 text-center min-w-[120px] shrink-0 backdrop-blur-md">
+            <div className="p-4 rounded-3xl bg-indigo-900/60 border border-indigo-400/30 text-center min-w-[120px] shrink-0">
               <span className="text-[10px] text-indigo-200 font-bold uppercase tracking-wider block">
                 Readiness Score
               </span>

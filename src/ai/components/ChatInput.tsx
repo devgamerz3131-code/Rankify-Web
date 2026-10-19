@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, memo } from 'react';
+import React, { useState, useRef, useEffect, memo, useCallback } from 'react';
 import {
   Send,
   Sparkles,
@@ -10,8 +10,20 @@ import {
   Globe,
   Gauge,
   Layers,
+  Mic,
+  MicOff,
+  Paperclip,
+  Image as ImageIcon,
+  FileText,
+  BookOpen,
+  HelpCircle,
+  Brain,
+  FileCode,
+  Calendar,
+  RotateCcw,
 } from 'lucide-react';
 import { SmartPromptOptions } from '../model/types';
+import toast from 'react-hot-toast';
 
 interface ChatInputProps {
   onSend: (text: string) => void;
@@ -20,79 +32,80 @@ interface ChatInputProps {
   activeChapterName?: string;
   promptOptions?: SmartPromptOptions;
   onChangeOptions?: (opts: Partial<SmartPromptOptions>) => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
 }
 
-const SMART_QUICK_ACTIONS: {
-  id: string;
-  label: string;
-  getPrompt: (ch?: string) => string;
-}[] = [
+const QUICK_PROMPT_CHIPS = [
   {
-    id: 'concept',
-    label: '📘 Explain Concept',
-    getPrompt: (ch) =>
-      `Explain ${ch || 'this concept'} in simple language from fundamentals to board level with NCERT backing`,
+    id: 'tutor',
+    label: '🎓 Tutor',
+    prompt: (ch?: string) =>
+      `Act as my AI Tutor and explain ${ch || 'this concept'} step by step from fundamentals to board level`,
   },
   {
-    id: 'memory_tricks',
-    label: '🧠 Memory Tricks',
-    getPrompt: (ch) =>
-      `Provide memory tricks, mnemonics, and mental models to easily remember all formulas and exceptions in ${ch || 'this chapter'}`,
+    id: 'revision',
+    label: '⚡ Revision',
+    prompt: (ch?: string) =>
+      `Provide a high-impact one shot revision guide for ${ch || 'this chapter'}`,
   },
   {
-    id: 'revision_notes',
-    label: '📝 Revision Notes',
-    getPrompt: (ch) =>
-      `Create structured, high-yield CBSE Class 12 revision notes and key summary points for ${ch || 'this chapter'}`,
+    id: 'formula',
+    label: '📚 Formula',
+    prompt: (ch?: string) =>
+      `Compile complete formula sheet with SI units & dimensions for ${ch || 'this chapter'}`,
   },
   {
-    id: 'ncert_summary',
-    label: '📄 NCERT Summary',
-    getPrompt: (ch) =>
-      `Deliver authentic NCERT textbook summary with core definitions, in-text citations, and key points to remember for ${ch || 'this chapter'}`,
+    id: 'ncert',
+    label: '📄 NCERT',
+    prompt: (ch?: string) =>
+      `Provide authentic NCERT textbook summary with core definitions and in-text solutions for ${ch || 'this chapter'}`,
   },
   {
-    id: 'board_questions',
-    label: '🎯 Board Questions',
-    getPrompt: (ch) =>
-      `Predict top expected 2, 3, and 5-mark CBSE Board questions with official marking scheme for ${ch || 'this chapter'}`,
+    id: 'questions',
+    label: '🎯 Questions',
+    prompt: (ch?: string) =>
+      `Predict top expected 2, 3, and 5-mark CBSE Board questions for ${ch || 'this chapter'}`,
   },
   {
-    id: 'pyqs',
-    label: '❓ PYQs',
-    getPrompt: (ch) =>
-      `Detail the most repeated CBSE Class 12 Previous Year Questions (PYQs) from Delhi & All India with step marks for ${ch || 'this chapter'}`,
+    id: 'notes',
+    label: '📝 Notes',
+    prompt: (ch?: string) =>
+      `Generate high-yield short revision notes with key definitions and bullet points for ${ch || 'this chapter'}`,
   },
   {
-    id: 'numericals',
-    label: '🧮 Numericals',
-    getPrompt: (ch) =>
-      `Provide essential numerical practice problems for ${ch || 'this chapter'} with step-by-step formula substitutions and SI units`,
+    id: 'summary',
+    label: '📖 Summary',
+    prompt: (ch?: string) =>
+      `Summarize ${ch || 'this chapter'} into 5 core concepts and key derivations`,
   },
   {
-    id: 'formula_sheet',
-    label: '📚 Formula Sheet',
-    getPrompt: (ch) =>
-      `Compile the master CBSE formula sheet for ${ch || 'this chapter'} with symbols, units, dimensions, and sign conventions`,
+    id: 'exam',
+    label: '🏆 Exam',
+    prompt: (ch?: string) =>
+      `Detail repeated CBSE Previous Year Questions (PYQs) with official marking scheme for ${ch || 'this chapter'}`,
   },
   {
-    id: 'one_shot',
-    label: '⚡ One Shot Revision',
-    getPrompt: (ch) =>
-      `Provide an intensive, high-impact one shot board exam revision guide for ${ch || 'this chapter'}`,
+    id: 'planner',
+    label: '📅 Planner',
+    prompt: (ch?: string) =>
+      `Create a structured 7-day CBSE Board mastery sprint plan for ${ch || 'this chapter'}`,
   },
   {
-    id: 'topper_strategy',
-    label: '🏆 Topper Strategy',
-    getPrompt: (ch) =>
-      `Explain 95%+ topper exam presentation strategies, common pitfall traps, and scoring tips for ${ch || 'this chapter'}`,
+    id: 'weakness',
+    label: '🔥 Weakness',
+    prompt: (ch?: string) =>
+      `Analyze common student misconceptions, exam traps, and numerical pitfalls in ${ch || 'this chapter'}`,
   },
-  {
-    id: 'competency',
-    label: '🧩 Competency Questions',
-    getPrompt: (ch) =>
-      `Construct authentic CBSE competency-based case studies, passage questions, and assertion-reason drills for ${ch || 'this chapter'}`,
-  },
+];
+
+const INTELLIGENT_PLACEHOLDERS = [
+  'Explain Electrochemistry...',
+  'Create Revision Notes...',
+  'Generate 30 PYQs...',
+  'Solve this Numerical...',
+  'Teach me Current Electricity...',
+  'Make a Study Plan...',
 ];
 
 export const ChatInputComponent: React.FC<ChatInputProps> = ({
@@ -102,210 +115,394 @@ export const ChatInputComponent: React.FC<ChatInputProps> = ({
   activeChapterName,
   promptOptions,
   onChangeOptions,
+  onFocus,
+  onBlur,
 }) => {
   const [input, setInput] = useState('');
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
+  const [isRecording, setIsRecording] = useState(false);
+  const [attachedFile, setAttachedFile] = useState<{ name: string; size: string; type: string } | null>(null);
   const [showOptionsBar, setShowOptionsBar] = useState(false);
+  const speechRecognitionSupported =
+    typeof window !== 'undefined' &&
+    Boolean(
+      (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown }).SpeechRecognition ||
+        (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown }).webkitSpeechRecognition
+    );
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<any>(null);
+
+  // Rotating placeholder interval
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPlaceholderIndex((prev) => (prev + 1) % INTELLIGENT_PLACEHOLDERS.length);
+    }, 4500);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Auto-resize textarea dynamically: grows up to ~4 lines (approx 120px) then scrolls inside itself
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      const scrollH = textareaRef.current.scrollHeight;
+      // 4 lines at 1.5 line-height of 16px is approx 96px-120px
+      const newHeight = Math.min(Math.max(scrollH, 56), 128);
+      textareaRef.current.style.height = `${newHeight}px`;
+    }
+  }, [input]);
 
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!input.trim() || isLoading || disabled) return;
-    onSend(input);
+    const trimmed = input.trim();
+    if (!trimmed || isLoading || disabled) return;
+
+    let finalPrompt = trimmed;
+    if (attachedFile) {
+      finalPrompt += `\n[Attached File: ${attachedFile.name} (${attachedFile.size})]`;
+    }
+
+    onSend(finalPrompt);
     setInput('');
+    setAttachedFile(null);
+
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Check if device has fine pointer / physical keyboard support
+    const isTouchOnly =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+
+    // On touch devices, Enter creates a new line; only send via the send button
+    if (isTouchOnly) {
+      return;
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
     }
   };
 
-  const handleChipClick = (action: typeof SMART_QUICK_ACTIONS[0]) => {
+  const handleChipClick = (chip: typeof QUICK_PROMPT_CHIPS[0]) => {
     if (isLoading || disabled) return;
-
-    if (input.trim()) {
-      // Append chip action to current doubt
-      onSend(`${input.trim()} • ${action.label}`);
-      setInput('');
-    } else {
-      // Generate prompt for active chapter using optimized template
-      const generated = action.getPrompt(activeChapterName);
-      onSend(generated);
+    const generated = chip.prompt(activeChapterName);
+    setInput(generated);
+    if (textareaRef.current) {
+      textareaRef.current.focus();
     }
   };
 
-  // Auto-resize textarea
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(
-        textareaRef.current.scrollHeight,
-        120
-      )}px`;
+  // Voice Input Toggle via Web Speech Recognition
+  const toggleVoiceInput = useCallback(() => {
+    if (isRecording) {
+      recognitionRef.current?.stop();
+      setIsRecording(false);
+      return;
     }
-  }, [input]);
+
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      toast.error('Voice input is not supported in this browser. Please type your prompt.');
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        setIsRecording(true);
+        toast.success('Listening... Speak your question now.');
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = Array.from(event.results)
+          .map((result: any) => result[0].transcript)
+          .join('');
+        setInput(transcript);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn('Speech recognition notice:', event.error);
+        setIsRecording(false);
+      };
+
+      recognition.onend = () => {
+        setIsRecording(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch {
+      toast.error('Could not initialize voice input.');
+      setIsRecording(false);
+    }
+  }, [isRecording]);
+
+  // File Attachment Handler
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const sizeInMb = (file.size / (1024 * 1024)).toFixed(2);
+    setAttachedFile({
+      name: file.name,
+      size: `${sizeInMb} MB`,
+      type: file.type.includes('pdf') ? 'pdf' : 'image',
+    });
+    toast.success(`Attached ${file.name}`);
+  };
+
+  const activePlaceholder = activeChapterName
+    ? `Ask about ${activeChapterName} (e.g. 'Explain derivations' or 'Top 5 numericals')...`
+    : INTELLIGENT_PLACEHOLDERS[placeholderIndex];
 
   return (
-    <div className="w-full space-y-2 max-w-4xl mx-auto">
-      {/* 1. SMART QUICK ACTIONS CHIPS (Arc / Notion styled horizontal scroll) */}
-      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 px-1">
-        <span className="text-[10px] uppercase font-bold text-muted-foreground shrink-0 flex items-center gap-1 pr-1">
-          <Zap className="w-3 h-3 text-purple-500 fill-purple-500" />
-          <span>Quick Actions:</span>
-        </span>
-        {SMART_QUICK_ACTIONS.map((action) => (
-          <button
-            key={action.id}
-            type="button"
-            onClick={() => handleChipClick(action)}
-            disabled={isLoading || disabled}
-            className="text-[11px] font-semibold text-muted-foreground hover:text-purple-600 dark:hover:text-purple-300 bg-slate-100/90 dark:bg-slate-800/90 hover:bg-purple-50 dark:hover:bg-purple-950/40 hover:border-purple-300 dark:hover:border-purple-800/60 px-3 py-1 rounded-full border border-slate-200/80 dark:border-slate-700/60 transition-all shrink-0 cursor-pointer disabled:opacity-50 shadow-2xs"
-          >
-            {action.label}
-          </button>
-        ))}
+    <div className="w-full space-y-3 max-w-4xl mx-auto">
+      {/* 1. QUICK PROMPT CHIPS */}
+      <div className="relative group">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 px-1 snap-x snap-mandatory scroll-smooth pr-6">
+          <span className="text-[10px] uppercase font-bold text-muted-foreground shrink-0 flex items-center gap-1.5 pr-1 snap-start">
+            <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+            <span>Quick Prompts:</span>
+          </span>
+
+          {QUICK_PROMPT_CHIPS.map((chip) => (
+            <button
+              key={chip.id}
+              type="button"
+              onClick={() => handleChipClick(chip)}
+              disabled={isLoading || disabled}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted hover:bg-purple-500/15 text-foreground hover:text-purple-600 dark:hover:text-purple-300 border border-border font-semibold text-xs whitespace-nowrap transition-all cursor-pointer shrink-0 disabled:opacity-50 shadow-2xs hover:scale-[1.02] active:scale-95 snap-start"
+            >
+              <span>{chip.label}</span>
+            </button>
+          ))}
+        </div>
+        {/* Right fade gradient indicator */}
+        <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-card to-transparent" />
       </div>
 
       {/* 2. SMART PROMPT OPTIONS (Level, Depth, Language toggles) */}
       {promptOptions && onChangeOptions && (
-        <div className="flex flex-wrap items-center justify-between gap-2 px-1 pt-0.5">
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Level Selector */}
-            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-xl border border-slate-200/80 dark:border-white/10 text-[11px]">
-              <span className="text-muted-foreground pl-1.5 pr-0.5 font-bold text-[10px] flex items-center gap-1">
-                <Gauge className="w-3 h-3 text-blue-500" />
-                <span>Level:</span>
-              </span>
-              {(['Explain Like Beginner', 'Board Level', 'Topper Level'] as const).map(
-                (lvl) => (
-                  <button
-                    key={lvl}
-                    type="button"
-                    onClick={() => onChangeOptions({ level: lvl })}
-                    className={`px-2 py-0.5 rounded-lg font-bold transition-all cursor-pointer ${
-                      promptOptions.level === lvl
-                        ? 'bg-purple-600 text-white shadow-2xs'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {lvl === 'Explain Like Beginner' ? 'Beginner' : lvl === 'Board Level' ? 'Board' : 'Topper'}
-                  </button>
-                )
-              )}
-            </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+          <button
+            type="button"
+            onClick={() => setShowOptionsBar(!showOptionsBar)}
+            className="text-xs font-bold text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 text-purple-500" />
+            <span>Tune Output Style</span>
+            <ChevronDown
+              className={`w-3.5 h-3.5 transition-transform ${showOptionsBar ? 'rotate-180' : ''}`}
+            />
+          </button>
 
-            {/* Depth Selector */}
-            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-xl border border-slate-200/80 dark:border-white/10 text-[11px]">
-              <span className="text-muted-foreground pl-1.5 pr-0.5 font-bold text-[10px] flex items-center gap-1">
-                <Layers className="w-3 h-3 text-indigo-500" />
-                <span>Depth:</span>
-              </span>
-              {(['Default', 'Very Detailed', 'Very Short'] as const).map(
-                (dp) => (
-                  <button
-                    key={dp}
-                    type="button"
-                    onClick={() => onChangeOptions({ depth: dp })}
-                    className={`px-2 py-0.5 rounded-lg font-bold transition-all cursor-pointer ${
-                      promptOptions.depth === dp
-                        ? 'bg-purple-600 text-white shadow-2xs'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {dp === 'Very Detailed' ? 'Detailed' : dp === 'Very Short' ? 'Short' : 'Balanced'}
-                  </button>
-                )
-              )}
-            </div>
+          {(showOptionsBar || true) && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Level Selector */}
+              <div className="flex items-center gap-1 bg-muted p-0.5 rounded-xl border border-border text-[11px]">
+                <span className="text-foreground/80 pl-1.5 pr-0.5 font-bold text-[10px] flex items-center gap-1">
+                  <Gauge className="w-3 h-3 text-blue-500" />
+                  <span>Level:</span>
+                </span>
+                {(['Explain Like Beginner', 'Board Level', 'Topper Level'] as const).map(
+                  (lvl) => (
+                    <button
+                      key={lvl}
+                      type="button"
+                      onClick={() => onChangeOptions({ level: lvl })}
+                      className={`px-2 py-0.5 rounded-lg font-bold transition-all cursor-pointer ${
+                        promptOptions.level === lvl
+                          ? 'bg-purple-600 text-white shadow-2xs'
+                          : 'text-foreground/80 hover:text-foreground hover:bg-card'
+                      }`}
+                    >
+                      {lvl === 'Explain Like Beginner' ? 'Beginner' : lvl === 'Board Level' ? 'Board' : 'Topper'}
+                    </button>
+                  )
+                )}
+              </div>
 
-            {/* Language Selector */}
-            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-xl border border-slate-200/80 dark:border-white/10 text-[11px]">
-              <span className="text-muted-foreground pl-1.5 pr-0.5 font-bold text-[10px] flex items-center gap-1">
-                <Globe className="w-3 h-3 text-emerald-500" />
-                <span>Lang:</span>
-              </span>
-              {(['Auto', 'English', 'Hindi', 'Hinglish'] as const).map(
-                (lng) => (
-                  <button
-                    key={lng}
-                    type="button"
-                    onClick={() => onChangeOptions({ language: lng })}
-                    className={`px-2 py-0.5 rounded-lg font-bold transition-all cursor-pointer ${
-                      promptOptions.language === lng
-                        ? 'bg-purple-600 text-white shadow-2xs'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {lng}
-                  </button>
-                )
-              )}
+              {/* Depth Selector */}
+              <div className="flex items-center gap-1 bg-muted p-0.5 rounded-xl border border-border text-[11px]">
+                <span className="text-foreground/80 pl-1.5 pr-0.5 font-bold text-[10px] flex items-center gap-1">
+                  <Layers className="w-3 h-3 text-indigo-500" />
+                  <span>Depth:</span>
+                </span>
+                {(['Default', 'Very Detailed', 'Very Short'] as const).map(
+                  (dp) => (
+                    <button
+                      key={dp}
+                      type="button"
+                      onClick={() => onChangeOptions({ depth: dp })}
+                      className={`px-2 py-0.5 rounded-lg font-bold transition-all cursor-pointer ${
+                        promptOptions.depth === dp
+                          ? 'bg-purple-600 text-white shadow-2xs'
+                          : 'text-foreground/80 hover:text-foreground hover:bg-card'
+                      }`}
+                    >
+                      {dp === 'Very Detailed' ? 'Detailed' : dp === 'Very Short' ? 'Short' : 'Balanced'}
+                    </button>
+                  )
+                )}
+              </div>
+
+              {/* Language Selector */}
+              <div className="flex items-center gap-1 bg-muted p-0.5 rounded-xl border border-border text-[11px]">
+                <span className="text-foreground/80 pl-1.5 pr-0.5 font-bold text-[10px] flex items-center gap-1">
+                  <Globe className="w-3 h-3 text-emerald-500" />
+                  <span>Lang:</span>
+                </span>
+                {(['Auto', 'English', 'Hindi', 'Hinglish'] as const).map(
+                  (lng) => (
+                    <button
+                      key={lng}
+                      type="button"
+                      onClick={() => onChangeOptions({ language: lng })}
+                      className={`px-2 py-0.5 rounded-lg font-bold transition-all cursor-pointer ${
+                        promptOptions.language === lng
+                          ? 'bg-purple-600 text-white shadow-2xs'
+                          : 'text-foreground/80 hover:text-foreground hover:bg-card'
+                      }`}
+                    >
+                      {lng}
+                    </button>
+                  )
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
-      {/* 3. Main Input Dock (ChatGPT + Notion sleek card with glassmorphism) */}
+      {/* 3. PROMINENT LARGE PROMPT DOCK */}
       <form
         onSubmit={handleSubmit}
-        className="relative flex items-end gap-2 p-2 sm:p-2.5 rounded-2xl bg-card border border-slate-200/80 dark:border-white/10 shadow-lg focus-within:border-purple-500/80 focus-within:ring-2 focus-within:ring-purple-500/20 transition-all"
+        className="relative flex flex-col justify-between p-3.5 sm:p-4 rounded-3xl bg-card border-2 border-border shadow-xl focus-within:border-purple-500 focus-within:ring-4 focus-within:ring-purple-500/15 transition-all duration-200"
       >
-        <div className="flex-1 min-w-0">
-          <textarea
-            ref={textareaRef}
-            rows={1}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isLoading || disabled}
-            placeholder={
-              activeChapterName
-                ? `Ask about ${activeChapterName} (e.g. 'Explain derivations' or 'Top 5 numericals')...`
-                : "Ask any concept or doubt (e.g. 'Explain Electrochemistry' or 'Gauss Law derivations')..."
-            }
-            className="w-full resize-none bg-transparent px-2.5 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-hidden max-h-32 leading-relaxed font-sans"
-          />
-        </div>
-
-        {input && (
-          <button
-            type="button"
-            onClick={() => setInput('')}
-            className="p-2 text-muted-foreground hover:text-foreground rounded-xl transition cursor-pointer"
-            title="Clear"
-          >
-            <X className="w-4 h-4" />
-          </button>
+        {/* Attached File Chip Preview */}
+        {attachedFile && (
+          <div className="flex items-center gap-2 mb-2 px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20 text-xs font-semibold w-fit">
+            {attachedFile.type === 'image' ? (
+              <ImageIcon className="w-3.5 h-3.5 text-purple-500" />
+            ) : (
+              <FileText className="w-3.5 h-3.5 text-purple-500" />
+            )}
+            <span>{attachedFile.name}</span>
+            <span className="text-[10px] text-muted-foreground">({attachedFile.size})</span>
+            <button
+              type="button"
+              onClick={() => setAttachedFile(null)}
+              className="p-0.5 rounded-full hover:bg-purple-500/20 cursor-pointer ml-1"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
         )}
 
-        <button
-          type="submit"
-          disabled={!input.trim() || isLoading || disabled}
-          className="h-10 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold text-xs flex items-center gap-1.5 shadow-md hover:from-purple-500 hover:to-indigo-500 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0"
-        >
-          {isLoading ? (
-            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          ) : (
-            <>
-              <span>Generate Prompt</span>
-              <Send className="w-3.5 h-3.5" />
-            </>
-          )}
-        </button>
+        {/* Large Textarea Area (Min 3 lines, expandable) */}
+        <textarea
+          ref={textareaRef}
+          rows={3}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onFocus={onFocus}
+          onBlur={onBlur}
+          disabled={isLoading || disabled}
+          placeholder={activePlaceholder}
+          className="w-full resize-none bg-transparent px-1 py-1 text-base text-foreground placeholder:text-muted-foreground/70 focus:outline-hidden leading-relaxed font-sans min-h-[56px] max-h-36 overflow-y-auto"
+        />
+
+        {/* Bottom Toolbar inside the Input Dock */}
+        <div className="flex items-center justify-between pt-2.5 mt-1 border-t border-border/60">
+          {/* Left Controls: Attachments, Voice Input */}
+          <div className="flex items-center gap-1.5">
+            {/* Attachment Button */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept="image/*,.pdf"
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isLoading || disabled}
+              className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer touch-target border border-border"
+              title="Attach diagram, PDF or screenshot"
+            >
+              <Paperclip className="w-4 h-4" />
+            </button>
+
+            {/* Voice Input Button (hidden when speech recognition is missing) */}
+            {speechRecognitionSupported && (
+              <button
+                type="button"
+                onClick={toggleVoiceInput}
+                disabled={isLoading || disabled}
+                className={`w-11 h-11 min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center transition-all cursor-pointer touch-target border ${
+                  isRecording
+                    ? 'bg-rose-500/15 border-rose-500/40 text-rose-500 animate-pulse'
+                    : 'bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground border-border'
+                }`}
+                title={isRecording ? 'Listening... Click to stop' : 'Voice search / Ask question via microphone'}
+              >
+                {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </button>
+            )}
+
+            {/* Clear Button */}
+            {input && (
+              <button
+                type="button"
+                onClick={() => setInput('')}
+                className="px-2.5 py-1 min-h-[44px] text-xs font-semibold text-muted-foreground hover:text-foreground rounded-lg transition cursor-pointer flex items-center"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          {/* Right Action: Large Circular Send Button */}
+          <div className="flex items-center gap-2">
+            <button
+              type="submit"
+              disabled={!input.trim() || isLoading || disabled}
+              className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-primary hover:bg-primary-hover text-primary-foreground font-bold shadow-lg shadow-purple-600/30 flex items-center justify-center transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0 active:scale-95 hover:scale-105"
+              title="Send Prompt to Rankify AI Coach"
+            >
+              {isLoading ? (
+                <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <Send className="w-5 h-5 fill-current" />
+              )}
+            </button>
+          </div>
+        </div>
       </form>
 
-      <div className="flex items-center justify-between text-[10px] text-muted-foreground px-2">
-        <span className="hidden sm:inline-flex items-center gap-1">
+      {/* Keyboard & Offline Footer Helper - only show keyboard instructions on fine pointer + hover */}
+      <div className="flex items-center justify-between text-[10px] sm:text-xs text-muted-foreground px-2">
+        <span className="hidden [@media(hover:hover)_and_(pointer:fine)]:inline-flex items-center gap-1">
           <CornerDownLeft className="w-3 h-3 opacity-60" /> Press{' '}
-          <strong>Enter</strong> to generate, <strong>Shift + Enter</strong> for
-          new line
+          <strong className="text-foreground">Enter</strong> to generate,{' '}
+          <strong className="text-foreground">Shift + Enter</strong> for new line
         </span>
-        <span className="text-right ml-auto">
-          Rankify AI Study Coach • 0ms Local Synthesis • Zero API calls
+        <span className="text-right ml-auto font-mono text-[10px]">
+          Rankify AI Study Engine • CBSE Class 12 Science Core
         </span>
       </div>
     </div>

@@ -113,8 +113,7 @@ export const StudyReplayView: React.FC = () => {
           return false;
         } else if (filterType === 'mock_test' && e.type !== 'mock_test') {
           return false;
-        } else if (filterType === 'lecture' && e.type !== 'lecture_analyzed') {
-          return false;
+
         } else if (filterType === 'tasks' && e.type !== 'task_completed') {
           return false;
         }
@@ -168,16 +167,12 @@ export const StudyReplayView: React.FC = () => {
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-16">
       {/* 1. HERO BANNER: LEARNING DIARY & CONTROLS */}
-      <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-slate-900 via-indigo-950/90 to-purple-950 text-white border border-indigo-500/30 shadow-2xl">
-        {/* Glow circles */}
-        <div className="absolute -right-24 -top-24 w-80 h-80 rounded-full bg-indigo-500/15 blur-3xl pointer-events-none" />
-        <div className="absolute -left-20 -bottom-20 w-80 h-80 rounded-full bg-purple-500/15 blur-3xl pointer-events-none" />
-
+      <div className="relative overflow-hidden rounded-2xl p-6 sm:p-8 bg-card text-foreground border border-border shadow-md">
         <div className="relative z-10 space-y-6">
           {/* Header Row */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-bold text-indigo-200">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-slate-800 border border-slate-700 text-xs font-bold text-indigo-200">
                 <History className="w-4 h-4 text-indigo-400" />
                 <span>Rankify Study Replay & Diary</span>
               </div>
@@ -228,7 +223,7 @@ export const StudyReplayView: React.FC = () => {
 
             {/* Quick Metrics Cards */}
             <div className="flex items-center gap-3 shrink-0">
-              <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 text-center min-w-[110px]">
+              <div className="p-4 rounded-xl bg-slate-800 border border-slate-700 text-center min-w-[110px]">
                 <span className="text-[10px] text-indigo-200 font-bold uppercase tracking-wider block">
                   Total Study
                 </span>
@@ -240,7 +235,7 @@ export const StudyReplayView: React.FC = () => {
                 </span>
               </div>
 
-              <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 text-center min-w-[110px]">
+              <div className="p-4 rounded-xl bg-slate-800 border border-slate-700 text-center min-w-[110px]">
                 <span className="text-[10px] text-indigo-200 font-bold uppercase tracking-wider block">
                   Accuracy
                 </span>
@@ -285,7 +280,7 @@ export const StudyReplayView: React.FC = () => {
       </div>
 
       {/* 2. GITHUB-STYLE CONTRIBUTION HEATMAP */}
-      <Card className="p-5 sm:p-6 bg-card/80 backdrop-blur-xl border-slate-200/80 dark:border-white/10 shadow-xs space-y-4">
+      <Card className="p-5 sm:p-6 bg-card border border-border shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
@@ -347,7 +342,7 @@ export const StudyReplayView: React.FC = () => {
       {selectedViewMode === 'daily' && (
         <div className="space-y-6">
           {/* Day Navigation & AI Study Journal Card */}
-          <Card className="p-5 sm:p-6 bg-card/80 backdrop-blur-xl border-slate-200/80 dark:border-white/10 shadow-xs space-y-5">
+          <Card className="p-5 sm:p-6 bg-card border border-border shadow-xs space-y-5">
             {/* Date bar */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-3">
@@ -480,7 +475,6 @@ export const StudyReplayView: React.FC = () => {
                 <option value="practice">Practice Sessions</option>
                 <option value="revision">Formula & Revisions</option>
                 <option value="mock_test">Mock Tests</option>
-                <option value="lecture">Lecture Analysis</option>
                 <option value="tasks">Tasks Completed</option>
               </select>
             </div>
@@ -575,7 +569,7 @@ export const StudyReplayView: React.FC = () => {
 
       {/* 4. VIEW MODE: WEEKLY SUMMARY */}
       {selectedViewMode === 'weekly' && data?.weeklySummary && (
-        <Card className="p-6 bg-card/80 backdrop-blur-xl border-slate-200/80 dark:border-white/10 shadow-xs space-y-6">
+        <Card className="p-6 bg-card border border-border shadow-xs space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
             <div>
               <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">
@@ -649,7 +643,7 @@ export const StudyReplayView: React.FC = () => {
 
       {/* 5. VIEW MODE: MONTHLY SUMMARY */}
       {selectedViewMode === 'monthly' && data?.monthlySummary && (
-        <Card className="p-6 bg-card/80 backdrop-blur-xl border-slate-200/80 dark:border-white/10 shadow-xs space-y-6">
+        <Card className="p-6 bg-card border border-border shadow-xs space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
             <div>
               <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">
@@ -722,7 +716,7 @@ export const StudyReplayView: React.FC = () => {
 
       {/* 6. VIEW MODE: ACHIEVEMENTS & MILESTONES */}
       {selectedViewMode === 'achievements' && data?.achievements && (
-        <Card className="p-6 bg-card/80 backdrop-blur-xl border-slate-200/80 dark:border-white/10 shadow-xs space-y-5">
+        <Card className="p-6 bg-card border border-border shadow-xs space-y-5">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
             <div>
               <span className="text-xs font-bold text-amber-500 uppercase tracking-wider">
@@ -765,7 +759,7 @@ export const StudyReplayView: React.FC = () => {
                       <span>Unlocked</span>
                     </span>
                   ) : (
-                    <span className="text-slate-400 font-medium">In Progress</span>
+                    <span className="text-muted-foreground font-medium">In Progress</span>
                   )}
                 </div>
               </div>
@@ -777,7 +771,7 @@ export const StudyReplayView: React.FC = () => {
       {/* MODAL: INTERACTIVE REPLAY JOURNEY PLAYER */}
       <AnimatePresence>
         {isReplaying && filteredEvents.length > 0 && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -902,7 +896,7 @@ export const StudyReplayView: React.FC = () => {
       {/* MODAL: EXPORT PDF / PRINTABLE REPORT */}
       <AnimatePresence>
         {showExportModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}

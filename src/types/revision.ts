@@ -8,7 +8,6 @@ export type RevisionMethod =
   | 'PYQ Revision'
   | 'Flashcard Revision'
   | 'Mistake Revision'
-  | 'Lecture Rewatch'
   | 'Mock Revision'
   | 'Mixed Revision';
 

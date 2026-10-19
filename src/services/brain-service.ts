@@ -68,13 +68,17 @@ class BrainService {
     }
   }
 
+  private getStorageKey(): string {
+    return `${BRAIN_STORAGE_KEY}_${this.currentUserId || 'guest'}`;
+  }
+
   private loadLocalCache(): RankifyBrainData | null {
-    return safeLocalStorage.getItem<RankifyBrainData | null>(BRAIN_STORAGE_KEY, null);
+    return safeLocalStorage.getItem<RankifyBrainData | null>(this.getStorageKey(), null);
   }
 
   private saveLocalCache(data: RankifyBrainData) {
     this.memoryCache = data;
-    safeLocalStorage.setItem(BRAIN_STORAGE_KEY, data);
+    safeLocalStorage.setItem(this.getStorageKey(), data);
     this.notify();
   }
 
@@ -384,7 +388,7 @@ class BrainService {
       studyHabits: [
         'Solves theory quickly but rushes multi-step numerical calculations',
         'Studies significantly longer on Sundays (+45% duration)',
-        'Prefers formula cheat-sheets over long lecture rewinds',
+        'Prefers formula cheat-sheets over long theory rewinds',
       ],
       revisionHabits: [
         'Forgets chemical kinetics formulas after ~6 days without active recall',
@@ -466,16 +470,16 @@ class BrainService {
       },
       {
         id: 'rec_3',
-        type: 'lecture',
-        typeLabel: 'Lecture',
+        type: 'ncert',
+        typeLabel: 'NCERT',
         subject: 'Chemistry',
         chapter: 'Aldehydes & Ketones',
-        title: 'Name Reactions Visual Derivation',
-        description: 'Watch 25-minute concise lecture break-down on Aldol, Cannizzaro, and Clemmensen reductions.',
+        title: 'Name Reactions NCERT Walkthrough',
+        description: 'Read the NCERT line-by-line guide on Aldol, Cannizzaro, and Clemmensen reductions with active recall prompts.',
         urgency: 'medium',
         estimatedMinutes: 25,
-        actionLabel: 'Open Lecture Lab',
-        actionRoute: 'study',
+        actionLabel: 'Read NCERT Library',
+        actionRoute: 'ncert' as any,
       },
       {
         id: 'rec_4',

@@ -42,7 +42,7 @@ export const Screen2StudentDetails: React.FC = () => {
 
       <div className="space-y-6">
         {/* Full Name */}
-        <div className="p-4 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-white/10 backdrop-blur-xl shadow-xs">
+        <div className="p-4 rounded-2xl bg-card border border-border shadow-xs">
           <label className="flex items-center gap-2 text-xs font-bold text-foreground mb-2">
             <User className="w-4 h-4 text-purple-600" />
             <span>Student Full Name</span>
@@ -52,32 +52,32 @@ export const Screen2StudentDetails: React.FC = () => {
             value={studentDetails.name}
             onChange={(e) => updateStudentDetails({ name: e.target.value })}
             placeholder="e.g. Aarav Sharma"
-            className="w-full px-4 h-11 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-transparent focus:border-purple-500 focus:bg-background text-sm font-medium text-foreground focus:outline-none transition"
+            className="w-full px-4 h-11 rounded-xl bg-muted border border-transparent focus:border-purple-500 focus:bg-background text-sm font-medium text-foreground focus:outline-none transition"
           />
         </div>
 
         {/* Locked Board, Class & Stream Display */}
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-500/10 via-indigo-500/10 to-slate-900/10 border border-purple-500/30 backdrop-blur-xl shadow-xs space-y-3">
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-500/10 via-indigo-500/10 to-slate-900/10 border border-purple-500/30 shadow-xs space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-purple-600 dark:text-purple-300 uppercase tracking-wider flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5" />
               <span>Target Curriculum Locked</span>
             </span>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 font-bold">
-              Official Syllabus
+              Class 12 Syllabus
             </span>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
-            <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-purple-200 dark:border-purple-500/20 text-center">
+            <div className="p-3 rounded-xl bg-card border border-border text-center">
               <div className="text-[10px] text-muted-foreground font-semibold">Board</div>
               <div className="text-sm font-extrabold text-foreground mt-0.5">CBSE</div>
             </div>
-            <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-purple-200 dark:border-purple-500/20 text-center">
+            <div className="p-3 rounded-xl bg-card border border-border text-center">
               <div className="text-[10px] text-muted-foreground font-semibold">Class</div>
               <div className="text-sm font-extrabold text-foreground mt-0.5">Class 12</div>
             </div>
-            <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-purple-200 dark:border-purple-500/20 text-center">
+            <div className="p-3 rounded-xl bg-card border border-border text-center">
               <div className="text-[10px] text-muted-foreground font-semibold">Stream</div>
               <div className="text-sm font-extrabold text-purple-600 mt-0.5">PCM Only</div>
             </div>
@@ -100,7 +100,7 @@ export const Screen2StudentDetails: React.FC = () => {
         </div>
 
         {/* Daily Available Study Hours */}
-        <div className="p-4 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-white/10 backdrop-blur-xl shadow-xs space-y-2">
+        <div className="p-4 rounded-2xl bg-card border border-border shadow-xs space-y-2">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-foreground flex items-center gap-2">
               <Clock className="w-4 h-4 text-purple-600" />
@@ -121,7 +121,7 @@ export const Screen2StudentDetails: React.FC = () => {
                   className={`py-2.5 rounded-xl font-bold text-xs sm:text-sm border transition cursor-pointer ${
                     isSelected
                       ? 'bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-600/25'
-                      : 'bg-slate-100 dark:bg-slate-800 text-foreground border-transparent hover:bg-slate-200 dark:hover:bg-slate-700'
+                      : 'bg-muted text-foreground border-transparent hover:bg-muted/80'
                   }`}
                 >
                   {hours} hrs
@@ -132,7 +132,7 @@ export const Screen2StudentDetails: React.FC = () => {
         </div>
 
         {/* Target Percentage */}
-        <div className="p-4 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-white/10 backdrop-blur-xl shadow-xs space-y-2">
+        <div className="p-4 rounded-2xl bg-card border border-border shadow-xs space-y-2">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-foreground flex items-center gap-2">
               <Award className="w-4 h-4 text-purple-600" />
@@ -153,7 +153,7 @@ export const Screen2StudentDetails: React.FC = () => {
                   className={`py-2 rounded-xl font-bold text-xs border transition cursor-pointer ${
                     isSelected
                       ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
-                      : 'bg-slate-100 dark:bg-slate-800 text-foreground border-transparent hover:bg-slate-200 dark:hover:bg-slate-700'
+                      : 'bg-muted text-foreground border-transparent hover:bg-muted/80'
                   }`}
                 >
                   {pct}%
@@ -164,7 +164,7 @@ export const Screen2StudentDetails: React.FC = () => {
         </div>
 
         {/* Exam Date */}
-        <div className="p-4 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-white/10 backdrop-blur-xl shadow-xs space-y-2">
+        <div className="p-4 rounded-2xl bg-card border border-border shadow-xs space-y-2">
           <label className="text-xs font-bold text-foreground flex items-center gap-2">
             <Calendar className="w-4 h-4 text-purple-600" />
             <span>Target Examination Date</span>

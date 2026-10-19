@@ -166,3 +166,42 @@ export interface ExamCommandCenterData {
   top10Recommendations: HighImpactRecommendation[];
   lastUpdatedAt: string;
 }
+
+export type WidgetId =
+  | 'overview'
+  | 'ai_commands'
+  | 'focus_session'
+  | 'smart_alerts'
+  | 'subjects'
+  | 'exam_readiness'
+  | 'recent_activity'
+  | 'achievements';
+
+export interface WidgetConfig {
+  id: WidgetId;
+  title: string;
+  isPinned: boolean;
+  isVisible: boolean;
+  isExpanded: boolean;
+  order: number;
+}
+
+export interface CommandCenterActivityItem {
+  id: string;
+  type: 'lecture' | 'revision' | 'ai' | 'question' | 'study_session' | 'badge';
+  title: string;
+  subtitle: string;
+  timestamp: string;
+  subject?: string;
+  durationMinutes?: number;
+}
+
+export interface AdminSystemHealth {
+  registeredStudents: number;
+  activeToday: number;
+  totalStudyHours: number;
+  dbStatus: 'Operational' | 'Degraded' | 'Maintenance';
+  firestoreLatencyMs: number;
+  remoteConfigStatus: 'Synced' | 'Stale';
+  lastHealthCheck: string;
+}

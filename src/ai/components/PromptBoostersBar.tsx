@@ -60,7 +60,7 @@ export const PromptBoostersBar: React.FC<PromptBoostersBarProps> = ({
               className={`flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-bold tracking-tight shrink-0 transition-all cursor-pointer shadow-2xs border ${
                 isActive
                   ? 'bg-purple-600 text-white border-purple-500 shadow-purple-500/20 ring-1 ring-purple-400/40'
-                  : 'bg-card text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-slate-800 border-slate-200/80 dark:border-white/10'
+                  : 'bg-card text-foreground/80 hover:text-foreground hover:bg-muted border-border'
               }`}
             >
               <Icon className={`w-3 h-3 ${isActive ? 'text-white' : b.color}`} />

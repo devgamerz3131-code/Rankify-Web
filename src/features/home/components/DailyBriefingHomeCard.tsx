@@ -92,7 +92,7 @@ export const DailyBriefingHomeCard: React.FC = () => {
 
           {/* Top Priority Mission Highlight */}
           {topMission && (
-            <div className="p-3 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-purple-500/20 backdrop-blur-sm flex items-center justify-between gap-3 text-xs">
+            <div className="p-3 rounded-2xl bg-card border border-purple-500/20 flex items-center justify-between gap-3 text-xs">
               <div className="flex items-center gap-2.5 line-clamp-1">
                 <span className="px-2 py-0.5 rounded-md bg-rose-500/15 text-rose-600 dark:text-rose-400 font-mono text-[10px] font-bold uppercase shrink-0">
                   Top Priority
@@ -110,7 +110,7 @@ export const DailyBriefingHomeCard: React.FC = () => {
 
         {/* Right Metrics & Quick Launch */}
         <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full md:w-auto justify-between md:justify-end">
-          <div className="p-3 sm:p-3.5 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/10 text-center min-w-[76px] sm:min-w-[84px] shrink-0">
+          <div className="p-3 sm:p-3.5 rounded-2xl bg-card border border-border text-center min-w-[76px] sm:min-w-[84px] shrink-0">
             <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
               Readiness
             </span>

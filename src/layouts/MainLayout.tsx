@@ -6,7 +6,7 @@ import { ResponsiveHeader } from './ResponsiveHeader';
 import { Footer } from './Footer';
 import { AuthModal } from '@/features/auth/components/AuthModal';
 import { SearchModal } from '@/components/ui/search-modal';
-import { OfflineIndicator } from '@/components/common/offline-indicator';
+import { AutoSyncNotifier } from '@/components/common/AutoSyncNotifier';
 import { ToastProviderComponent } from '@/components/ui/toast';
 import { AnnouncementBanner } from '@/components/common/AnnouncementBanner';
 import { AppUpdateModal } from '@/components/common/AppUpdateModal';
@@ -15,7 +15,7 @@ import { useNavigation } from '@/contexts/NavigationContext';
 
 export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { impersonatedUser, stopImpersonation } = useAuth();
-  const { setActiveTab } = useNavigation();
+  const { activeTab, setActiveTab } = useNavigation();
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors duration-200">
@@ -55,10 +55,27 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
         <Sidebar />
 
         {/* Content Viewport */}
-        <main className="flex-1 flex flex-col px-4 sm:px-6 lg:px-8 py-6 pb-24 lg:pb-12 max-w-full overflow-hidden">
-          <ResponsiveHeader />
-          <div className="flex-1">{children}</div>
-          <Footer />
+        <main
+          style={
+            activeTab !== 'ai'
+              ? { paddingBottom: 'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px) + 16px)' }
+              : undefined
+          }
+          className={`flex-1 flex flex-col max-w-full overflow-hidden ${
+            activeTab === 'ai'
+              ? 'p-0 pb-0 lg:px-8 lg:py-6 lg:pb-12'
+              : 'px-4 sm:px-6 lg:px-8 py-6 lg:!pb-12'
+          }`}
+        >
+          {activeTab !== 'ai' ? (
+            <ResponsiveHeader />
+          ) : (
+            <div className="hidden lg:block">
+              <ResponsiveHeader />
+            </div>
+          )}
+          <div className="flex-1 flex flex-col min-h-0">{children}</div>
+          {activeTab !== 'ai' && <Footer />}
         </main>
       </div>
 
@@ -68,7 +85,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
       {/* Global Modals & System Components */}
       <AuthModal />
       <SearchModal />
-      <OfflineIndicator />
+      <AutoSyncNotifier />
       <ToastProviderComponent />
       <AppUpdateModal />
     </div>

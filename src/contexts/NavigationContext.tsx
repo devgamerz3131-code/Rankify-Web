@@ -1,8 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { NavRoute } from '@/types/navigation';
 import { CBSEClassNumber } from '@/types/cbse';
 import { safeLocalStorage } from '@/utils/storage';
 import { APP_CONFIG } from '@/constants/config';
+import { syncEngine, UserSessionState } from '@/services/sync-engine';
+import { useAuth } from '@/hooks/use-auth';
 
 export interface AiPromptPrefill {
   subject?: string;
@@ -28,11 +30,42 @@ export interface NavigationContextValue {
 export const NavigationContext = createContext<NavigationContextValue | null>(null);
 
 export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
+
   const [activeTab, setActiveTabState] = useState<NavRoute>(() => {
     if (typeof window === 'undefined') return 'home';
     const path = window.location.pathname.replace('/', '') as NavRoute;
-    const validTabs: NavRoute[] = ['home', 'command', 'briefing', 'formula', 'ncert', 'revision', 'brain', 'replay', 'study', 'practice', 'ai', 'progress', 'profile', 'settings', 'admin', 'mistakes', 'readiness', 'weakness'];
-    return validTabs.includes(path) ? path : 'home';
+    const validTabs: NavRoute[] = [
+      'home',
+      'study',
+      'ai',
+      'profile',
+      'ncert',
+      'settings',
+      'admin',
+      'mistakes',
+      'weakness',
+      'halfyearly',
+      'more',
+    ];
+    if (path && validTabs.includes(path)) return path;
+
+    // Check stored active tab from localStorage
+    try {
+      const storedTab = localStorage.getItem('rankify_last_active_tab') as NavRoute;
+      if (storedTab && validTabs.includes(storedTab)) {
+        return storedTab;
+      }
+      const rawSession = localStorage.getItem('rankify_cache_global_user_session');
+      if (rawSession) {
+        const parsed = JSON.parse(rawSession);
+        if (parsed.lastActiveTab && validTabs.includes(parsed.lastActiveTab as NavRoute)) {
+          return parsed.lastActiveTab as NavRoute;
+        }
+      }
+    } catch {}
+
+    return 'home';
   });
 
   const [selectedClass, setSelectedClassState] = useState<CBSEClassNumber>(() => {
@@ -42,12 +75,41 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [aiPrefill, setAiPrefill] = useState<AiPromptPrefill | null>(null);
 
-  // Sync URL hash or pathname with activeTab
+  // Restore user session tab on login
+  useEffect(() => {
+    if (user?.uid) {
+      const cached = syncEngine.getLocalCache<UserSessionState>('user_session', user.uid);
+      if (cached?.lastActiveTab && window.location.pathname === '/') {
+        setActiveTabState(cached.lastActiveTab as NavRoute);
+      }
+    }
+  }, [user?.uid]);
+
+  // Listen to remote session updates from another device
+  useEffect(() => {
+    const unsub = syncEngine.subscribeRemoteUpdates((path, data) => {
+      if (path === 'session' && data.lastActiveTab) {
+        setActiveTabState(data.lastActiveTab as NavRoute);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  // Sync URL hash or pathname with activeTab and auto-save session
   const setActiveTab = (tab: NavRoute) => {
     setActiveTabState(tab);
     if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('rankify_last_active_tab', tab);
+      } catch {}
       const newPath = tab === 'home' ? '/' : `/${tab}`;
       window.history.pushState(null, '', newPath);
+    }
+    if (user?.uid) {
+      syncEngine.saveSession(user.uid, {
+        lastActiveTab: tab,
+        lastOpenedFeature: tab,
+      });
     }
   };
 
@@ -61,7 +123,7 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   useEffect(() => {
     const handlePopState = () => {
       const path = window.location.pathname.replace('/', '') as NavRoute;
-      const validTabs: NavRoute[] = ['home', 'command', 'briefing', 'formula', 'ncert', 'revision', 'brain', 'replay', 'study', 'practice', 'ai', 'progress', 'profile', 'settings', 'admin', 'mistakes', 'readiness', 'weakness'];
+      const validTabs: NavRoute[] = ['home', 'study', 'ai', 'progress', 'profile', 'tools', 'command', 'briefing', 'formula', 'ncert', 'revision', 'brain', 'replay', 'practice', 'settings', 'admin', 'mistakes', 'readiness', 'weakness', 'halfyearly', 'more'];
       setActiveTabState(validTabs.includes(path) ? path : 'home');
     };
     window.addEventListener('popstate', handlePopState);

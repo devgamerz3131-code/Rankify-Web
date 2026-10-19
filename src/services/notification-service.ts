@@ -66,12 +66,15 @@ export class NotificationEngine {
   private async registerNotificationServiceWorker() {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
       try {
-        await navigator.serviceWorker.register('/sw-notifications.js', {
-          scope: '/',
-        });
-        console.log('[NotificationEngine] Custom background service worker registered successfully!');
-      } catch (err) {
-        console.warn('[NotificationEngine] Service worker registration ignored or failed:', err);
+        if (window.self !== window.top) return;
+        const existing = await navigator.serviceWorker.getRegistration('/');
+        if (!existing) {
+          await navigator.serviceWorker.register('/sw-notifications.js', {
+            scope: '/',
+          });
+        }
+      } catch {
+        // Silently ignore if service worker registration is blocked
       }
     }
   }
@@ -135,7 +138,11 @@ export class NotificationEngine {
     // Detect if the application is loaded inside an iframe (such as AI Studio preview container)
     const isIframe = window.self !== window.top;
 
-    if (!('Notification' in window)) {
+    if (
+      !('Notification' in window) ||
+      typeof window.Notification === 'undefined' ||
+      typeof window.Notification.requestPermission !== 'function'
+    ) {
       // Standard browser support fallback
       await this.saveSettings({ enabled: true, hasPromptedPermission: true });
       toast.success('In-App study alerts activated successfully!', { icon: '🔔' });
@@ -151,7 +158,7 @@ export class NotificationEngine {
         return true;
       }
 
-      const permission = await Notification.requestPermission();
+      const permission = await window.Notification.requestPermission();
       const granted = permission === 'granted';
       
       // Keep enabled as true in either case so in-app falling back is guaranteed to work
@@ -216,7 +223,8 @@ export class NotificationEngine {
       typeof window !== 'undefined' &&
       'serviceWorker' in navigator &&
       'Notification' in window &&
-      Notification.permission === 'granted'
+      typeof window.Notification !== 'undefined' &&
+      window.Notification.permission === 'granted'
     ) {
       try {
         const reg = await navigator.serviceWorker.getRegistration('/sw-notifications.js');
@@ -376,12 +384,16 @@ export class NotificationEngine {
   }
 
   private playNotificationChime() {
+    if (typeof window === 'undefined') return;
     try {
       const AudioCtx =
         window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!AudioCtx) return;
       const ctx = new AudioCtx();
+      if (ctx.state === 'suspended' && typeof ctx.resume === 'function') {
+        ctx.resume().catch(() => {});
+      }
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
@@ -393,6 +405,11 @@ export class NotificationEngine {
       gain.connect(ctx.destination);
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 0.3);
+      osc.onended = () => {
+        if (typeof ctx.close === 'function') {
+          ctx.close().catch(() => {});
+        }
+      };
     } catch {
       // User gesture bypass
     }

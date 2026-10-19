@@ -3,14 +3,17 @@ export type RootCauseType =
   | 'No Revision'
   | 'Formula Forgotten'
   | 'Concept Confusion'
+  | 'Concept Gap'
   | 'Calculation Errors'
+  | 'Calculation Slip'
+  | 'Revision Due'
   | 'Guessing Answers'
   | 'Skipping Numericals'
   | 'Incomplete Lecture'
   | 'Low NCERT Reading'
   | 'Poor Consistency';
 
-export type WeaknessLevel = 'Very Strong' | 'Strong' | 'Average' | 'Weak' | 'Critical';
+export type WeaknessLevel = 'Very Strong' | 'Strong' | 'Average' | 'Weak' | 'Critical' | 'Not started';
 
 export type WeaknessPriority = 'Critical' | 'High' | 'Medium' | 'Low' | 'No Revision Needed';
 
@@ -48,12 +51,12 @@ export interface ChapterWeaknessAnalysis {
   chapterName: string;
   subjectId: string; // 'physics' | 'chemistry' | 'mathematics'
   subjectName: string;
-  strengthScore: number; // 0 - 100
-  weaknessScore: number; // 0 - 100
+  strengthScore: number | null; // 0 - 100, or null if unattempted
+  weaknessScore: number | null; // 0 - 100, or null if unattempted
   confidence: number; // 0 - 100%
   revisionStatus: string; // e.g. "Overdue by 12 days", "Due in 2 days", "Up to Date"
   lastRevisedDaysAgo: number;
-  questionAccuracy: number; // 0 - 100%
+  questionAccuracy: number | null; // 0 - 100%, or null if unattempted
   formulaAccuracy: number; // 0 - 100%
   conceptAccuracy: number; // 0 - 100%
   weaknessLevel: WeaknessLevel;
@@ -77,10 +80,11 @@ export interface ChapterWeaknessAnalysis {
 export interface SubjectWeaknessSummary {
   subjectId: string;
   subjectName: string;
-  averageWeaknessScore: number; // 0 - 100
-  averageStrengthScore: number; // 0 - 100
+  averageWeaknessScore: number | null; // 0 - 100
+  averageStrengthScore: number | null; // 0 - 100
   criticalChaptersCount: number;
   weakChaptersCount: number;
+  attemptedChaptersCount?: number;
   totalChapters: number;
   dominantRootCause: RootCauseType;
   color: string;
@@ -89,33 +93,38 @@ export interface SubjectWeaknessSummary {
 export interface BehavioralAiInsight {
   id: string;
   title: string;
-  insight: string; // e.g. "You forget formulas after 6 days."
+  insight: string; // Real data statement e.g. "Accuracy in Physics is 58% vs 71% in Chemistry."
   behaviorCategory: 'retention' | 'timing' | 'accuracy' | 'study_pattern';
-  confidenceScore: number; // e.g. 92%
+  confidenceScore?: number; // Optional, no fake confidence
   actionSuggestion: string;
   iconType: 'clock' | 'brain' | 'zap' | 'sun' | 'moon' | 'activity';
 }
 
 export interface CognitiveRadarDimension {
-  dimension: string; // 'Theory Mastery' | 'Numerical Solving' | 'Formula Recall' | 'Memory Retention' | 'Pacing & Speed' | 'Consistency'
+  dimension: string; // Only computable dimensions
   score: number; // 0 - 100
-  benchmark: number; // e.g., 85 (topper benchmark)
+  benchmark: number; // Single labeled target
 }
 
 export interface WeaknessOverallData {
   userId: string;
-  overallWeaknessScore: number; // 0 - 100 (lower is better, 0 = no weaknesses)
-  overallHealthScore: number; // 100 - overallWeaknessScore
+  overallWeaknessScore: number | null; // 0 - 100 (null if 0 attempts)
+  overallHealthScore: number | null; // 100 - overallWeaknessScore (null if 0 attempts)
   strongestSubject: {
     name: string;
-    score: number;
+    score: number | null;
     subjectId: string;
-  };
+  } | null;
   weakestSubject: {
     name: string;
-    score: number;
+    score: number | null;
     subjectId: string;
-  };
+  } | null;
+  highestPriorityChapter?: {
+    name: string;
+    score: number | null;
+    chapterId: string;
+  } | null;
   needsImmediateAttentionCount: number;
   top3WeakChapters: ChapterWeaknessAnalysis[];
   allChapters: ChapterWeaknessAnalysis[];
@@ -133,6 +142,7 @@ export interface WeaknessOverallData {
     weaknessScore: number;
     recoveryRate: number;
   }[];
+  recoveryTrendSentence?: string;
   smartReminders: {
     id: string;
     title: string;

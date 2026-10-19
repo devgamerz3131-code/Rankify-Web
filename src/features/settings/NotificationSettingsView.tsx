@@ -29,18 +29,23 @@ export const NotificationSettingsView: React.FC = () => {
   const userId = user?.uid || 'guest';
 
   const [settings, setSettings] = useState<NotificationSettings>(() => notificationEngine.getSettings());
+  const isNotificationSupported =
+    typeof window !== 'undefined' &&
+    'Notification' in window &&
+    typeof window.Notification !== 'undefined' &&
+    typeof window.Notification.requestPermission === 'function';
+
   const [permissionState, setPermissionState] = useState<NotificationPermission>(() => {
     if (typeof window !== 'undefined') {
       const isIframe = window.self !== window.top;
       if (isIframe) return 'granted';
-      if ('Notification' in window) {
-        return Notification.permission;
+      if ('Notification' in window && typeof window.Notification !== 'undefined') {
+        return window.Notification.permission;
       }
     }
     return 'default';
   });
   const [isSyncing, setIsSyncing] = useState(false);
-  const isNotificationSupported = typeof window !== 'undefined' && 'Notification' in window;
 
   // Load preferences from Firebase / cache on mount
   useEffect(() => {
@@ -60,14 +65,16 @@ export const NotificationSettingsView: React.FC = () => {
 
   // Keep browser notification permission state up to date
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
+    if (typeof window !== 'undefined' && 'Notification' in window && typeof window.Notification !== 'undefined') {
       const isIframe = window.self !== window.top;
       if (isIframe) {
         setPermissionState('granted');
         return;
       }
       const interval = setInterval(() => {
-        setPermissionState(Notification.permission);
+        if ('Notification' in window && typeof window.Notification !== 'undefined') {
+          setPermissionState(window.Notification.permission);
+        }
       }, 1000);
       return () => clearInterval(interval);
     }
@@ -131,9 +138,9 @@ export const NotificationSettingsView: React.FC = () => {
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-950 via-slate-950 to-purple-950 p-6 sm:p-8 text-white shadow-2xl border border-indigo-500/20">
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-md px-3 py-1 text-xs font-semibold text-indigo-200 border border-white/15">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-indigo-200 border border-white/15">
               <Bell className="h-3 w-3 text-indigo-300" />
-              <span>Android Rankify Experience</span>
+              <span>Study Reminders & Alerts</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight flex items-center gap-2">
               <span>Notification Center</span>
@@ -142,7 +149,7 @@ export const NotificationSettingsView: React.FC = () => {
               )}
             </h1>
             <p className="text-xs text-indigo-100/80 max-w-2xl font-medium">
-              Configure system alerts, study reminders, savage motivators, and exam countdown frequencies to keep your CBSE PCM preparation fully on track.
+              Configure system alerts, study reminders, daily motivation, and exam countdown frequencies to keep your CBSE preparation on track.
             </p>
           </div>
 
@@ -156,9 +163,6 @@ export const NotificationSettingsView: React.FC = () => {
             <span>Send Test Notification</span>
           </Button>
         </div>
-
-        {/* Ambient Glow */}
-        <div className="absolute -right-20 -bottom-20 w-64 h-64 rounded-full bg-purple-500/10 blur-3xl pointer-events-none" />
       </div>
 
       {/* SYSTEM PERMISSION CARD */}
@@ -184,12 +188,12 @@ export const NotificationSettingsView: React.FC = () => {
               </h4>
               <p className="text-xs text-muted-foreground leading-relaxed max-w-xl">
                 {!isNotificationSupported
-                  ? 'Your browser does not support desktop notifications. Rankify will instead deliver beautiful in-app study alerts and motivational toasts to defend your streak!'
+                  ? 'Reminders need the app installed on your home screen (iPhone) or notification permission (Android). In-app study alerts remain active while you use Rankify.'
                   : permissionState === 'granted'
-                  ? 'Rankify is fully authorized to send high-priority board exam targets and streak reminders directly to your browser desktop.'
+                  ? 'Rankify is authorized to send study targets and streak reminders to your device.'
                   : permissionState === 'denied'
-                  ? 'System alerts are blocked. You will see gentle in-app toasts, but we highly recommend enabling browser-level notifications to defend your streak.'
-                  : 'Get instant study reminders and organic chemistry prompts directly even if the site is in the background.'}
+                  ? 'Reminders need the app installed on your home screen (iPhone) or notification permission (Android). Enable notifications in your browser settings to receive background alerts.'
+                  : 'Get study reminders and revision prompts directly on your device.'}
               </p>
             </div>
 
@@ -283,8 +287,8 @@ export const NotificationSettingsView: React.FC = () => {
                         <div className="flex items-start gap-3">
                           <Sparkles className="w-4 h-4 text-amber-500 mt-1 shrink-0" />
                           <div className="space-y-0.5">
-                            <span className="text-xs font-bold text-foreground">Daily Motivation & Roast Engine</span>
-                            <p className="text-[10px] text-muted-foreground">Get Savage, Funny, or high-focus board exam quotes.</p>
+                            <span className="text-xs font-bold text-foreground">Daily Study Motivation</span>
+                            <p className="text-[10px] text-muted-foreground">Get direct, light-hearted, or exam-focused study quotes.</p>
                           </div>
                         </div>
                         <button
@@ -378,8 +382,8 @@ export const NotificationSettingsView: React.FC = () => {
                         <div className="flex items-start gap-3">
                           <TrendingUp className="w-4 h-4 text-indigo-500 mt-1 shrink-0" />
                           <div className="space-y-0.5">
-                            <span className="text-xs font-bold text-foreground">Rankify OS Updates</span>
-                            <p className="text-[10px] text-muted-foreground">Immediate alerts about newly shipped features & materials.</p>
+                            <span className="text-xs font-bold text-foreground">Feature & Content Updates</span>
+                            <p className="text-[10px] text-muted-foreground">Alerts about new study features and practice materials.</p>
                           </div>
                         </div>
                         <button

@@ -49,6 +49,10 @@ export {
   History,
   RotateCcw,
   Zap,
+  LayoutGrid,
+  Grid,
+  MoreHorizontal,
+  Rocket,
 } from 'lucide-react';
 
 export const RankifyLogo: React.FC<{ className?: string; size?: number }> = ({

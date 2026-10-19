@@ -18,6 +18,7 @@ export interface UserProfile {
   targetExam?: string;
   onboardingCompleted?: boolean;
   onboardingStep?: number;
+  studyJourneyCompleted?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

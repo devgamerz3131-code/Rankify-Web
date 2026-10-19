@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Share2, Check, Copy, Flame, Award, Calendar, Clock, X, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { analytics } from '@/services/analytics';
+import { copyTextToClipboard, isWebShareSupported } from '@/utils/browser-compat';
 import toast from 'react-hot-toast';
 
 export type ShareCardType = 'progress' | 'streak' | 'achievement' | 'countdown';
@@ -54,7 +55,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
     const text = getShareText();
     analytics.track('share_card_generated', { card_type: selectedType });
 
-    if (typeof navigator !== 'undefined' && navigator.share) {
+    if (isWebShareSupported()) {
       try {
         await navigator.share({
           title: 'My CBSE Class 12 Progress on Rankify',
@@ -63,24 +64,24 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
         });
         toast.success('Shared successfully!');
         return;
-      } catch (e) {
+      } catch {
         // Fallback to clipboard
       }
     }
 
-    try {
-      await navigator.clipboard.writeText(text);
+    const ok = await copyTextToClipboard(text);
+    if (ok) {
       setCopied(true);
       toast.success('Share card text copied to clipboard!');
       setTimeout(() => setCopied(false), 2500);
-    } catch {
+    } else {
       toast.error('Failed to copy to clipboard');
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-card border border-slate-200/90 dark:border-white/10 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-5">
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-card border border-border rounded-2xl p-6 sm:p-7 shadow-2xl space-y-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-foreground font-black text-base">
             <Share2 className="w-5 h-5 text-purple-600" />

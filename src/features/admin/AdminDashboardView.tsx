@@ -16,6 +16,8 @@ import {
 import toast from 'react-hot-toast';
 import { briefingService } from '@/services/briefing-service';
 import { BriefingTone } from '@/types/briefing';
+import { questionGeneratorService } from '@/services/question-generator-service';
+import { productionInitService, InitializationReport } from '@/services/production-initialization';
 
 // Type definitions for administrative tracking
 interface StudentData {
@@ -69,7 +71,7 @@ export const AdminDashboardView: React.FC = () => {
 
   // Navigation state (left desktop sidebar tab navigation)
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'students' | 'broadcasting' | 'remote' | 'content' | 'exports' | 'security' | 'weakness' | 'replay' | 'brain' | 'command' | 'revision' | 'ncert' | 'formula' | 'briefing'
+    'overview' | 'students' | 'broadcasting' | 'remote' | 'content' | 'exports' | 'security' | 'weakness' | 'replay' | 'brain' | 'command' | 'revision' | 'ncert' | 'formula' | 'briefing' | 'question-gen'
   >('overview');
 
   // Privacy controls for student timeline inspection
@@ -81,6 +83,17 @@ export const AdminDashboardView: React.FC = () => {
   const [students, setStudents] = useState<StudentData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [showInitModal, setShowInitModal] = useState(false);
+  const [initConfirmText, setInitConfirmText] = useState('');
+  const [isInitializing, setIsInitializing] = useState(false);
+  const [lastInitReport, setLastInitReport] = useState<InitializationReport | null>(() => {
+    try {
+      const raw = localStorage.getItem('rankify_last_init_report');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
 
   // Bulk action selection state
   const [selectedStudentUids, setSelectedStudentUids] = useState<string[]>([]);
@@ -127,7 +140,6 @@ export const AdminDashboardView: React.FC = () => {
   const [aiEnabled, setAiEnabled] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [smartPlanEnabled, setSmartPlanEnabled] = useState(true);
-  const [lectureLabEnabled, setLectureLabEnabled] = useState(true);
   const [serverMessage, setServerMessage] = useState("System metrics are running nominal. Good luck with your study schedules!");
 
   // Simulated Audit logs
@@ -565,6 +577,97 @@ export const AdminDashboardView: React.FC = () => {
     toast.success(`Immediate push notification broadcasted to background service workers!`);
   };
 
+  // Production Initialization & Fresh Start Handlers
+  const handleExecuteProductionInit = async () => {
+    if (!currentAdmin?.uid) return;
+    if (initConfirmText !== 'CONFIRM_INITIALIZE') {
+      toast.error('Please type CONFIRM_INITIALIZE exactly to proceed.');
+      return;
+    }
+    setIsInitializing(true);
+    const toastId = toast.loading('Initializing production database & wiping demo content...');
+    const result = await productionInitService.initializeProductionDatabase(currentAdmin.uid);
+    setIsInitializing(false);
+    setShowInitModal(false);
+    setInitConfirmText('');
+
+    if (result.success && result.report) {
+      setLastInitReport(result.report);
+      setStudents((prev) => prev.filter((s) => s.role === 'admin'));
+      toast.success('Production database initialized! All student state reset to clean zero.', {
+        id: toastId,
+      });
+      const newLog: AuditLog = {
+        id: `log_${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        adminEmail: currentAdmin?.email || 'admin@rankify.in',
+        action: 'Initialized Production Database (Fresh Start)',
+        targetUser: 'Global System',
+        status: 'critical',
+      };
+      setAuditLogs([newLog, ...auditLogs]);
+    } else {
+      toast.error(result.error || 'Failed to initialize production database', { id: toastId });
+    }
+  };
+
+  const handleResetDemoDataOnly = async () => {
+    if (!currentAdmin?.uid) return;
+    setIsSyncing(true);
+    const res = await productionInitService.resetDemoData(currentAdmin.uid);
+    setIsSyncing(false);
+    if (res.success) {
+      setStudents((prev) => prev.filter((s) => !s.uid.startsWith('stud_')));
+      toast.success(`Demo records cleared (${res.count} accounts).`);
+    } else {
+      toast.error(res.error || 'Failed to reset demo data');
+    }
+  };
+
+  const handleResetTestAccountsOnly = async () => {
+    if (!currentAdmin?.uid) return;
+    setIsSyncing(true);
+    const res = await productionInitService.resetTestAccounts(currentAdmin.uid);
+    setIsSyncing(false);
+    if (res.success) {
+      setStudents((prev) => prev.filter((s) => !s.uid.startsWith('test_')));
+      toast.success(`Test student records removed (${res.count} accounts).`);
+    } else {
+      toast.error(res.error || 'Failed to reset test accounts');
+    }
+  };
+
+  const handleCreateSampleStudentOnly = async () => {
+    if (!currentAdmin?.uid) return;
+    setIsSyncing(true);
+    const res = await productionInitService.createSampleStudent(currentAdmin.uid);
+    setIsSyncing(false);
+    if (res.success) {
+      toast.success('Clean sample student created (0 study minutes, 0 streak).');
+    } else {
+      toast.error(res.error || 'Failed to create sample student');
+    }
+  };
+
+  const handleExportInitReport = () => {
+    if (!lastInitReport) {
+      toast.error('No initialization report found yet. Initialize production first.');
+      return;
+    }
+    const blob = new Blob([JSON.stringify(lastInitReport, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Rankify_Production_Init_Report_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.setTimeout(() => URL.revokeObjectURL(url), 10000);
+    toast.success('Production Initialization Report exported!');
+  };
+
   // Trigger Local backups creation
   const handleBackupFirestore = () => {
     toast.loading("Sieving Firestore document schemas...", { duration: 1500 });
@@ -599,7 +702,7 @@ export const AdminDashboardView: React.FC = () => {
   };
 
   // Toggle multiple remote feature flags
-  const handleToggleRemoteFeature = (flagName: 'ai' | 'notifications' | 'smartplan' | 'lecturelab') => {
+  const handleToggleRemoteFeature = (flagName: 'ai' | 'notifications' | 'smartplan') => {
     if (flagName === 'ai') {
       const next = !aiEnabled;
       setAiEnabled(next);
@@ -611,20 +714,12 @@ export const AdminDashboardView: React.FC = () => {
     } else if (flagName === 'smartplan') {
       setSmartPlanEnabled(!smartPlanEnabled);
       toast.success(`SmartPlan templates globally toggled to: ${!smartPlanEnabled ? 'ENABLED' : 'DISABLED'}`);
-    } else if (flagName === 'lecturelab') {
-      setLectureLabEnabled(!lectureLabEnabled);
-      toast.success(`LectureLab analytics globally toggled to: ${!lectureLabEnabled ? 'ENABLED' : 'DISABLED'}`);
     }
   };
 
   // Filter & Sort students based on search fields, select parameters, and sort rules
   const filteredStudents = useMemo(() => {
-    const defaultList = students.length > 0 ? students : [
-      { uid: "stud_topper1", displayName: "Aarav Sharma", email: "aarav.topper@gmail.com", cbseClass: 12, board: "CBSE", preferredLanguage: "English", status: "active", streak: 15, totalStudyMinutes: 2450, accuracy: 94, hasPremium: true, createdAt: "2026-08-15T09:00:00Z" },
-      { uid: "stud_topper2", displayName: "Ananya Iyer", email: "ananya.iyer@science.org", cbseClass: 12, board: "CBSE", preferredLanguage: "Hinglish", status: "active", streak: 22, totalStudyMinutes: 3820, accuracy: 89, hasPremium: false, createdAt: "2026-08-20T10:15:00Z" },
-      { uid: "stud_pcm3", displayName: "Kabir Verma", email: "kabir.verma@pcm.co.in", cbseClass: 12, board: "CBSE", preferredLanguage: "Hindi", status: "suspended", streak: 0, totalStudyMinutes: 1200, accuracy: 72, hasPremium: false, createdAt: "2026-09-01T14:20:00Z" },
-      { uid: "stud_pcm4", displayName: "Meera Nair", email: "meera.nair@live.com", cbseClass: 12, board: "ICSE", preferredLanguage: "English", status: "active", streak: 8, totalStudyMinutes: 1980, accuracy: 84, hasPremium: true, createdAt: "2026-09-10T08:35:00Z" }
-    ] as StudentData[];
+    const defaultList = students;
 
     let list = defaultList.filter(s => {
       // 1. Search Query (includes Phone)
@@ -768,6 +863,7 @@ export const AdminDashboardView: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    window.setTimeout(() => URL.revokeObjectURL(url), 10000);
   };
 
   return (
@@ -779,7 +875,7 @@ export const AdminDashboardView: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center pointer-events-auto"
+            className="fixed inset-0 z-50 bg-slate-950/40 flex items-center justify-center pointer-events-auto"
           >
             <div className="bg-slate-900 border border-indigo-500/30 p-5 rounded-3xl flex items-center gap-3 shadow-2xl text-white">
               <RefreshCw className="w-5 h-5 text-indigo-400 animate-spin shrink-0" />
@@ -812,6 +908,15 @@ export const AdminDashboardView: React.FC = () => {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => setShowInitModal(true)}
+              className="h-9 px-4 rounded-xl border-rose-500/40 bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 font-bold text-xs"
+            >
+              <RotateCcw className="w-3.5 h-3.5 mr-1.5 text-rose-400" />
+              <span>Initialize Production DB</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={seedDemoStudents}
               className="h-9 px-4 rounded-xl border-white/10 bg-white/5 hover:bg-white/15 text-white font-bold text-xs"
             >
@@ -827,9 +932,6 @@ export const AdminDashboardView: React.FC = () => {
             </button>
           </div>
         </div>
-
-        {/* Decorative backdrop blobs */}
-        <div className="absolute -right-24 -bottom-24 w-80 h-80 rounded-full bg-purple-500/10 blur-3xl pointer-events-none" />
       </div>
 
       {/* Main Grid: Responsive Sidebar Navigation (left) + Tab Contents (right) */}
@@ -856,6 +958,7 @@ export const AdminDashboardView: React.FC = () => {
             { id: 'ncert', label: 'NCERT Reading Analytics', icon: BookOpen },
             { id: 'formula', label: 'Formula Telemetry', icon: Zap },
             { id: 'briefing', label: 'AI Briefing Analytics', icon: Sparkles },
+            { id: 'question-gen', label: 'Question Gen Telemetry', icon: Target },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -1197,7 +1300,16 @@ export const AdminDashboardView: React.FC = () => {
 
               {/* Student Cards Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredStudents.map((stud) => {
+                {filteredStudents.length === 0 ? (
+                  <div className="col-span-full p-12 text-center rounded-3xl border border-dashed border-slate-200 dark:border-white/10 text-muted-foreground space-y-2 bg-card">
+                    <Users className="w-8 h-8 mx-auto text-purple-400 opacity-60 mb-1" />
+                    <p className="text-sm font-bold text-foreground">Clean Production Slate: 0 Students Registered</p>
+                    <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                      No students currently in database. New candidates will appear here automatically upon registration and completing onboarding with their unique Study DNA.
+                    </p>
+                  </div>
+                ) : (
+                  filteredStudents.map((stud) => {
                   const isOnline = stud.isOnline ?? false;
                   const isSuspended = stud.status === 'suspended';
                   const isPremium = stud.hasPremium ?? false;
@@ -1274,7 +1386,7 @@ export const AdminDashboardView: React.FC = () => {
                       </div>
                     </div>
                   );
-                })}
+                }))}
               </div>
 
               {/* STUDENT PROFILE DETAILED AUDIT MODAL */}
@@ -1284,7 +1396,7 @@ export const AdminDashboardView: React.FC = () => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-end pointer-events-auto p-4"
+                    className="fixed inset-0 z-50 bg-slate-950/80 flex items-center justify-end pointer-events-auto p-4"
                   >
                     <motion.div
                       initial={{ x: 100 }}
@@ -1357,7 +1469,7 @@ export const AdminDashboardView: React.FC = () => {
                           {/* Completed */}
                           <div className="space-y-1.5">
                             <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">🎓 Completed Chapters</span>
-                            <div className="text-xs text-foreground font-semibold bg-white dark:bg-slate-950 p-2.5 rounded-xl space-y-1">
+                            <div className="text-xs text-card-foreground font-semibold bg-card border border-border p-2.5 rounded-xl space-y-1">
                               <div>• {selectedStudent.strongestChapter || 'Matrices'}</div>
                               <div>• Electric Charges and Fields</div>
                             </div>
@@ -1366,7 +1478,7 @@ export const AdminDashboardView: React.FC = () => {
                           {/* Needs Focus */}
                           <div className="space-y-1.5">
                             <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider block">⚠️ Needs Focus Chapters</span>
-                            <div className="text-xs text-foreground font-semibold bg-white dark:bg-slate-950 p-2.5 rounded-xl space-y-1">
+                            <div className="text-xs text-card-foreground font-semibold bg-card border border-border p-2.5 rounded-xl space-y-1">
                               <div>• {selectedStudent.weakestChapter || 'Ray Optics'}</div>
                               <div>• Aldehydes, Ketones</div>
                             </div>
@@ -1389,15 +1501,15 @@ export const AdminDashboardView: React.FC = () => {
                         </div>
 
                         <div className="grid grid-cols-3 gap-2 text-center">
-                          <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-indigo-500/15">
+                          <div className="p-2 rounded-xl bg-card border border-border text-card-foreground">
                             <span className="text-[10px] text-muted-foreground block">Physics</span>
                             <span className="font-mono font-bold text-xs text-foreground">82%</span>
                           </div>
-                          <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-indigo-500/15">
+                          <div className="p-2 rounded-xl bg-card border border-border text-card-foreground">
                             <span className="text-[10px] text-muted-foreground block">Chemistry</span>
                             <span className="font-mono font-bold text-xs text-foreground">79%</span>
                           </div>
-                          <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-indigo-500/15">
+                          <div className="p-2 rounded-xl bg-card border border-border text-card-foreground">
                             <span className="text-[10px] text-muted-foreground block">Mathematics</span>
                             <span className="font-mono font-bold text-xs text-foreground">88%</span>
                           </div>
@@ -1795,19 +1907,6 @@ export const AdminDashboardView: React.FC = () => {
                     </button>
                   </div>
 
-                  {/* LectureLab analytics */}
-                  <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl flex items-center justify-between border border-slate-100 dark:border-white/5">
-                    <div className="space-y-0.5">
-                      <span className="text-xs font-bold block text-foreground">LectureLab Module</span>
-                      <p className="text-[10px] text-muted-foreground">Video syllabus extractors toggler</p>
-                    </div>
-                    <button
-                      onClick={() => handleToggleRemoteFeature('lecturelab')}
-                      className={`w-10 h-6.5 rounded-full transition-all flex items-center p-0.5 cursor-pointer ${lectureLabEnabled ? 'bg-purple-600 justify-end' : 'bg-slate-300 justify-start'}`}
-                    >
-                      <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
-                    </button>
-                  </div>
                 </div>
               </div>
 
@@ -2007,6 +2106,77 @@ export const AdminDashboardView: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               className="space-y-6"
             >
+              {/* Production Database Initialization & Fresh Start Engine */}
+              <div className="p-6 rounded-3xl border border-rose-500/30 bg-gradient-to-br from-rose-950/20 via-card to-card space-y-5 shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[10px] font-black uppercase tracking-wider border border-rose-500/20">
+                      <ShieldAlert className="w-3 h-3" />
+                      <span>Super Admin Production Fresh Start</span>
+                    </div>
+                    <h3 className="font-extrabold text-base text-foreground flex items-center gap-2">
+                      <RotateCcw className="w-4 h-4 text-rose-500" />
+                      <span>Initialize Production Database</span>
+                    </h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed max-w-xl">
+                      Wipes all demo accounts, test student profiles, sample streaks, fake analytics, and generated test progress. Keeps Super Admin accounts, Firebase rules, and system configurations intact.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => setShowInitModal(true)}
+                    className="h-10 px-5 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs cursor-pointer shadow-lg shadow-rose-600/25 flex items-center gap-2 shrink-0 transition-transform active:scale-95"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Initialize Production Database</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 pt-1 border-t border-slate-100 dark:border-white/5">
+                  <button
+                    onClick={handleResetDemoDataOnly}
+                    className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-white/5 hover:border-purple-500/40 transition text-left cursor-pointer space-y-0.5"
+                  >
+                    <span className="text-xs font-bold text-foreground block">Reset Demo Data</span>
+                    <span className="text-[10px] text-muted-foreground block">Delete stud_topper demo records</span>
+                  </button>
+
+                  <button
+                    onClick={handleResetTestAccountsOnly}
+                    className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-white/5 hover:border-purple-500/40 transition text-left cursor-pointer space-y-0.5"
+                  >
+                    <span className="text-xs font-bold text-foreground block">Reset Test Accounts</span>
+                    <span className="text-[10px] text-muted-foreground block">Clean test_ accounts & sandbox</span>
+                  </button>
+
+                  <button
+                    onClick={handleCreateSampleStudentOnly}
+                    className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-white/5 hover:border-purple-500/40 transition text-left cursor-pointer space-y-0.5"
+                  >
+                    <span className="text-xs font-bold text-foreground block">Create Sample Student</span>
+                    <span className="text-[10px] text-muted-foreground block">Fresh candidate starting from zero</span>
+                  </button>
+
+                  <button
+                    onClick={handleExportInitReport}
+                    className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-white/5 hover:border-purple-500/40 transition text-left cursor-pointer space-y-0.5"
+                  >
+                    <span className="text-xs font-bold text-foreground block">Export Init Report</span>
+                    <span className="text-[10px] text-muted-foreground block">Audit report & verification JSON</span>
+                  </button>
+                </div>
+
+                {lastInitReport && (
+                  <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      <span>Production Database Initialized on {new Date(lastInitReport.initializedAt).toLocaleString()}</span>
+                    </div>
+                    <span className="font-mono text-[10px] font-bold uppercase">{lastInitReport.status}</span>
+                  </div>
+                )}
+              </div>
+
               {/* Database Backup Trigger */}
               <div className="p-6 rounded-3xl border border-slate-200 dark:border-white/10 bg-card space-y-4 shadow-xs">
                 <h3 className="font-extrabold text-sm text-foreground flex items-center gap-1.5">
@@ -2146,7 +2316,7 @@ export const AdminDashboardView: React.FC = () => {
                       >
                         <div className="space-y-0.5">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-mono font-bold text-slate-400">#{idx + 1}</span>
+                            <span className="font-mono font-bold text-muted-foreground">#{idx + 1}</span>
                             <span className="font-extrabold text-foreground">{item.chapter}</span>
                             <span className="text-[10px] text-muted-foreground">({item.subject})</span>
                           </div>
@@ -2608,10 +2778,10 @@ export const AdminDashboardView: React.FC = () => {
                           ) : (
                             <div className="p-2.5 rounded-xl bg-slate-200/40 dark:bg-slate-800/40 border border-slate-200 dark:border-white/5 text-muted-foreground flex items-center justify-between">
                               <span className="text-xs italic flex items-center gap-1.5">
-                                <Lock className="w-3 h-3 text-slate-400" />
+                                <Lock className="w-3 h-3 text-muted-foreground" />
                                 <span>[Encrypted Student Reflection Note — Hidden for Privacy]</span>
                               </span>
-                              <span className="text-[10px] text-slate-400 font-mono">Protected</span>
+                              <span className="text-[10px] text-muted-foreground font-mono">Protected</span>
                             </div>
                           )}
                         </div>
@@ -3995,8 +4165,263 @@ export const AdminDashboardView: React.FC = () => {
             </motion.div>
           )}
 
+          {/* TAB: SMART QUESTION GENERATOR ENGINE TELEMETRY */}
+          {activeTab === 'question-gen' && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-6"
+            >
+              {/* Header Card */}
+              <div className="p-6 rounded-3xl bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-950 border border-purple-500/30 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                      <Target className="w-4 h-4" />
+                    </span>
+                    <span className="text-xs font-bold text-purple-300 uppercase tracking-wider">
+                      Anonymous Learning Analytics
+                    </span>
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-black">
+                    Smart Question Generator Engine Telemetry
+                  </h3>
+                  <p className="text-xs text-purple-200/80 max-w-xl">
+                    Live anonymous aggregation of student practice patterns, most attempted syllabus chapters, high-difficulty conceptual bottlenecks, and adaptive level-shifting dynamics.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-2xl bg-white/10 border border-white/10 text-right">
+                    <div className="text-2xl font-black text-emerald-400 font-mono">
+                      {questionGeneratorService.getAdminAnalytics().averageAccuracy}%
+                    </div>
+                    <div className="text-[10px] text-purple-200 uppercase font-bold">Cohort Avg Accuracy</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4 Summary Stat Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="p-4 rounded-2xl bg-card border border-slate-200/80 dark:border-white/10">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Layers className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Questions Generated</span>
+                  </div>
+                  <div className="text-2xl font-black font-mono text-foreground mt-1">
+                    {questionGeneratorService.getAdminAnalytics().totalQuestionsGenerated.toLocaleString()}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Across CBSE PCM cohorts</p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-card border border-slate-200/80 dark:border-white/10">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Users className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Active Practicing Students</span>
+                  </div>
+                  <div className="text-2xl font-black font-mono text-blue-600 mt-1">
+                    {questionGeneratorService.getAdminAnalytics().activePracticeStudentsToday}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Active today in drills</p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-card border border-slate-200/80 dark:border-white/10">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Award className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Average Accuracy</span>
+                  </div>
+                  <div className="text-2xl font-black font-mono text-emerald-600 mt-1">
+                    {questionGeneratorService.getAdminAnalytics().averageAccuracy}%
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Target benchmark: 75%+</p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-card border border-slate-200/80 dark:border-white/10">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Zap className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Adaptive Shifts</span>
+                  </div>
+                  <div className="text-2xl font-black font-mono text-amber-500 mt-1">
+                    94.2%
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Real-time recalibration</p>
+                </div>
+              </div>
+
+              {/* 2 Main Anonymous Data Tables */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                {/* 1. Most Attempted Chapters */}
+                <div className="p-5 rounded-3xl bg-card border border-slate-200/80 dark:border-white/10 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="w-4 h-4 text-purple-600" />
+                      <h4 className="font-bold text-sm text-foreground">Most Attempted Chapters</h4>
+                    </div>
+                    <span className="text-[10px] font-bold text-purple-600 bg-purple-500/10 px-2 py-0.5 rounded-full">
+                      CBSE High-Yield
+                    </span>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {questionGeneratorService.getAdminAnalytics().mostAttemptedChapters.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/70 dark:border-white/5 flex items-center justify-between gap-3 text-xs"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="w-5 h-5 rounded-full bg-purple-500/20 text-purple-600 font-bold font-mono flex items-center justify-center text-[10px]">
+                            {idx + 1}
+                          </span>
+                          <div>
+                            <span className="font-bold text-foreground block">{item.chapter}</span>
+                            <span className="text-[10px] text-muted-foreground font-mono">
+                              {item.attempts.toLocaleString()} questions generated
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="text-right font-mono">
+                          <span className={`font-bold ${item.avgAccuracy >= 80 ? 'text-emerald-600' : item.avgAccuracy >= 70 ? 'text-amber-600' : 'text-rose-600'}`}>
+                            {item.avgAccuracy}% Acc
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 2. Most Difficult Topics (High Failure Rate) */}
+                <div className="p-5 rounded-3xl bg-card border border-slate-200/80 dark:border-white/10 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-rose-500" />
+                      <h4 className="font-bold text-sm text-foreground">Most Difficult Topics</h4>
+                    </div>
+                    <span className="text-[10px] font-bold text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded-full">
+                      Concept Bottlenecks
+                    </span>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {questionGeneratorService.getAdminAnalytics().mostDifficultTopics.map((topic, idx) => (
+                      <div
+                        key={idx}
+                        className="p-3.5 rounded-2xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200/60 dark:border-rose-900/30 flex items-center justify-between gap-3 text-xs"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-purple-600 uppercase font-mono">
+                              {topic.subject}
+                            </span>
+                          </div>
+                          <span className="font-bold text-foreground block mt-0.5">
+                            {topic.topic}
+                          </span>
+                        </div>
+
+                        <div className="text-right">
+                          <span className="font-mono font-bold text-rose-600 bg-rose-500/10 px-2 py-0.5 rounded-lg border border-rose-500/20">
+                            {topic.failureRate}% Fail
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
         </div>
       </div>
+
+      {/* Production Initialization Confirmation Modal */}
+      {showInitModal && (
+        <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4">
+          <div className="bg-card border border-rose-500/40 rounded-3xl p-6 sm:p-7 max-w-lg w-full space-y-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2.5 text-rose-500">
+                <div className="w-10 h-10 rounded-2xl bg-rose-500/10 flex items-center justify-center shrink-0 border border-rose-500/20">
+                  <ShieldAlert className="w-5 h-5 text-rose-500" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base text-foreground">Initialize Production Database?</h3>
+                  <p className="text-[11px] text-muted-foreground">Irreversible Super Admin Action</p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  setShowInitModal(false);
+                  setInitConfirmText('');
+                }}
+                className="p-1 rounded-xl text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-700 dark:text-rose-300 space-y-1.5 leading-relaxed">
+              <p className="font-bold">⚠️ Warning: This will permanently wipe all:</p>
+              <ul className="list-disc pl-4 space-y-0.5 text-[11px]">
+                <li>Demo students & fake progress</li>
+                <li>Sample study statistics & streaks</li>
+                <li>Sample AI conversations & memory</li>
+                <li>Sample mock test attempts & bookmarks</li>
+              </ul>
+              <p className="font-medium pt-1">
+                Admin accounts, Firebase security rules, and remote configs will remain 100% safe.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-foreground block">
+                Type <span className="font-mono text-rose-500 font-extrabold select-all">CONFIRM_INITIALIZE</span> to confirm:
+              </label>
+              <input
+                type="text"
+                value={initConfirmText}
+                onChange={(e) => setInitConfirmText(e.target.value)}
+                placeholder="CONFIRM_INITIALIZE"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-white/10 bg-background text-xs font-mono font-bold text-foreground focus:outline-rose-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setShowInitModal(false);
+                  setInitConfirmText('');
+                }}
+                className="text-xs font-bold rounded-xl cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                disabled={initConfirmText !== 'CONFIRM_INITIALIZE' || isInitializing}
+                onClick={handleExecuteProductionInit}
+                className="text-xs font-bold rounded-xl cursor-pointer gap-2"
+              >
+                {isInitializing ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Initializing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Wipe Demo Data & Initialize</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

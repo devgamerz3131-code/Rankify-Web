@@ -33,7 +33,7 @@ export const RevisionModeModal: React.FC<RevisionModeModalProps> = ({
   const { revisionPack } = chapter;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 select-none">
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3 sm:p-4 select-none">
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -71,7 +71,7 @@ export const RevisionModeModal: React.FC<RevisionModeModalProps> = ({
               className={`px-3 py-2 rounded-2xl font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeMode === mode.id
                   ? 'bg-purple-600 text-white shadow-sm'
-                  : 'bg-white dark:bg-slate-800 text-muted-foreground hover:text-foreground border border-slate-200/60 dark:border-white/5'
+                  : 'bg-card text-muted-foreground hover:text-foreground border border-border'
               }`}
             >
               <span>{mode.label}</span>
@@ -180,7 +180,7 @@ export const RevisionModeModal: React.FC<RevisionModeModalProps> = ({
                     </span>
                     <div className="space-y-2">
                       {item.vitalDefinitions.map((def, dIdx) => (
-                        <div key={dIdx} className="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-white/5 leading-relaxed text-foreground">
+                        <div key={dIdx} className="p-2.5 rounded-xl bg-card border border-border leading-relaxed text-card-foreground">
                           {def}
                         </div>
                       ))}

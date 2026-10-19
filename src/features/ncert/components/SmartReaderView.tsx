@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   NcertChapter,
@@ -42,6 +42,9 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useNavigation } from '@/contexts/NavigationContext';
+import { useTheme } from '@/hooks/use-theme';
+
+type HighlightColor = 'yellow' | 'green' | 'pink' | 'blue' | 'purple';
 
 interface SmartReaderViewProps {
   chapter: NcertChapter;
@@ -64,7 +67,8 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
   >('explain');
 
   // Reader Preferences
-  const [theme, setTheme] = useState<ReaderTheme>('light');
+  const { resolvedTheme } = useTheme();
+  const [theme, setTheme] = useState<ReaderTheme>(() => (resolvedTheme === 'dark' ? 'dark' : 'light'));
   const [fontSize, setFontSize] = useState<ReaderFontSize>('medium');
   const [voiceSpeed, setVoiceSpeed] = useState<number>(1.0);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -80,6 +84,49 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
 
   // Local caching & subscriptions
   const [state, setState] = useState(() => ncertService.getCachedState());
+  const topicTabsRef = useRef<HTMLDivElement>(null);
+  const inspectorTabsRef = useRef<HTMLDivElement>(null);
+
+  const syncScrollFade = useCallback((el: HTMLDivElement | null) => {
+    if (!el) return;
+    el.setAttribute('data-fade-left', el.scrollLeft > 4 ? 'true' : 'false');
+    el.setAttribute(
+      'data-fade-right',
+      el.scrollLeft + el.clientWidth < el.scrollWidth - 4 ? 'true' : 'false'
+    );
+  }, []);
+
+  useEffect(() => {
+    const el = topicTabsRef.current;
+    if (!el) return;
+    const activeBtn = el.querySelector('[data-active="true"]') as HTMLElement | null;
+    if (activeBtn && el.scrollWidth > el.clientWidth) {
+      const targetLeft = activeBtn.offsetLeft - el.clientWidth / 2 + activeBtn.clientWidth / 2;
+      el.scrollTo({ left: Math.max(0, targetLeft), behavior: 'smooth' });
+    }
+    syncScrollFade(el);
+  }, [selectedTopicIndex, syncScrollFade]);
+
+  useEffect(() => {
+    const el = inspectorTabsRef.current;
+    if (!el) return;
+    const activeBtn = el.querySelector('[data-active="true"]') as HTMLElement | null;
+    if (activeBtn && el.scrollWidth > el.clientWidth) {
+      const targetLeft = activeBtn.offsetLeft - el.clientWidth / 2 + activeBtn.clientWidth / 2;
+      el.scrollTo({ left: Math.max(0, targetLeft), behavior: 'smooth' });
+    }
+    syncScrollFade(el);
+  }, [activeInspectorTab, syncScrollFade]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      syncScrollFade(topicTabsRef.current);
+      syncScrollFade(inspectorTabsRef.current);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [syncScrollFade]);
 
   useEffect(() => {
     const unsub = ncertService.subscribe((s) => {
@@ -115,8 +162,15 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
   const isCurrentBookmarked = state.bookmarks.some((b) => b.paragraphId === currentParagraph.id);
   const currentNote = chapterNotes.find((n) => n.paragraphId === currentParagraph.id);
 
+  const speechSupported =
+    typeof window !== 'undefined' &&
+    'speechSynthesis' in window &&
+    'SpeechSynthesisUtterance' in window &&
+    Boolean(window.speechSynthesis);
+
   // Audio Voice Controls
   const handleToggleVoice = () => {
+    if (!speechSupported) return;
     if (isSpeaking && !isVoicePaused) {
       ncertService.pauseVoice();
       setIsVoicePaused(true);
@@ -144,14 +198,14 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
     setIsVoicePaused(false);
   };
 
-  const handleAddHighlight = async () => {
+  const handleAddHighlight = async (colorToUse: HighlightColor = highlightColor, paragraph = currentParagraph) => {
     await ncertService.addHighlight(
       chapter.id,
-      currentParagraph.id,
-      highlightColor,
-      currentParagraph.text.substring(0, 80) + '...'
+      paragraph.id,
+      colorToUse,
+      paragraph.text.substring(0, 80) + '...'
     );
-    toast.success('Paragraph highlighted in ' + highlightColor + '!');
+    toast.success('Paragraph highlighted in ' + colorToUse + '!');
   };
 
   const handleToggleBookmark = async () => {
@@ -176,30 +230,30 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
     setNewNoteText('');
   };
 
-  // Theme container classes
+  // Theme container classes: every theme pairs background, card surface, and text colors together
   const themeClasses: Record<ReaderTheme, { bg: string; text: string; cardBg: string; border: string }> = {
     light: {
-      bg: 'bg-slate-50',
-      text: 'text-slate-900',
-      cardBg: 'bg-white',
-      border: 'border-slate-200/80',
+      bg: 'bg-background',
+      text: 'text-foreground',
+      cardBg: 'bg-card text-card-foreground',
+      border: 'border-border',
     },
     sepia: {
       bg: 'bg-[#fcf5e5]',
-      text: 'text-[#433422]',
-      cardBg: 'bg-[#f7eed9]',
+      text: 'text-[#2e2315]',
+      cardBg: 'bg-[#f7eed9] text-[#2e2315]',
       border: 'border-[#ebd9be]',
     },
     dark: {
       bg: 'bg-slate-950',
       text: 'text-slate-100',
-      cardBg: 'bg-slate-900',
+      cardBg: 'bg-slate-900 text-slate-100',
       border: 'border-white/10',
     },
     night: {
       bg: 'bg-black',
-      text: 'text-neutral-200',
-      cardBg: 'bg-neutral-950',
+      text: 'text-neutral-100',
+      cardBg: 'bg-neutral-950 text-neutral-100',
       border: 'border-neutral-800',
     },
   };
@@ -214,9 +268,14 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
   const currentThemeStyle = themeClasses[theme];
 
   return (
-    <div className={`min-h-screen ${currentThemeStyle.bg} ${currentThemeStyle.text} transition-colors duration-300 pb-28 select-none`}>
+    <div
+      style={{
+        paddingBottom: 'calc(var(--bottom-nav-h, 4rem) + env(safe-area-inset-bottom, 0px) + 24px)',
+      }}
+      className={`min-h-screen ${currentThemeStyle.bg} ${currentThemeStyle.text} transition-colors duration-300 select-none`}
+    >
       {/* 1. TOP READER NAVIGATION & PROGRESS BAR */}
-      <div className={`sticky top-0 z-30 ${currentThemeStyle.cardBg} border-b ${currentThemeStyle.border} px-4 py-3 backdrop-blur-md bg-opacity-95 shadow-xs`}>
+      <div className={`sticky top-0 z-30 ${currentThemeStyle.cardBg} border-b ${currentThemeStyle.border} px-4 py-3 shadow-xs`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <button
@@ -243,34 +302,27 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
 
           {/* Reader Action Controls */}
           <div className="flex items-center gap-2">
-            {/* Rapid Revision Modal Trigger */}
-            <button
-              onClick={onOpenRevisionModal}
-              className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-extrabold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
-            >
-              <Zap className="w-3.5 h-3.5 fill-white" />
-              <span className="hidden sm:inline">Revision Suite</span>
-            </button>
-
-            {/* Voice Mode Audio Trigger */}
-            <button
-              onClick={handleToggleVoice}
-              className={`p-2 rounded-xl border transition-all cursor-pointer flex items-center gap-1 text-xs font-bold ${
-                isSpeaking
-                  ? 'bg-amber-500 text-white border-amber-500 animate-pulse'
-                  : 'hover:bg-slate-200/60 dark:hover:bg-slate-800 border-slate-300 dark:border-white/10'
-              }`}
-              title="Read paragraph aloud"
-            >
-              {isSpeaking && !isVoicePaused ? (
-                <Pause className="w-4 h-4" />
-              ) : isSpeaking && isVoicePaused ? (
-                <Play className="w-4 h-4" />
-              ) : (
-                <Volume2 className="w-4 h-4" />
-              )}
-              <span className="hidden md:inline font-mono">{voiceSpeed}x</span>
-            </button>
+            {/* Voice Mode Audio Trigger (hidden when speechSynthesis is missing) */}
+            {speechSupported && (
+              <button
+                onClick={handleToggleVoice}
+                className={`p-2 rounded-xl border transition-all cursor-pointer flex items-center gap-1 text-xs font-bold ${
+                  isSpeaking
+                    ? 'bg-amber-500 text-white border-amber-500 animate-pulse'
+                    : 'hover:bg-slate-200/60 dark:hover:bg-slate-800 border-slate-300 dark:border-white/10'
+                }`}
+                title="Read paragraph aloud"
+              >
+                {isSpeaking && !isVoicePaused ? (
+                  <Pause className="w-4 h-4" />
+                ) : isSpeaking && isVoicePaused ? (
+                  <Play className="w-4 h-4" />
+                ) : (
+                  <Volume2 className="w-4 h-4" />
+                )}
+                <span className="hidden md:inline font-mono">{voiceSpeed}x</span>
+              </button>
+            )}
 
             {/* Reader Appearance Settings Toggle */}
             <div className="relative">
@@ -393,19 +445,24 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
       {/* 2. MAIN SPLIT INTERFACE: READER (Left) + AI INTELLIGENCE DRAWER (Right) */}
       <div className="max-w-7xl mx-auto px-4 mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* LEFT COLUMN: NCERT TEXTBOOK SMART READER */}
-        <div className="lg:col-span-7 space-y-6">
+        <div className="lg:col-span-7 space-y-6 min-w-0 w-full">
           {/* Topic Selector Tabs */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs">
+          <div
+            ref={topicTabsRef}
+            onScroll={() => syncScrollFade(topicTabsRef.current)}
+            className="flex items-center gap-2 overflow-x-auto flex-nowrap snap-x snap-mandatory pb-1 scrollbar-none scroll-edge-fade text-xs min-w-0"
+          >
             {chapter.topics.map((top, idx) => (
               <button
                 key={top.id}
+                data-active={selectedTopicIndex === idx}
                 onClick={() => {
                   setSelectedTopicIndex(idx);
                   if (top.paragraphs[0]) {
                     setSelectedParagraphId(top.paragraphs[0].id);
                   }
                 }}
-                className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap cursor-pointer transition-all ${
+                className={`px-3.5 py-2 lg:py-1.5 rounded-xl font-bold shrink-0 whitespace-nowrap snap-start cursor-pointer transition-all min-h-[44px] lg:min-h-0 ${
                   selectedTopicIndex === idx
                     ? 'bg-purple-600 text-white shadow-xs'
                     : 'bg-card border border-slate-200/80 dark:border-white/10 text-muted-foreground hover:text-foreground'
@@ -417,7 +474,7 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
           </div>
 
           {/* Chapter Paragraphs Container */}
-          <div className="space-y-5">
+          <div className="space-y-5 w-full">
             {currentTopic.paragraphs.map((p) => {
               const isSelected = selectedParagraphId === p.id;
               const hasHighlight = chapterHighlights.find((h) => h.paragraphId === p.id);
@@ -427,7 +484,7 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
                 <div
                   key={p.id}
                   onClick={() => setSelectedParagraphId(p.id)}
-                  className={`p-6 rounded-3xl border transition-all duration-300 cursor-pointer relative ${
+                  className={`p-5 sm:p-6 w-full rounded-3xl border transition-all duration-300 cursor-pointer relative ${
                     isSelected
                       ? `ring-2 ring-purple-600 shadow-xl ${currentThemeStyle.cardBg}`
                       : `${currentThemeStyle.cardBg} ${currentThemeStyle.border} hover:border-purple-400/60`
@@ -437,7 +494,7 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
                   <div className="flex items-center justify-between gap-2 mb-3">
                     <div className="flex items-center gap-2 flex-wrap">
                       {p.heading && (
-                        <h3 className="font-extrabold text-sm sm:text-base text-foreground">
+                        <h3 className="font-extrabold text-sm sm:text-base text-inherit">
                           {p.heading}
                         </h3>
                       )}
@@ -447,12 +504,12 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
                         <span
                           className={`text-[10px] font-black uppercase font-mono px-2 py-0.5 rounded-full flex items-center gap-1 ${
                             tag === 'board_favourite'
-                              ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30'
+                              ? 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30'
                               : tag === 'high_weightage'
-                              ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30'
+                              ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30'
                               : tag === 'very_important'
-                              ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30'
-                              : 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30'
+                              ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30'
+                              : 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30'
                           }`}
                         >
                           <Award className="w-3 h-3" />
@@ -461,14 +518,14 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
                       )}
                     </div>
 
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedParagraphId(p.id);
                           handleToggleBookmark();
                         }}
-                        className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                        className={`min-w-[44px] min-h-[44px] lg:min-w-0 lg:min-h-0 p-2 lg:p-1.5 flex items-center justify-center rounded-xl transition-colors cursor-pointer ${
                           state.bookmarks.some((b) => b.paragraphId === p.id)
                             ? 'text-amber-500'
                             : 'text-muted-foreground hover:text-foreground'
@@ -482,13 +539,17 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
 
                   {/* Paragraph Body Text */}
                   <p
-                    className={`${fontSizeClasses[fontSize]} text-foreground select-text font-serif ${
+                    className={`${fontSizeClasses[fontSize]} text-inherit select-text font-serif leading-relaxed ${
                       hasHighlight
                         ? hasHighlight.color === 'yellow'
-                          ? 'bg-amber-300/30 dark:bg-amber-400/20 px-1 rounded-md'
+                          ? 'bg-amber-400/25 dark:bg-amber-400/25 px-1 py-0.5 rounded-md'
                           : hasHighlight.color === 'green'
-                          ? 'bg-emerald-300/30 dark:bg-emerald-400/20 px-1 rounded-md'
-                          : 'bg-pink-300/30 dark:bg-pink-400/20 px-1 rounded-md'
+                          ? 'bg-emerald-400/25 dark:bg-emerald-400/25 px-1 py-0.5 rounded-md'
+                          : hasHighlight.color === 'pink'
+                          ? 'bg-pink-400/25 dark:bg-pink-400/25 px-1 py-0.5 rounded-md'
+                          : hasHighlight.color === 'blue'
+                          ? 'bg-blue-400/25 dark:bg-blue-400/25 px-1 py-0.5 rounded-md'
+                          : 'bg-purple-400/25 dark:bg-purple-400/25 px-1 py-0.5 rounded-md'
                         : ''
                     }`}
                   >
@@ -497,7 +558,7 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
 
                   {/* Highlight & Note Actions Toolbar on Selected Paragraph */}
                   {isSelected && (
-                    <div className="mt-4 pt-3 border-t border-slate-200/60 dark:border-white/5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div className="mt-4 pt-3 border-t border-border flex flex-wrap items-center justify-between gap-2 text-xs">
                       {/* Color Palette for Highlight */}
                       <div className="flex items-center gap-1.5">
                         <span className="text-[10px] text-muted-foreground font-mono">Highlight:</span>
@@ -507,7 +568,7 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
                             onClick={(e) => {
                               e.stopPropagation();
                               setHighlightColor(c);
-                              handleAddHighlight();
+                              handleAddHighlight(c, p);
                             }}
                             className={`w-5 h-5 rounded-full cursor-pointer transition-transform hover:scale-110 ${
                               c === 'yellow'
@@ -530,34 +591,36 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
                             e.stopPropagation();
                             setShowNoteEditor(!showNoteEditor);
                           }}
-                          className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-foreground font-semibold flex items-center gap-1 text-[11px] cursor-pointer"
+                          className="px-2.5 py-1 rounded-lg bg-muted text-foreground hover:bg-muted/80 border border-border/60 font-semibold flex items-center gap-1 text-[11px] cursor-pointer"
                         >
-                          <MessageSquare className="w-3.5 h-3.5 text-purple-600" />
+                          <MessageSquare className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
                           <span>Add Note</span>
                         </button>
 
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleToggleVoice();
-                          }}
-                          className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-foreground font-semibold flex items-center gap-1 text-[11px] cursor-pointer"
-                        >
-                          <Volume2 className="w-3.5 h-3.5 text-amber-500" />
-                          <span>Listen</span>
-                        </button>
+                        {speechSupported && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleVoice();
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-muted text-foreground hover:bg-muted/80 border border-border/60 font-semibold flex items-center gap-1 text-[11px] cursor-pointer"
+                          >
+                            <Volume2 className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
+                            <span>Listen</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
 
                   {/* Personal Note Editor */}
                   {isSelected && showNoteEditor && (
-                    <div className="mt-3 p-3 rounded-2xl bg-slate-100 dark:bg-slate-800/80 space-y-2 text-xs">
+                    <div className="mt-3 p-3 rounded-2xl bg-muted/80 border border-border space-y-2 text-xs">
                       <textarea
                         value={newNoteText}
                         onChange={(e) => setNewNoteText(e.target.value)}
                         placeholder="Write your personal study note or exam reminder for this paragraph..."
-                        className="w-full p-2.5 rounded-xl bg-background border border-slate-200 dark:border-white/10 text-foreground text-xs resize-none h-18"
+                        className="w-full p-2.5 rounded-xl bg-background border border-border text-foreground text-xs resize-none h-18"
                       />
                       <div className="flex justify-end gap-2">
                         <button
@@ -592,10 +655,14 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
         </div>
 
         {/* RIGHT COLUMN: AI INTELLIGENCE DECK & INSPECTOR */}
-        <div className="lg:col-span-5 space-y-4">
-          <div className="sticky top-24 space-y-4">
+        <div className="lg:col-span-5 space-y-4 min-w-0 w-full">
+          <div className="lg:sticky lg:top-24 space-y-4 w-full min-w-0">
             {/* Inspector Navigation Sub-tabs */}
-            <div className="p-1 rounded-2xl bg-card border border-slate-200/80 dark:border-white/10 flex items-center justify-between text-xs font-bold shadow-xs">
+            <div
+              ref={inspectorTabsRef}
+              onScroll={() => syncScrollFade(inspectorTabsRef.current)}
+              className="p-1.5 rounded-2xl bg-card border border-slate-200/80 dark:border-white/10 flex items-center gap-1.5 flex-nowrap overflow-x-auto snap-x snap-mandatory scrollbar-none scroll-edge-fade text-xs font-bold shadow-xs w-full min-w-0"
+            >
               {[
                 { id: 'explain', label: 'AI Explain', icon: Brain },
                 { id: 'related', label: 'Related', icon: Target },
@@ -608,22 +675,23 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
                 return (
                   <button
                     key={tab.id}
+                    data-active={isActive}
                     onClick={() => setActiveInspectorTab(tab.id as any)}
-                    className={`flex-1 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    className={`shrink-0 whitespace-nowrap snap-start lg:flex-1 px-3.5 lg:px-2 py-2 rounded-xl flex flex-row items-center justify-center gap-1.5 transition-all cursor-pointer min-h-[44px] lg:min-h-0 ${
                       isActive
                         ? 'bg-purple-600 text-white shadow-xs font-black'
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    <Icon className="w-3.5 h-3.5" />
-                    <span className="text-[11px]">{tab.label}</span>
+                    <Icon className="w-3.5 h-3.5 shrink-0" />
+                    <span className="text-[11px] whitespace-nowrap">{tab.label}</span>
                   </button>
                 );
               })}
             </div>
 
             {/* INSPECTOR BODY PANELS */}
-            <div className="p-5 rounded-3xl bg-card border border-slate-200/80 dark:border-white/10 shadow-xl space-y-4 max-h-[75vh] overflow-y-auto text-xs">
+            <div className="p-5 sm:p-6 w-full rounded-3xl bg-card border border-slate-200/80 dark:border-white/10 shadow-xl space-y-4 lg:max-h-[75vh] lg:overflow-y-auto text-xs">
               {/* TAB 1: AI EXPLAIN */}
               {activeInspectorTab === 'explain' && (
                 <div className="space-y-4">
@@ -718,7 +786,7 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
                         <span className="font-bold text-foreground">{f.title}</span>
                         <span className="text-[9px] font-mono bg-purple-500/20 text-purple-600 px-1.5 py-0.2 rounded">Formula</span>
                       </div>
-                      <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border font-mono font-bold text-purple-600 text-center text-xs">
+                      <div className="p-2 rounded-xl bg-card dark:bg-slate-900 border border-border font-mono font-bold text-purple-600 dark:text-purple-400 text-center text-xs">
                         {f.latex}
                       </div>
                       <p className="text-[11px] text-muted-foreground">{f.explanation}</p>
@@ -744,22 +812,7 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
                     </div>
                   ))}
 
-                  {/* Related LectureLab Video */}
-                  {currentParagraph.relatedContent.lectureTitle && (
-                    <div
-                      onClick={() => setActiveTab('study')}
-                      className="p-3.5 rounded-2xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 hover:border-blue-500 cursor-pointer flex items-center justify-between"
-                    >
-                      <div className="space-y-0.5">
-                        <span className="text-[10px] font-black uppercase text-blue-600 font-mono flex items-center gap-1">
-                          <Video className="w-3.5 h-3.5" />
-                          <span>Related LectureLab Video</span>
-                        </span>
-                        <span className="font-bold text-foreground text-xs block">{currentParagraph.relatedContent.lectureTitle}</span>
-                      </div>
-                      <ExternalLink className="w-4 h-4 text-blue-600 shrink-0" />
-                    </div>
-                  )}
+
 
                   {/* Related PYQs */}
                   {currentParagraph.relatedContent.pyqs.map((q, i) => (
@@ -769,7 +822,7 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
                         <span className="text-[10px] font-mono text-muted-foreground">Asked {q.frequencyCount} Times</span>
                       </div>
                       <p className="font-bold text-foreground">{q.question}</p>
-                      <div className="p-2 rounded-xl bg-white dark:bg-slate-800 text-[11px] text-muted-foreground">
+                      <div className="p-2 rounded-xl bg-card dark:bg-slate-800 border border-border text-[11px] text-muted-foreground">
                         <strong className="text-foreground">Solution:</strong> {q.answerSummary}
                       </div>
                     </div>
@@ -872,7 +925,7 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
                       </span>
                       <div className="space-y-1">
                         {currentTopic.autoNotes.onePageNotes.map((n, i) => (
-                          <div key={i} className="p-2 rounded-xl bg-white dark:bg-slate-800 font-mono text-[11px] text-foreground">
+                          <div key={i} className="p-2 rounded-xl bg-card border border-border font-mono text-[11px] text-card-foreground">
                             {n}
                           </div>
                         ))}
@@ -943,7 +996,7 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
                                       ? opt === q.correctAnswer
                                         ? 'bg-emerald-500/20 border-emerald-500 text-emerald-600 font-bold'
                                         : 'bg-rose-500/20 border-rose-500 text-rose-600 font-bold'
-                                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-white/5 text-foreground hover:border-purple-400'
+                                      : 'bg-card border-border text-card-foreground hover:border-purple-400'
                                   }`}
                                 >
                                   {opt}

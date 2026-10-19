@@ -101,7 +101,7 @@ export const NcertLibraryView: React.FC = () => {
             <div className="flex items-center gap-2 flex-wrap">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/25 border border-purple-400/40 text-purple-300 text-xs font-black uppercase tracking-wider font-mono">
                 <BookOpen className="w-3.5 h-3.5 text-purple-300" />
-                <span>NCERT Intelligence Engine</span>
+                <span>NCERT Smart Reader</span>
               </span>
 
               <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider font-mono border bg-amber-500/20 text-amber-300 border-amber-500/40">
@@ -124,7 +124,7 @@ export const NcertLibraryView: React.FC = () => {
 
           {/* Right Metrics summary */}
           <div className="flex flex-row sm:flex-row items-center gap-3 w-full lg:w-auto justify-around sm:justify-end">
-            <div className="p-4 rounded-3xl bg-purple-900/40 border border-purple-400/30 text-center min-w-[120px] shrink-0 backdrop-blur-md">
+            <div className="p-4 rounded-3xl bg-purple-900/60 border border-purple-400/30 text-center min-w-[120px] shrink-0">
               <span className="text-[10px] text-purple-200 font-bold uppercase tracking-wider block">
                 Total Reading Time
               </span>
@@ -134,7 +134,7 @@ export const NcertLibraryView: React.FC = () => {
               <span className="text-[10px] text-purple-300 font-mono">Active Focus</span>
             </div>
 
-            <div className="p-4 rounded-3xl bg-indigo-900/40 border border-indigo-400/30 text-center min-w-[120px] shrink-0 backdrop-blur-md">
+            <div className="p-4 rounded-3xl bg-indigo-900/60 border border-indigo-400/30 text-center min-w-[120px] shrink-0">
               <span className="text-[10px] text-indigo-200 font-bold uppercase tracking-wider block">
                 Avg. Confidence
               </span>
@@ -155,7 +155,7 @@ export const NcertLibraryView: React.FC = () => {
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
               placeholder="Search entire NCERT (e.g. 'drift velocity', 'Nernst', 'adjoint', 'Wheatstone')..."
-              className="w-full pl-10 pr-10 py-2.5 rounded-2xl bg-white/10 border border-white/20 text-white placeholder:text-purple-200/60 text-xs sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-400 backdrop-blur-md"
+              className="w-full pl-10 pr-10 py-2.5 rounded-2xl bg-white/10 border border-white/20 text-white placeholder:text-purple-200/60 text-xs sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-purple-400"
             />
             {searchQuery && (
               <button

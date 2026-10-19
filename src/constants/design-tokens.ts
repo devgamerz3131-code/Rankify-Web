@@ -1,31 +1,58 @@
 export const DESIGN_TOKENS = {
   colors: {
     primary: {
-      light: '#7c3aed', // Purple primary
-      dark: '#8b5cf6',
-      subtle: '#f5f3ff',
-      hover: '#6d28d9',
+      light: '#6e2dd8', // M3 Purple Primary
+      dark: '#ab83f7',
+      subtle: 'hsl(var(--primary-subtle))',
+      hover: 'hsl(var(--primary-hover))',
     },
     secondary: {
-      light: '#2563eb', // Blue secondary
-      dark: '#3b82f6',
-      subtle: '#eff6ff',
-      hover: '#1d4ed8',
+      light: '#1d63ed', // M3 Cobalt Blue
+      dark: '#54a3f7',
+      subtle: 'hsl(var(--secondary-subtle))',
+      hover: '#1552cc',
     },
-    success: '#10b981',
-    warning: '#f59e0b',
-    destructive: '#ef4444',
+    surface: {
+      light: '#ffffff',
+      dark: '#191c24',
+      subtleLight: '#f4f6fa',
+      subtleDark: '#232732',
+    },
+    border: {
+      light: '#d5dbf0',
+      dark: '#313645',
+    },
+    success: {
+      light: '#138644',
+      dark: '#3cd070',
+    },
+    warning: {
+      light: '#b85d00',
+      dark: '#fbb028',
+    },
+    destructive: {
+      light: '#d92534',
+      dark: '#f85261',
+    },
+    info: {
+      light: '#0774a8',
+      dark: '#38bdf8',
+    },
   },
   radius: {
     sm: 'rounded-lg',      // 8px
     md: 'rounded-xl',      // 12px
-    lg: 'rounded-2xl',     // 16px - Apple default
-    xl: 'rounded-3xl',     // 24px - Apple cards
+    lg: 'rounded-2xl',     // 16px - M3 default
+    xl: 'rounded-3xl',     // 24px - M3 container
     full: 'rounded-full',
   },
   shadows: {
-    soft: 'shadow-[0_4px_20px_-2px_rgba(124,58,237,0.06)]',
-    card: 'shadow-[0_10px_30px_-5px_rgba(0,0,0,0.05)]',
-    glass: 'shadow-[0_8px_32px_0_rgba(31,38,135,0.07)]',
+    none: 'shadow-none',
+    elevation1: 'shadow-xs',
+    elevation2: 'shadow-sm',
+    elevation3: 'shadow-md',
+    elevation4: 'shadow-lg',
+    soft: 'shadow-[0_4px_16px_rgba(0,0,0,0.06)]',
+    card: 'shadow-[0_2px_8px_rgba(0,0,0,0.05)]',
   },
 } as const;

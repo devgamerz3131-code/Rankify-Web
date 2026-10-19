@@ -74,7 +74,7 @@ export const FormulaVisualSimulation: React.FC<FormulaVisualSimulationProps> = (
             ))}
           </div>
 
-          <div className="relative z-10 text-center font-mono text-[11px] text-purple-200/80 bg-black/60 px-3 py-1 rounded-xl backdrop-blur-xs">
+          <div className="relative z-10 text-center font-mono text-[11px] text-purple-200/80 bg-black/60 px-3 py-1 rounded-xl">
             Electric Field ➔ Exerts Force F = -eE opposite to Field
           </div>
         </div>

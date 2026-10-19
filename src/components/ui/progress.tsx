@@ -69,7 +69,7 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
           r={radius}
           stroke="currentColor"
           strokeWidth={strokeWidth}
-          className="text-slate-100 dark:text-slate-800"
+          className="text-muted dark:text-slate-800"
           fill="none"
         />
         {/* Animated Progress Circle */}

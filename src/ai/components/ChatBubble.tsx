@@ -25,7 +25,12 @@ import {
   Timer,
   BookMarked,
   ArrowUpRight,
+  Bookmark,
+  BookmarkCheck,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { Message } from '../model/types';
 import { exportPromptAsTxt, exportPromptAsPdf } from '../utils/export-prompt';
 import { triggerHapticFeedback } from '../utils/external-ai';
@@ -54,8 +59,80 @@ export const ChatBubbleComponent: React.FC<ChatBubbleProps> = ({
   isRegenerating,
 }) => {
   const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isSavedToNotes, setIsSavedToNotes] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const speechSupported =
+    typeof window !== 'undefined' &&
+    'speechSynthesis' in window &&
+    'SpeechSynthesisUtterance' in window &&
+    Boolean(window.speechSynthesis);
+
   const isUser = message.role === 'user';
   const prompt = message.promptResult;
+
+  const handleSaveToNotes = () => {
+    triggerHapticFeedback();
+    setIsSavedToNotes(true);
+    toast.success('Saved response to Study Notes & Vault!');
+  };
+
+  const handleReadAloud = () => {
+    if (!speechSupported || typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      toast.error('Not supported on this device');
+      return;
+    }
+
+    try {
+      const synth = window.speechSynthesis;
+      if (isSpeaking) {
+        synth.cancel();
+        setIsSpeaking(false);
+        return;
+      }
+
+      synth.cancel();
+      const utterance = new SpeechSynthesisUtterance(message.content.replace(/[*#_`]/g, ''));
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+
+      const speakNow = () => {
+        try {
+          const voices = synth.getVoices();
+          const preferredVoice = voices.find(
+            (v) => v.lang.includes('en-IN') || v.lang.includes('hi-IN') || v.name.includes('India')
+          );
+          if (preferredVoice) {
+            utterance.voice = preferredVoice;
+          }
+        } catch {
+          // Ignore voice selection error
+        }
+        utterance.onend = () => setIsSpeaking(false);
+        utterance.onerror = () => setIsSpeaking(false);
+        setIsSpeaking(true);
+        synth.speak(utterance);
+        toast.success('Reading response aloud...');
+      };
+
+      const existingVoices = synth.getVoices();
+      if (existingVoices.length === 0) {
+        let started = false;
+        const onVoicesChanged = () => {
+          if (started) return;
+          started = true;
+          speakNow();
+        };
+        if (typeof synth.addEventListener === 'function') {
+          synth.addEventListener('voiceschanged', onVoicesChanged, { once: true });
+        }
+        window.setTimeout(onVoicesChanged, 250);
+      } else {
+        speakNow();
+      }
+    } catch {
+      setIsSpeaking(false);
+    }
+  };
 
   const getSubjectBadge = (subj?: string) => {
     switch (subj) {
@@ -100,10 +177,10 @@ export const ChatBubbleComponent: React.FC<ChatBubbleProps> = ({
         initial={{ opacity: 0, y: 10, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.2 }}
-        className="flex items-start justify-end gap-2.5 mb-5 group"
+        className="flex items-start justify-end gap-2.5 mb-5 group w-full"
       >
-        <div className="flex flex-col items-end max-w-[85%] sm:max-w-[70%]">
-          <div className="px-4 py-3 rounded-2xl rounded-tr-xs bg-purple-600 text-white font-medium text-sm shadow-md">
+        <div className="flex flex-col items-end max-w-[92%] sm:max-w-[80%] md:max-w-[70%]">
+          <div className="px-4 py-3 rounded-2xl rounded-tr-xs bg-purple-600 text-white font-medium text-sm shadow-md break-words whitespace-pre-wrap [overflow-wrap:anywhere]">
             {message.content}
           </div>
           <span className="text-[10px] text-muted-foreground mt-1 px-1">
@@ -183,13 +260,13 @@ export const ChatBubbleComponent: React.FC<ChatBubbleProps> = ({
         <Sparkles className="w-4 h-4" />
       </div>
 
-      <div className="flex-1 max-w-[98%] sm:max-w-[92%] space-y-3">
+      <div className="flex-1 max-w-[98%] sm:max-w-[95%] lg:max-w-[92%] min-w-0 space-y-3">
         {/* ========================================================= */}
         {/* PROMPT CARD (Material 3 Surface + Notion + Arc rounded card) */}
         {/* ========================================================= */}
-        <div className="rounded-3xl bg-card border border-slate-200/80 dark:border-white/10 shadow-lg overflow-hidden transition-all hover:border-purple-500/30">
+        <div className="rounded-3xl bg-card border border-border shadow-lg overflow-hidden transition-all hover:border-primary/40">
           {/* Card Top Banner: Metadata Badges (Subject, Chapter, Question Type, Intent) */}
-          <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-slate-900/30 flex flex-wrap items-center justify-between gap-2.5">
+          <div className="p-4 sm:p-5 border-b border-border bg-muted/40 flex flex-wrap items-center justify-between gap-2.5">
             {/* Left Chips */}
             <div className="flex flex-wrap items-center gap-2">
               {/* Subject Badge */}
@@ -202,7 +279,7 @@ export const ChatBubbleComponent: React.FC<ChatBubbleProps> = ({
 
               {/* Chapter Badge */}
               {prompt?.chapter?.name && (
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-foreground bg-white dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700/80 shadow-2xs">
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-foreground bg-card px-3 py-1 rounded-full border border-border shadow-xs">
                   <FileText className="w-3 h-3 text-purple-500" />
                   <span>{prompt.chapter.name}</span>
                 </span>
@@ -289,8 +366,8 @@ export const ChatBubbleComponent: React.FC<ChatBubbleProps> = ({
           </div>
 
           {/* Card Body: The Generated Prompt */}
-          <div className="p-4 sm:p-5 relative">
-            <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200/70 dark:border-slate-800/80 font-mono text-xs sm:text-sm text-foreground/95 whitespace-pre-wrap leading-relaxed select-all selection:bg-purple-500/25 selection:text-purple-600">
+          <div className="p-4 sm:p-5 relative min-w-0">
+            <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200/70 dark:border-slate-800/80 font-mono text-xs sm:text-sm text-foreground/95 whitespace-pre-wrap [overflow-wrap:anywhere] break-words leading-relaxed select-all selection:bg-purple-500/25 selection:text-purple-600 max-w-full overflow-x-auto">
               {message.content}
             </div>
           </div>
@@ -298,7 +375,7 @@ export const ChatBubbleComponent: React.FC<ChatBubbleProps> = ({
           {/* ========================================================= */}
           {/* LARGE PREMIUM BUTTONS & ACTIONS TOOLBAR */}
           {/* ========================================================= */}
-          <div className="p-3 sm:p-4 bg-slate-50/70 dark:bg-slate-900/40 border-t border-slate-100 dark:border-white/5 flex flex-wrap items-center justify-between gap-3">
+          <div className="p-3 sm:p-4 bg-slate-50/70 dark:bg-slate-900/40 border-t border-slate-100 dark:border-white/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             {/* Primary Action Buttons (Large ChatGPT / Gemini / Copy) */}
             <div className="flex flex-wrap items-center gap-2">
               {/* Copy Prompt Button with smooth animation & feedback */}

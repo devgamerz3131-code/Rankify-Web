@@ -165,26 +165,29 @@ export const ChatSidebarComponent: React.FC<ChatSidebarProps> = ({
 
         {/* History Grouping Tabs: All, Pinned, Today, Yesterday, This Week, Favorites, Most Used */}
         {onFilterChange && (
-          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pt-1">
-            {FILTER_ITEMS.map((item) => {
-              const Icon = item.icon;
-              const isSelected = activeFilter === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => onFilterChange(item.id)}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-tight whitespace-nowrap transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-purple-600 text-white shadow-xs'
-                      : 'bg-slate-100 dark:bg-slate-800/80 text-muted-foreground hover:text-foreground hover:bg-slate-200 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  <Icon className="w-2.5 h-2.5" />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
+          <div className="relative group pt-1">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-smooth pr-6">
+              {FILTER_ITEMS.map((item) => {
+                const Icon = item.icon;
+                const isSelected = activeFilter === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => onFilterChange(item.id)}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-tight whitespace-nowrap transition-all cursor-pointer shrink-0 snap-start ${
+                      isSelected
+                        ? 'bg-purple-600 text-white shadow-xs'
+                        : 'bg-slate-100 dark:bg-slate-800/80 text-muted-foreground hover:text-foreground hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <Icon className="w-2.5 h-2.5" />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="pointer-events-none absolute right-0 top-1 bottom-0 w-6 bg-gradient-to-l from-card to-transparent" />
           </div>
         )}
       </div>
@@ -246,16 +249,16 @@ export const ChatSidebarComponent: React.FC<ChatSidebarProps> = ({
                       </form>
                     ) : (
                       <>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-start gap-1.5">
                           {isPinned && (
-                            <Pin className="w-3 h-3 text-purple-600 fill-purple-600 dark:text-purple-400 dark:fill-purple-400 shrink-0" />
+                            <Pin className="w-3 h-3 text-purple-600 fill-purple-600 dark:text-purple-400 dark:fill-purple-400 shrink-0 mt-0.5" />
                           )}
-                          <p className="text-xs truncate">{conv.title}</p>
+                          <p className="text-xs line-clamp-2 break-words leading-tight flex-1">{conv.title}</p>
                           {hasFavorite && (
-                            <Star className="w-3 h-3 text-amber-500 fill-amber-500 shrink-0" />
+                            <Star className="w-3 h-3 text-amber-500 fill-amber-500 shrink-0 mt-0.5" />
                           )}
                         </div>
-                        <p className="text-[10px] text-muted-foreground font-normal">
+                        <p className="text-[10px] text-muted-foreground font-normal mt-0.5">
                           {conv.messages.length}{' '}
                           {conv.messages.length === 1 ? 'message' : 'messages'}
                           {conv.detectedSubject ? ` • ${conv.detectedSubject}` : ''}
@@ -279,7 +282,7 @@ export const ChatSidebarComponent: React.FC<ChatSidebarProps> = ({
                       className={`p-1 rounded-lg transition-all cursor-pointer ${
                         isPinned
                           ? 'text-purple-600 dark:text-purple-400'
-                          : 'opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40'
+                          : 'opacity-100 lg:opacity-0 lg:group-hover:opacity-100 text-muted-foreground hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40'
                       }`}
                     >
                       <Pin className="w-3 h-3" />
@@ -292,7 +295,7 @@ export const ChatSidebarComponent: React.FC<ChatSidebarProps> = ({
                       type="button"
                       onClick={(e) => startEditing(e, conv)}
                       title="Rename chat"
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-slate-200/60 dark:hover:bg-slate-700 transition-all cursor-pointer"
+                      className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-slate-200/60 dark:hover:bg-slate-700 transition-all cursor-pointer"
                     >
                       <Edit2 className="w-3 h-3" />
                     </button>
@@ -306,7 +309,7 @@ export const ChatSidebarComponent: React.FC<ChatSidebarProps> = ({
                       onDelete(conv.id);
                     }}
                     title="Delete chat"
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-muted-foreground hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all cursor-pointer shrink-0"
+                    className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 p-1 rounded-lg text-muted-foreground hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all cursor-pointer shrink-0"
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>
@@ -322,9 +325,7 @@ export const ChatSidebarComponent: React.FC<ChatSidebarProps> = ({
         <div className="p-3 border-t border-slate-200/80 dark:border-white/10">
           <button
             onClick={() => {
-              if (window.confirm('Clear all study chats from local storage?')) {
-                onClearAll();
-              }
+              onClearAll();
             }}
             className="w-full py-1.5 rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition flex items-center justify-center gap-1.5 cursor-pointer"
           >

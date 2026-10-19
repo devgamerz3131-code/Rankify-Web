@@ -5,7 +5,7 @@ import { ExamType } from '@/types/onboarding';
 import { ArrowLeft, ArrowRight, Target, CalendarDays, Flame, CheckCircle2 } from 'lucide-react';
 
 const EXAM_TYPES: { id: ExamType; title: string; subtitle: string }[] = [
-  { id: 'Boards', title: 'CBSE Class 12 Board Exams', subtitle: 'Official Annual Board Examinations' },
+  { id: 'Boards', title: 'CBSE Class 12 Board Exams', subtitle: 'Annual Board Examinations' },
   { id: 'Pre-Boards', title: 'Pre-Board Examinations', subtitle: 'School comprehensive board simulation' },
   { id: 'Half Yearly', title: 'Half-Yearly / Mid-Terms', subtitle: 'Mid-session school syllabus evaluation' },
   { id: 'School Test', title: 'School Unit Test', subtitle: 'Upcoming periodic test or chapter assessment' },
@@ -31,7 +31,7 @@ export const Screen5UpcomingExam: React.FC = () => {
           Upcoming Examination Target
         </h2>
         <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-          Set your primary milestone date. Rankify will back-solve your syllabus velocity to guarantee completion with revision buffer.
+          Set your target exam date to plan your daily syllabus pace with time for revision.
         </p>
       </div>
 
@@ -65,7 +65,7 @@ export const Screen5UpcomingExam: React.FC = () => {
 
         {/* Custom Exam Name Input */}
         {upcomingExam.examType === 'Custom' && (
-          <div className="p-4 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-white/10 backdrop-blur-xl shadow-xs">
+          <div className="p-4 rounded-2xl bg-card border border-border shadow-xs">
             <label className="block text-xs font-bold text-foreground mb-1.5">
               Specify Custom Exam Name
             </label>
@@ -74,13 +74,13 @@ export const Screen5UpcomingExam: React.FC = () => {
               value={upcomingExam.customExamName || ''}
               onChange={(e) => updateUpcomingExam({ customExamName: e.target.value })}
               placeholder="e.g. Pre-Board 1 / Olympiad / KVPY"
-              className="w-full px-4 h-11 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-transparent focus:border-purple-500 text-sm font-medium text-foreground focus:outline-none"
+              className="w-full px-4 h-11 rounded-xl bg-muted border border-transparent focus:border-purple-500 text-sm font-medium text-foreground focus:outline-none"
             />
           </div>
         )}
 
         {/* Exam Date Picker with Live Countdown Badge */}
-        <div className="p-5 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-white/10 backdrop-blur-xl shadow-xs space-y-4">
+        <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">

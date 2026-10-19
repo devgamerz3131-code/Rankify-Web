@@ -11,32 +11,39 @@ export default defineConfig(() => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'icon.svg'],
+        includeAssets: [
+          'favicon.ico',
+          'favicon-32.png',
+          'apple-touch-icon.png',
+          'icon-192.png',
+          'icon-512.png',
+          'icon-maskable-512.png',
+        ],
         manifest: {
           id: '/',
-          name: 'Rankify - CBSE Learning & Practice Platform',
+          name: 'Rankify',
           short_name: 'Rankify',
-          description: 'Production-ready educational platform for CBSE students with personalized study, practice, and syllabus tracking.',
-          theme_color: '#7c3aed',
-          background_color: '#ffffff',
+          description: 'Precision learning platform for CBSE students with personalized study plans, NCERT reader, and syllabus tracking.',
+          theme_color: '#191c24',
+          background_color: '#020727',
           display: 'standalone',
           start_url: '/',
           scope: '/',
           icons: [
             {
-              src: '/pwa-192x192.png',
+              src: '/icon-192.png',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any',
             },
             {
-              src: '/pwa-512x512.png',
+              src: '/icon-512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any',
             },
             {
-              src: '/pwa-maskable-512x512.png',
+              src: '/icon-maskable-512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable',
@@ -44,11 +51,25 @@ export default defineConfig(() => {
           ],
         },
         workbox: {
+          cacheId: 'rankify-pwa-v3',
+          importScripts: ['sw-notifications.js'],
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
           cleanupOutdatedCaches: true,
           clientsClaim: true,
           skipWaiting: true,
           maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
+          navigateFallbackDenylist: [/^\/api\//, /^\/__\//],
+          runtimeCaching: [
+            {
+              urlPattern: ({url}) =>
+                url.pathname.startsWith('/api/') ||
+                url.pathname.startsWith('/__/') ||
+                url.hostname.includes('firestore.googleapis.com') ||
+                url.hostname.includes('identitytoolkit.googleapis.com') ||
+                url.hostname.includes('securetoken.googleapis.com'),
+              handler: 'NetworkOnly',
+            },
+          ],
         },
         devOptions: {
           enabled: false,

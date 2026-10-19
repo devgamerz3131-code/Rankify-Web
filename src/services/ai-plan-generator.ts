@@ -13,6 +13,7 @@ import {
   RevisionQueueItem,
 } from '@/types/onboarding';
 import { syncEngine } from '@/services/sync-engine';
+import { computeAccuracy, getChapterById, cleanTaskTitle, sanitizeTask } from '@/services/chapter-service';
 
 /**
  * Rebalances "Needs Focus" flag across CBSE Class 12 PCM chapters.
@@ -28,8 +29,11 @@ export function rebalanceNeedsFocus(chapters: ChapterProgress[]): {
   const graduatedChapters: string[] = [];
 
   const updatedChapters = chapters.map((ch) => {
+    const attempted = (ch as any).attempted ?? (ch as any).questionsAttempted ?? ch.practiceQuestions ?? ch.questionSolved ?? 0;
+    const acc = computeAccuracy(attempted, (ch as any).correct ?? (ch as any).questionsCorrect, ch.accuracy);
+    const hasHighAccuracy = acc !== null && acc >= 80;
     const isMastered =
-      (ch.accuracy >= 80 && ch.progressPercentage >= 75) ||
+      (hasHighAccuracy && ch.progressPercentage >= 75) ||
       (ch.revisionCount >= 2 && ch.confidence >= 4) ||
       ch.progressPercentage === 100;
 
@@ -52,7 +56,14 @@ export function rebalanceNeedsFocus(chapters: ChapterProgress[]): {
       .sort((a, b) => {
         if (a.confidence !== b.confidence) return a.confidence - b.confidence;
         if (a.progressPercentage !== b.progressPercentage) return a.progressPercentage - b.progressPercentage;
-        return (a.accuracy || 0) - (b.accuracy || 0);
+        const attA = (a as any).attempted ?? a.practiceQuestions ?? 0;
+        const attB = (b as any).attempted ?? b.practiceQuestions ?? 0;
+        const accA = computeAccuracy(attA, (a as any).correct, a.accuracy);
+        const accB = computeAccuracy(attB, (b as any).correct, b.accuracy);
+        if (accA !== null && accB !== null) return accA - accB;
+        if (accA !== null) return -1;
+        if (accB !== null) return 1;
+        return 0;
       });
 
     const needed = 3 - currentFocusCount;
@@ -123,13 +134,27 @@ export function generateAIStudyPlan(
   const sortedByDeficit = [...chapters].sort((a, b) => {
     if (a.confidence !== b.confidence) return a.confidence - b.confidence;
     if (a.progressPercentage !== b.progressPercentage) return a.progressPercentage - b.progressPercentage;
-    return (a.accuracy || 0) - (b.accuracy || 0);
+    const attA = (a as any).attempted ?? a.practiceQuestions ?? 0;
+    const attB = (b as any).attempted ?? b.practiceQuestions ?? 0;
+    const accA = computeAccuracy(attA, (a as any).correct, a.accuracy);
+    const accB = computeAccuracy(attB, (b as any).correct, b.accuracy);
+    if (accA !== null && accB !== null) return accA - accB;
+    if (accA !== null) return -1;
+    if (accB !== null) return 1;
+    return 0;
   });
 
   const sortedByMastery = [...chapters].sort((a, b) => {
     if (b.progressPercentage !== a.progressPercentage) return b.progressPercentage - a.progressPercentage;
     if (b.confidence !== a.confidence) return b.confidence - a.confidence;
-    return (b.accuracy || 0) - (a.accuracy || 0);
+    const attA = (a as any).attempted ?? a.practiceQuestions ?? 0;
+    const attB = (b as any).attempted ?? b.practiceQuestions ?? 0;
+    const accA = computeAccuracy(attA, (a as any).correct, a.accuracy);
+    const accB = computeAccuracy(attB, (b as any).correct, b.accuracy);
+    if (accA !== null && accB !== null) return accB - accA;
+    if (accB !== null) return -1;
+    if (accA !== null) return 1;
+    return 0;
   });
 
   // Categorize weakest & strongest from real data
@@ -139,20 +164,30 @@ export function generateAIStudyPlan(
   const completedChapters = chapters.filter(c => c.progressPercentage === 100 || c.completion);
 
   for (const ch of chapters) {
+    const chName = getChapterById(ch.chapterName || ch.id).name;
     if (ch.confidence <= 2 || ch.progressPercentage < 50 || ch.needsRevision || ch.needsFocus) {
-      weakChapters.push(ch.chapterName);
+      weakChapters.push(chName);
     } else if (ch.confidence >= 4 && ch.progressPercentage >= 75) {
-      strongChapters.push(ch.chapterName);
+      strongChapters.push(chName);
     }
   }
 
   const weakestChapterObj = sortedByDeficit[0] || chapters[0];
-  const weakestChapter = weakestChapterObj?.chapterName || 'Electrostatics & Integrals';
-  const strongestChapter = sortedByMastery[0]?.chapterName || 'Matrices & Current Electricity';
+  const weakestChapter = weakestChapterObj ? getChapterById(weakestChapterObj.chapterName || weakestChapterObj.id).name : 'Electrostatics & Integrals';
+  const strongestChapter = sortedByMastery[0] ? getChapterById(sortedByMastery[0].chapterName || sortedByMastery[0].id).name : 'Matrices & Current Electricity';
 
-  // Calculate overall syllabus progress and average accuracy across chapters
-  const totalAccuracySum = chapters.reduce((sum, c) => sum + (c.accuracy || 70), 0);
-  const overallAccuracy = chapters.length > 0 ? Math.round(totalAccuracySum / chapters.length) : 75;
+  // Calculate overall syllabus progress and average accuracy across chapters that have attempts
+  let totalAccuracySum = 0;
+  let attemptedCount = 0;
+  for (const c of chapters) {
+    const att = (c as any).attempted ?? (c as any).questionsAttempted ?? c.practiceQuestions ?? c.questionSolved ?? 0;
+    const acc = computeAccuracy(att, (c as any).correct ?? (c as any).questionsCorrect, c.accuracy);
+    if (acc !== null) {
+      totalAccuracySum += acc;
+      attemptedCount++;
+    }
+  }
+  const overallAccuracy = attemptedCount > 0 ? Math.round(totalAccuracySum / attemptedCount) : 0;
   const overallSyllabusProgress = chapters.length > 0 
     ? Math.round(chapters.reduce((sum, c) => sum + (c.progressPercentage || 0), 0) / chapters.length)
     : 35;
@@ -272,7 +307,7 @@ export function generateAIStudyPlan(
     status: 'pending' | 'completed' | 'skipped';
   }[] = [];
 
-  // Helper to add unique IDs
+  // Helper to add unique IDs with sanitized canonical chapter data
   const addTask = (
     title: string,
     subject: string,
@@ -280,11 +315,12 @@ export function generateAIStudyPlan(
     minutes: number,
     difficulty: string
   ) => {
+    const canonical = getChapterById(chapter);
     generatedTasks.push({
       id: `task_${userId}_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`,
-      taskTitle: title,
-      subjectName: subject,
-      chapterName: chapter,
+      taskTitle: cleanTaskTitle(title),
+      subjectName: canonical.subjectName,
+      chapterName: canonical.name,
       allocatedMinutes: minutes,
       difficulty,
       isCompleted: false,
@@ -390,7 +426,12 @@ export function generateAIStudyPlan(
   }
 
   // Task 5: Practice Task
-  const practiceCh = chapters.find(c => c.accuracy < 80 && c.progressPercentage > 0) || primaryFocusCh;
+  const practiceCh =
+    chapters.find((c) => {
+      const att = (c as any).attempted ?? (c as any).questionsAttempted ?? c.practiceQuestions ?? c.questionSolved ?? 0;
+      const acc = computeAccuracy(att, (c as any).correct, c.accuracy);
+      return acc !== null && acc < 80 && c.progressPercentage > 0;
+    }) || primaryFocusCh;
   if (practiceCh && generatedTasks.length < targetTaskCount) {
     addTask(
       `Solve PYQs: Solve 10 highly-repeated numericals & PYQs in ${practiceCh.chapterName}`,

@@ -20,8 +20,8 @@ if (!getApps().length) {
   try {
     app = initializeApp(firebaseConfig);
   } catch (error) {
-    console.warn('Firebase initialization with standard config: using existing or fallback app instance', error);
-    app = getApps()[0] || initializeApp({ ...firebaseConfig, projectId: 'rankify-web' });
+    console.warn('Firebase initialization with standard config fallback:', error);
+    app = getApps()[0] || initializeApp(firebaseConfig);
   }
 } else {
   app = getApp();

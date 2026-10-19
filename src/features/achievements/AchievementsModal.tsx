@@ -26,7 +26,7 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({ isOpen, on
   const unlockedCount = badges.filter((b) => b.isUnlocked).length;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
       <div className="max-w-2xl w-full bg-card border border-slate-200/90 dark:border-white/10 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

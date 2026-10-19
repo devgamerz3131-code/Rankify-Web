@@ -29,6 +29,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('[ErrorBoundary]', error, errorInfo);
     this.setState({ errorInfo });
     crashReporter.reportError(
       error,
@@ -67,7 +68,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
             <div className="space-y-1">
               <h2 className="text-xl font-bold tracking-tight text-foreground">
-                {this.props.fallbackTitle || 'Study Engine Paused'}
+                {this.props.fallbackTitle || 'Something went wrong'}
               </h2>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 {this.props.fallbackMessage ||
@@ -85,7 +86,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 onClick={this.handleReload}
                 className="w-full py-2 text-xs font-semibold text-muted-foreground hover:text-foreground bg-slate-100 dark:bg-slate-800 rounded-xl transition cursor-pointer"
               >
-                Reload Application
+                Something went wrong - Reload
               </button>
 
               <button

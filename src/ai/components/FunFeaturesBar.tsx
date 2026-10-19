@@ -90,12 +90,12 @@ export const FunFeaturesBarComponent: React.FC<FunFeaturesBarProps> = ({
       {/* Popover / Modal for Active Fun Feature */}
       <AnimatePresence>
         {activeItem && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="w-full max-w-md p-5 rounded-3xl bg-card border border-slate-200/90 dark:border-white/10 shadow-2xl space-y-4"
+              className="w-full max-w-md p-5 rounded-2xl bg-card border border-border shadow-2xl space-y-4"
             >
               <div className="flex items-center justify-between">
                 <span className="font-extrabold text-sm text-foreground flex items-center gap-1.5">

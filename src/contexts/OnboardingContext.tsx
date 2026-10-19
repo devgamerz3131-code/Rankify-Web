@@ -22,7 +22,8 @@ import {
 import { calculateWeakSubjectAnalysis } from '@/services/analysis-engine';
 import { generateAIStudyPlan } from '@/services/ai-plan-generator';
 import { syncEngine } from '@/services/sync-engine';
-import { doc, setDoc, updateDoc } from 'firebase/firestore';
+import { backupRestoreService } from '@/services/backup-restore';
+import { doc, setDoc, updateDoc, getDoc, collection, getDocs, DocumentData } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import toast from 'react-hot-toast';
 
@@ -59,6 +60,10 @@ const DEFAULT_DETAILS: StudentDetails = {
   preferredLanguage: 'English',
   targetPercentage: 95,
   stream: 'science-pcm',
+  weakestSubject: 'Physics',
+  strongestSubject: 'Mathematics',
+  preferredAiTone: 'balanced',
+  preparationLevel: 'intermediate',
 };
 
 const DEFAULT_ROUTINE: StudyRoutine = {
@@ -177,6 +182,89 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       isMounted = false;
     };
   }, [studentDetails.board, studentDetails.classNumber, selectedSubjectIds]);
+
+  // Restore user data from Cloud Firestore on login or refresh
+  useEffect(() => {
+    const currentUid = user?.uid;
+    if (!currentUid) return;
+    const uid: string = currentUid;
+    let isCancelled = false;
+
+    async function restoreUserDataFromCloud() {
+      try {
+        const userDocRef = doc(db, 'users', uid);
+        const userSnap = await getDoc(userDocRef);
+        if (userSnap.exists() && !isCancelled) {
+          const uData = userSnap.data();
+          if (uData) {
+            setStudentDetails((prev) => ({
+              ...prev,
+              name: uData.displayName || prev.name,
+              board: uData.board || prev.board,
+              classNumber: uData.classNumber || prev.classNumber,
+              medium: uData.medium || prev.medium,
+              preferredLanguage: uData.preferredLanguage || prev.preferredLanguage,
+              targetPercentage: uData.targetPercentage || prev.targetPercentage,
+              stream: uData.stream || prev.stream,
+              weakestSubject: uData.weakestSubject || prev.weakestSubject,
+              strongestSubject: uData.strongestSubject || prev.strongestSubject,
+              preferredAiTone: uData.preferredAiTone || prev.preferredAiTone,
+              preparationLevel: uData.preparationLevel || prev.preparationLevel,
+            }));
+            if (uData.subjects && Array.isArray(uData.subjects) && uData.subjects.length > 0) {
+              setSelectedSubjectIds(uData.subjects);
+            }
+          }
+        }
+
+        // Restore chapter_progress subcollection
+        const chColRef = collection(db, 'users', uid, 'chapter_progress');
+        const chSnap = await getDocs(chColRef);
+        if (!chSnap.empty && !isCancelled) {
+          const map: Record<string, ChapterProgress> = {};
+          chSnap.forEach((d: DocumentData) => {
+            const ch = d.data() as ChapterProgress;
+            map[ch.id] = ch;
+          });
+          setChapterProgressMap((prev) => ({ ...prev, ...map }));
+          syncEngine.setLocalCache('chapter_progress_map', map, uid);
+        }
+
+        // Restore user_preferences
+        const prefSnap = await getDoc(doc(db, 'users', uid, 'user_preferences', 'current'));
+        if (prefSnap.exists() && !isCancelled) {
+          const p = prefSnap.data();
+          if (p.studyHoursPerDay) {
+            setStudyRoutine((prev) => ({ ...prev, ...p }));
+          }
+          if (p.learningStyle) setLearningStyleState(p.learningStyle);
+          if (p.revisionStyle) setRevisionStyleState(p.revisionStyle);
+        }
+
+        // Restore exam info
+        const examSnap = await getDoc(doc(db, 'users', uid, 'exam_information', 'primary'));
+        if (examSnap.exists() && !isCancelled) {
+          const e = examSnap.data() as UpcomingExam;
+          setUpcomingExam((prev) => ({ ...prev, ...e }));
+        }
+
+        // Restore study_plan
+        const planSnap = await getDoc(doc(db, 'users', uid, 'study_plan', 'current'));
+        if (planSnap.exists() && !isCancelled) {
+          const pl = planSnap.data() as AIStudyPlan;
+          setAiStudyPlan(pl);
+          syncEngine.setLocalCache('active_study_plan', pl, uid);
+        }
+      } catch (err) {
+        console.warn('Could not restore user onboarding data from Firestore:', err);
+      }
+    }
+
+    restoreUserDataFromCloud();
+    return () => {
+      isCancelled = true;
+    };
+  }, [user?.uid]);
 
   // Persist state to local cache & queue sync
   const saveCurrentStateToCache = useCallback(() => {
@@ -589,6 +677,15 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         targetPercentage: studentDetails.targetPercentage,
         stream: studentDetails.stream,
         subjects: selectedSubjectIds,
+        weakestSubject: studentDetails.weakestSubject || 'Physics',
+        strongestSubject: studentDetails.strongestSubject || 'Mathematics',
+        preferredAiTone: studentDetails.preferredAiTone || 'balanced',
+        preparationLevel: studentDetails.preparationLevel || 'intermediate',
+        streak: 0,
+        totalStudyMinutes: 0,
+        questionsSolved: 0,
+        completedTasksCount: 0,
+        accuracy: 0,
         updatedAt: new Date().toISOString(),
       };
 
@@ -634,6 +731,9 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
       // Seamlessly transition to Home view
       markOnboardingComplete();
+
+      // Trigger automatic milestone backup on onboarding completion
+      backupRestoreService.triggerMilestoneBackup(user.uid, 'onboarding_complete').catch(() => {});
     } catch (error) {
       console.warn('Could not finalize onboarding in Firestore:', error);
       // Fallback: update local cache so student is never stuck
