@@ -1,6 +1,7 @@
 // Rankify Background Notification & Cache Hygiene Service Worker
-const SW_CACHE_VERSION = 'rankify-sw-v3';
+const SW_CACHE_VERSION = 'rankify-sw-v4';
 const PRECACHE_ASSETS = [
+  '/logo-mark.png',
   '/apple-touch-icon.png',
   '/icon-192.png',
   '/icon-512.png',
@@ -105,7 +106,7 @@ self.addEventListener('message', (event) => {
     event.waitUntil(
       self.registration.showNotification(title, {
         body: body || '',
-        icon: '/pwa-192x192.png',
+        icon: '/icon-192.png',
         badge: '/pwa-192x192.png',
         tag: tag || 'rankify-study-alert',
         renotify: true,

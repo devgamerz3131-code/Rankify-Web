@@ -1,4 +1,5 @@
 import { Conversation, Message, DetectedSubject } from '../model/types';
+import { isTourActive } from '@/features/tour/tourReadOnlyGate';
 
 const STORAGE_KEY = 'rankify_ai_conversations_v1';
 
@@ -40,6 +41,7 @@ export class ChatRepository {
    * Toggles pin status on a conversation.
    */
   public togglePin(conversationId: string): boolean {
+    if (isTourActive()) return false;
     const all = this.getAllConversations();
     const conv = all.find((c) => c.id === conversationId);
     if (!conv) return false;
@@ -71,6 +73,10 @@ export class ChatRepository {
       detectedSubject: subject,
     };
 
+    if (isTourActive()) {
+      return newConv;
+    }
+
     const all = this.getAllConversations();
     all.unshift(newConv);
     this.saveAll(all);
@@ -81,6 +87,7 @@ export class ChatRepository {
    * Saves or updates a conversation.
    */
   public saveConversation(conversation: Conversation): void {
+    if (isTourActive()) return;
     const all = this.getAllConversations();
     const index = all.findIndex((c) => c.id === conversation.id);
     const updated = { ...conversation, updatedAt: Date.now() };
@@ -98,6 +105,7 @@ export class ChatRepository {
    * Adds a message to a conversation.
    */
   public addMessage(conversationId: string, message: Message): Conversation | null {
+    if (isTourActive()) return null;
     const all = this.getAllConversations();
     const conv = all.find((c) => c.id === conversationId);
     if (!conv) return null;
@@ -126,6 +134,7 @@ export class ChatRepository {
    * Deletes a conversation by ID.
    */
   public deleteConversation(id: string): void {
+    if (isTourActive()) return;
     const all = this.getAllConversations();
     const filtered = all.filter((c) => c.id !== id);
     this.saveAll(filtered);
@@ -135,7 +144,7 @@ export class ChatRepository {
    * Deletes all conversations.
    */
   public clearAll(): void {
-    if (typeof window === 'undefined') return;
+    if (isTourActive() || typeof window === 'undefined') return;
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch {
@@ -147,6 +156,7 @@ export class ChatRepository {
    * Toggles favorite status on a message or entire conversation.
    */
   public toggleFavorite(conversationId: string, messageId?: string): boolean {
+    if (isTourActive()) return false;
     const all = this.getAllConversations();
     const conv = all.find((c) => c.id === conversationId);
     if (!conv) return false;
@@ -176,6 +186,7 @@ export class ChatRepository {
    * Updates last used timestamp and increments use count on conversation or prompt.
    */
   public updateLastUsed(conversationId: string, messageId?: string): void {
+    if (isTourActive()) return;
     const all = this.getAllConversations();
     const conv = all.find((c) => c.id === conversationId);
     if (!conv) return;
@@ -203,6 +214,7 @@ export class ChatRepository {
    * Renames a conversation title.
    */
   public renameConversation(conversationId: string, newTitle: string): boolean {
+    if (isTourActive()) return false;
     const all = this.getAllConversations();
     const conv = all.find((c) => c.id === conversationId);
     if (!conv) return false;
@@ -287,7 +299,7 @@ export class ChatRepository {
   }
 
   private saveAll(conversations: Conversation[]): void {
-    if (typeof window === 'undefined') return;
+    if (isTourActive() || typeof window === 'undefined') return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
     } catch {

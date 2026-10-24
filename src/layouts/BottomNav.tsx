@@ -190,7 +190,10 @@ export const BottomNav: React.FC = () => {
           display: isKeyboardOpen ? 'none' : 'var(--bottom-nav-display, flex)',
         }}
       >
-        <div className="max-w-md mx-auto h-16 w-full rounded-2xl bg-card border border-border shadow-2xl flex items-center justify-around px-1 pointer-events-auto select-none">
+        <div
+          data-tour="main-nav"
+          className="max-w-md mx-auto h-16 w-full rounded-2xl bg-card border border-border shadow-2xl flex items-center justify-around px-1 pointer-events-auto select-none"
+        >
           {PRIMARY_NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const isItemActive = item.id === 'more' ? isMoreActive : activeTab === item.id;

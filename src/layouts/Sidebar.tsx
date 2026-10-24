@@ -19,7 +19,7 @@ export const Sidebar: React.FC = () => {
   return (
     <aside className="hidden lg:flex flex-col w-64 border-r border-border bg-card shrink-0 min-h-[calc(100vh-4rem)] p-4 select-none">
       {/* Navigation List */}
-      <div className="space-y-1.5 flex-1">
+      <div data-tour="main-nav" className="space-y-1.5">
         <div className="px-3 pb-2 pt-1 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
           Navigation
         </div>

@@ -5,6 +5,7 @@ import { useNavigation } from '@/contexts/NavigationContext';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { weaknessService, WEAKNESS_CONFIG } from '@/services/weakness-service';
 import { notificationEngine } from '@/services/notification-service';
+import { isTourActive } from '@/features/tour/tourReadOnlyGate';
 import {
   WeaknessOverallData,
   ChapterWeaknessAnalysis,
@@ -100,6 +101,7 @@ export const WeaknessAnalyzerView: React.FC = () => {
   }, [chapterProgressMap, upcomingExam]);
 
   const handleManualAnalyze = async () => {
+    if (isTourActive()) return;
     setIsAnalyzing(true);
     const chapters = Object.values(chapterProgressMap || {});
     const res = weaknessService.analyze(chapters, undefined, upcomingExam);
@@ -200,7 +202,10 @@ export const WeaknessAnalyzerView: React.FC = () => {
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-16">
       {/* 1. HERO BANNER: WEAKNESS OVERVIEW & DIAGNOSTIC HEALTH */}
-      <div className="rounded-2xl p-6 sm:p-8 bg-slate-900 text-white border border-slate-800 shadow-xl">
+      <div
+        data-tour="weakness-header"
+        className="rounded-2xl p-6 sm:p-8 bg-slate-900 text-white border border-slate-800 shadow-xl"
+      >
         <div className="space-y-6">
           {/* Top header navigation */}
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -284,7 +289,7 @@ export const WeaknessAnalyzerView: React.FC = () => {
           </div>
 
           {/* Quick Subject Strengths Ribbon */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+          <div data-tour="weakness-summary" className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
             {subjects.map((sub) => (
               <div
                 key={sub.subjectId}
@@ -322,7 +327,10 @@ export const WeaknessAnalyzerView: React.FC = () => {
       {/* 2. BEHAVIORAL AI INSIGHTS & RADAR COGNITIVE PROFILE */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: AI BEHAVIORAL INSIGHTS */}
-        <Card className="p-5 sm:p-6 bg-card border border-border shadow-xs flex flex-col justify-between">
+        <Card
+          data-tour="weakness-insights"
+          className="p-5 sm:p-6 bg-card border border-border shadow-xs flex flex-col justify-between"
+        >
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -401,7 +409,10 @@ export const WeaknessAnalyzerView: React.FC = () => {
         </Card>
 
         {/* Right: COGNITIVE RADAR CHART & DIMENSIONS */}
-        <Card className="p-5 sm:p-6 bg-card border border-border shadow-xs flex flex-col justify-between">
+        <Card
+          data-tour="weakness-radar"
+          className="p-5 sm:p-6 bg-card border border-border shadow-xs flex flex-col justify-between"
+        >
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -520,7 +531,10 @@ export const WeaknessAnalyzerView: React.FC = () => {
       {/* 3. COMMON MISTAKES & RECOVERY TREND SECTION */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Global Common Mistakes Card */}
-        <Card className="p-5 sm:p-6 bg-card border border-border shadow-xs space-y-4">
+        <Card
+          data-tour="weakness-vault-summary"
+          className="p-5 sm:p-6 bg-card border border-border shadow-xs space-y-4"
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <BookX className="w-5 h-5 text-rose-600 dark:text-rose-400" />
@@ -571,7 +585,10 @@ export const WeaknessAnalyzerView: React.FC = () => {
         </Card>
 
         {/* Weakness Recovery Trend Card */}
-        <Card className="p-5 sm:p-6 bg-card border border-border shadow-xs flex flex-col justify-between">
+        <Card
+          data-tour="weakness-trajectory"
+          className="p-5 sm:p-6 bg-card border border-border shadow-xs flex flex-col justify-between"
+        >
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -646,7 +663,7 @@ export const WeaknessAnalyzerView: React.FC = () => {
           </div>
 
           {/* Weakness Level Badges */}
-          <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
+          <div data-tour="weakness-levels" className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
             <span className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
               <span className="w-2 h-2 rounded-full bg-rose-500" />
               Critical (&lt;40%)
@@ -671,7 +688,10 @@ export const WeaknessAnalyzerView: React.FC = () => {
         </div>
 
         {/* Filter Controls */}
-        <div className="p-4 rounded-2xl bg-card border border-slate-200/80 dark:border-white/10 shadow-xs flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+        <div
+          data-tour="weakness-filters"
+          className="p-4 rounded-2xl bg-card border border-slate-200/80 dark:border-white/10 shadow-xs flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3"
+        >
           {/* Subject Tabs - Horizontal scroll without clipped half-chip */}
           <div
             ref={subjectTabsRef}
@@ -742,7 +762,7 @@ export const WeaknessAnalyzerView: React.FC = () => {
 
         {/* Chapters Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredChapters.map((ch) => {
+          {filteredChapters.map((ch, idx) => {
             const levelColor = {
               Critical: 'bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/40 text-rose-700 dark:text-rose-300',
               Weak: 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40 text-amber-700 dark:text-amber-300',
@@ -764,8 +784,12 @@ export const WeaknessAnalyzerView: React.FC = () => {
             return (
               <motion.div
                 key={ch.chapterId}
+                data-tour={idx === 0 ? 'weakness-chapter-card' : undefined}
                 whileHover={{ scale: 1.01 }}
-                onClick={() => setActiveChapterModal(ch)}
+                onClick={() => {
+                  if (isTourActive()) return;
+                  setActiveChapterModal(ch);
+                }}
                 className={`p-4 rounded-3xl border ${levelColor} shadow-xs hover:shadow-md cursor-pointer transition-all flex flex-col justify-between space-y-3`}
               >
                 <div className="space-y-2">

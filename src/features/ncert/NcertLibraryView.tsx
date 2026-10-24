@@ -25,8 +25,11 @@ import {
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import toast from 'react-hot-toast';
+import { useTourActiveSnapshot } from '@/features/tour/tourReadOnlyGate';
+import { NCERT_READER_STEP_IDS } from '@/features/tour/tourSteps';
 
 export const NcertLibraryView: React.FC = () => {
+  const tourSnapshot = useTourActiveSnapshot();
   const [activeChapter, setActiveChapter] = useState<NcertChapter | null>(null);
   const [revisionModalChapter, setRevisionModalChapter] = useState<NcertChapter | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<'All' | NcertSubject>('All');
@@ -67,14 +70,52 @@ export const NcertLibraryView: React.FC = () => {
     }
   };
 
-  // If student is reading a chapter, show SmartReaderView
-  if (activeChapter) {
+  // Step 3 (Phase 3): For NCERT Reader tour steps, open the chapter the user last read if one is stored,
+  // otherwise the first chapter that has reader content (read-only view, no state mutation).
+  const validReaderChapters = chapters.filter(
+    (ch) =>
+      Array.isArray(ch.topics) &&
+      ch.topics.length > 0 &&
+      Array.isArray(ch.topics[0]?.paragraphs) &&
+      ch.topics[0].paragraphs.length > 0
+  );
+
+  let tourReaderChapter: NcertChapter | null = validReaderChapters[0] || null;
+  if (validReaderChapters.length > 0 && state?.progressMap) {
+    let latestTs = 0;
+    for (const ch of validReaderChapters) {
+      const ts = state.progressMap[ch.id]?.lastReadTimestamp;
+      if (typeof ts === 'number' && ts > latestTs) {
+        latestTs = ts;
+        tourReaderChapter = ch;
+      }
+    }
+  }
+
+  const isTourOnLibraryStep =
+    tourSnapshot.isActive &&
+    (tourSnapshot.currentStepId === 'ncert-intro' ||
+      tourSnapshot.currentStepId === 'ncert-chapters' ||
+      tourSnapshot.currentStepId === 'quick-ncert-chapters');
+
+  const isTourOnReaderStep =
+    tourSnapshot.isActive &&
+    Boolean(tourSnapshot.currentStepId && NCERT_READER_STEP_IDS.has(tourSnapshot.currentStepId));
+
+  const effectiveReaderChapter = isTourOnLibraryStep
+    ? null
+    : isTourOnReaderStep
+    ? activeChapter || tourReaderChapter
+    : activeChapter;
+
+  // If student is reading a chapter (or tour is demonstrating reader steps), show SmartReaderView
+  if (effectiveReaderChapter) {
     return (
       <>
         <SmartReaderView
-          chapter={activeChapter}
+          chapter={effectiveReaderChapter}
           onBack={() => setActiveChapter(null)}
-          onOpenRevisionModal={() => setRevisionModalChapter(activeChapter)}
+          onOpenRevisionModal={() => setRevisionModalChapter(effectiveReaderChapter)}
         />
         {revisionModalChapter && (
           <RevisionModeModal
@@ -219,7 +260,10 @@ export const NcertLibraryView: React.FC = () => {
       </div>
 
       {/* 3. CHAPTERS GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div
+        data-tour="ncert-chapters"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
+      >
         {filteredChapters.map((ch) => {
           const progress = progressMap[ch.id] || {
             completionPercent: 0,

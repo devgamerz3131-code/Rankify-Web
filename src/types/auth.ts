@@ -1,5 +1,13 @@
 export type UserRole = 'student' | 'admin';
 
+export interface TutorialRecord {
+  version: 1;
+  status: 'seen' | 'completed' | 'skipped';
+  lastShownAt: number;
+  completedAt?: number;
+  skippedAt?: number;
+}
+
 export interface UserProfile {
   uid: string;
   email: string | null;
@@ -19,6 +27,8 @@ export interface UserProfile {
   onboardingCompleted?: boolean;
   onboardingStep?: number;
   studyJourneyCompleted?: boolean;
+  tutorial?: TutorialRecord;
+  lastActiveAt?: number;
   createdAt?: string;
   updatedAt?: string;
 }

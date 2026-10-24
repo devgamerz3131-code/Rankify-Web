@@ -2,6 +2,7 @@ import { safeLocalStorage } from '@/utils/storage';
 import { db } from '@/firebase/config';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { syncEngine } from '@/services/sync-engine';
+import { isTourActive } from '@/features/tour/tourReadOnlyGate';
 import toast from 'react-hot-toast';
 
 export type NotificationFrequency = 'low' | 'normal' | 'high';
@@ -117,6 +118,7 @@ export class NotificationEngine {
   }
 
   public async saveSettings(newSettings: Partial<NotificationSettings>): Promise<void> {
+    if (isTourActive()) return;
     this.settings = { ...this.settings, ...newSettings };
     safeLocalStorage.setItem(STORAGE_KEY, this.settings);
 
@@ -133,6 +135,7 @@ export class NotificationEngine {
   }
 
   public async requestPermission(): Promise<boolean> {
+    if (isTourActive()) return false;
     if (typeof window === 'undefined') return false;
 
     // Detect if the application is loaded inside an iframe (such as AI Studio preview container)
@@ -205,8 +208,9 @@ export class NotificationEngine {
   public async triggerNotification(
     title: string,
     body: string,
-    icon: string = '/pwa-192x192.png'
+    icon: string = '/icon-192.png'
   ): Promise<void> {
+    if (isTourActive()) return;
     if (!this.settings.enabled) return;
 
     if (this.isInQuietHours()) {
@@ -263,6 +267,7 @@ export class NotificationEngine {
 
   // Trigger immediate browser test notification
   public sendTestNotification() {
+    if (isTourActive()) return;
     const funnySavageQuotes = [
       'Books miss you more than Instagram today 😂',
       'Topper banne ka shortcut nahi hai. Open Rankify.',
@@ -298,6 +303,7 @@ export class NotificationEngine {
     hasActiveRevision?: boolean;
     activeChapterName?: string;
   }): Promise<void> {
+    if (isTourActive()) return;
     if (!this.settings.enabled) return;
     if (this.isInQuietHours()) return;
 

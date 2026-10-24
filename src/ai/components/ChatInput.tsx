@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { SmartPromptOptions } from '../model/types';
 import toast from 'react-hot-toast';
+import { isTourActive } from '@/features/tour/tourReadOnlyGate';
 
 interface ChatInputProps {
   onSend: (text: string) => void;
@@ -155,6 +156,7 @@ export const ChatInputComponent: React.FC<ChatInputProps> = ({
 
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (isTourActive()) return;
     const trimmed = input.trim();
     if (!trimmed || isLoading || disabled) return;
 
@@ -173,6 +175,7 @@ export const ChatInputComponent: React.FC<ChatInputProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (isTourActive()) return;
     // Check if device has fine pointer / physical keyboard support
     const isTouchOnly =
       typeof window !== 'undefined' &&
@@ -190,16 +193,17 @@ export const ChatInputComponent: React.FC<ChatInputProps> = ({
   };
 
   const handleChipClick = (chip: typeof QUICK_PROMPT_CHIPS[0]) => {
-    if (isLoading || disabled) return;
+    if (isTourActive() || isLoading || disabled) return;
     const generated = chip.prompt(activeChapterName);
     setInput(generated);
-    if (textareaRef.current) {
+    if (textareaRef.current && !isTourActive()) {
       textareaRef.current.focus();
     }
   };
 
   // Voice Input Toggle via Web Speech Recognition
   const toggleVoiceInput = useCallback(() => {
+    if (isTourActive()) return;
     if (isRecording) {
       recognitionRef.current?.stop();
       setIsRecording(false);
@@ -251,6 +255,7 @@ export const ChatInputComponent: React.FC<ChatInputProps> = ({
 
   // File Attachment Handler
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isTourActive()) return;
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -270,7 +275,7 @@ export const ChatInputComponent: React.FC<ChatInputProps> = ({
   return (
     <div className="w-full space-y-3 max-w-4xl mx-auto">
       {/* 1. QUICK PROMPT CHIPS */}
-      <div className="relative group">
+      <div data-tour="ai-quick-prompts" className="relative group">
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 px-1 snap-x snap-mandatory scroll-smooth pr-6">
           <span className="text-[10px] uppercase font-bold text-muted-foreground shrink-0 flex items-center gap-1.5 pr-1 snap-start">
             <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
@@ -388,6 +393,7 @@ export const ChatInputComponent: React.FC<ChatInputProps> = ({
 
       {/* 3. PROMINENT LARGE PROMPT DOCK */}
       <form
+        data-tour="ai-input"
         onSubmit={handleSubmit}
         className="relative flex flex-col justify-between p-3.5 sm:p-4 rounded-3xl bg-card border-2 border-border shadow-xl focus-within:border-purple-500 focus-within:ring-4 focus-within:ring-purple-500/15 transition-all duration-200"
       >
@@ -416,9 +422,18 @@ export const ChatInputComponent: React.FC<ChatInputProps> = ({
           ref={textareaRef}
           rows={3}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => {
+            if (isTourActive()) return;
+            setInput(e.target.value);
+          }}
           onKeyDown={handleKeyDown}
-          onFocus={onFocus}
+          onFocus={(e) => {
+            if (isTourActive()) {
+              e.currentTarget.blur();
+              return;
+            }
+            if (onFocus) onFocus();
+          }}
           onBlur={onBlur}
           disabled={isLoading || disabled}
           placeholder={activePlaceholder}
@@ -428,7 +443,7 @@ export const ChatInputComponent: React.FC<ChatInputProps> = ({
         {/* Bottom Toolbar inside the Input Dock */}
         <div className="flex items-center justify-between pt-2.5 mt-1 border-t border-border/60">
           {/* Left Controls: Attachments, Voice Input */}
-          <div className="flex items-center gap-1.5">
+          <div data-tour="ai-attach-voice" className="flex items-center gap-1.5">
             {/* Attachment Button */}
             <input
               type="file"

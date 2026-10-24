@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { notificationEngine, NotificationSettings } from '@/services/notification-service';
+import { isTourActive } from '@/features/tour/tourReadOnlyGate';
 import {
   Settings,
   Bell,
@@ -81,6 +82,7 @@ export const NotificationSettingsView: React.FC = () => {
   }, []);
 
   const handleToggleSetting = async (key: keyof NotificationSettings) => {
+    if (isTourActive()) return;
     const value = !settings[key];
     const updated = { ...settings, [key]: value };
     setSettings(updated);
@@ -90,6 +92,7 @@ export const NotificationSettingsView: React.FC = () => {
   };
 
   const handleSelectFrequency = async (freq: 'low' | 'normal' | 'high') => {
+    if (isTourActive()) return;
     const updated = { ...settings, frequency: freq };
     setSettings(updated);
     setIsSyncing(true);
@@ -98,7 +101,7 @@ export const NotificationSettingsView: React.FC = () => {
   };
 
   const handleChangeTime = async (key: 'quietHoursStart' | 'quietHoursEnd', val: string) => {
-    const updated = { ...settings, quietHoursStart: val, quietHoursEnd: val };
+    if (isTourActive()) return;
     const updateObj = { [key]: val };
     const updatedState = { ...settings, [key]: val };
     setSettings(updatedState);
@@ -108,6 +111,7 @@ export const NotificationSettingsView: React.FC = () => {
   };
 
   const handleEnableSystemNotifications = async () => {
+    if (isTourActive()) return;
     const isIframe = typeof window !== 'undefined' && window.self !== window.top;
     if (permissionState === 'denied' && !isIframe) {
       toast.error(
@@ -126,6 +130,7 @@ export const NotificationSettingsView: React.FC = () => {
   };
 
   const handleSendTest = () => {
+    if (isTourActive()) return;
     if (permissionState !== 'granted' && isNotificationSupported) {
       toast('Please grant notification permission to test system-level alerts.', { icon: '🔔' });
     }

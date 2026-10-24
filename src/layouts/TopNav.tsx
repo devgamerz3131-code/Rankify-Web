@@ -24,7 +24,14 @@ export const TopNav: React.FC = () => {
             onClick={() => setActiveTab('home')}
             className="flex items-center gap-2.5 cursor-pointer"
           >
-            <RankifyLogo size={36} />
+            <img
+              src="/logo-mark.png"
+              alt="Rankify"
+              width="40"
+              height="40"
+              loading="eager"
+              className="w-10 h-10 object-contain shrink-0"
+            />
             <div className="flex flex-col">
               <span className="font-black tracking-tight text-lg leading-tight bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-500 bg-clip-text text-transparent">
                 Rankify
@@ -45,6 +52,7 @@ export const TopNav: React.FC = () => {
         {/* Global Search Bar Trigger */}
         <div className="flex-1 max-w-md mx-3 hidden md:block">
           <button
+            data-tour="home-search"
             onClick={toggleSearch}
             className="w-full h-9 flex items-center justify-between px-3.5 rounded-xl bg-muted text-xs text-muted-foreground hover:bg-muted/80 transition border border-border cursor-pointer"
           >
@@ -62,6 +70,7 @@ export const TopNav: React.FC = () => {
         <div className="flex items-center gap-2 sm:gap-2.5">
           {/* Mobile search trigger icon */}
           <button
+            data-tour="home-search"
             onClick={toggleSearch}
             className="md:hidden p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
             aria-label="Search"

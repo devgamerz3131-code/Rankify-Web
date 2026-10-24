@@ -18,6 +18,7 @@ import {
 import { db } from '@/firebase/config';
 import { crashReporter } from '@/services/crash-reporter';
 import { syncEngine, UserSessionState } from '@/services/sync-engine';
+import { isTourActive } from '@/features/tour/tourReadOnlyGate';
 import toast from 'react-hot-toast';
 
 export type BackupTrigger =
@@ -121,6 +122,7 @@ class BackupRestoreService {
     // Check every 4 hours for scheduled daily backup
     if (this.autoBackupInterval) clearInterval(this.autoBackupInterval);
     this.autoBackupInterval = setInterval(() => {
+      if (isTourActive()) return;
       const activeUid = syncEngine.getCurrentUserId();
       if (activeUid && navigator.onLine) {
         this.checkAndTriggerDailyBackup(activeUid);
@@ -275,6 +277,7 @@ class BackupRestoreService {
     userId: string,
     trigger: BackupTrigger = 'manual'
   ): Promise<{ success: boolean; backup?: StudentFullBackup; error?: string }> {
+    if (isTourActive()) return { success: false, error: 'Tour active' };
     if (!userId) return { success: false, error: 'Sign in required' };
     if (this.isBackupRunning) {
       return { success: false, error: 'A backup operation is currently in progress' };
@@ -314,6 +317,7 @@ class BackupRestoreService {
    * Checks if 24 hours have elapsed since the last backup and triggers an automatic backup.
    */
   public async checkAndTriggerDailyBackup(userId: string): Promise<void> {
+    if (isTourActive()) return;
     if (!userId || typeof window === 'undefined') return;
     try {
       const lastBackupStr = localStorage.getItem(`rankify_last_backup_time_${userId}`);
@@ -332,6 +336,7 @@ class BackupRestoreService {
    * Automatically triggered on milestones (e.g. mock test completed, onboarding finished).
    */
   public async triggerMilestoneBackup(userId: string, trigger: BackupTrigger): Promise<void> {
+    if (isTourActive()) return;
     if (!userId || typeof window === 'undefined') return;
     try {
       const lastBackupStr = localStorage.getItem(`rankify_last_backup_time_${userId}`);
@@ -401,6 +406,7 @@ class BackupRestoreService {
     userId: string,
     mode: RestoreMode = 'merge'
   ): Promise<StudentFullBackup | null> {
+    if (isTourActive()) return null;
     if (!userId) return null;
     try {
       const backupRef = doc(db, 'users', userId, 'backups', 'latest');
@@ -435,6 +441,7 @@ class BackupRestoreService {
     userId: string,
     mode: RestoreMode = 'merge'
   ): void {
+    if (isTourActive()) return;
     try {
       // 1. Chapter Progress
       if (backup.chapterProgressMap && Object.keys(backup.chapterProgressMap).length > 0) {
@@ -532,6 +539,7 @@ class BackupRestoreService {
    * Deletes a specific backup snapshot from Firestore.
    */
   public async deleteBackup(userId: string, backupId: string): Promise<boolean> {
+    if (isTourActive()) return false;
     if (!userId || !backupId) return false;
     try {
       const docRef = doc(db, 'users', userId, 'backups_history', backupId);
@@ -547,6 +555,7 @@ class BackupRestoreService {
    * Deletes all backup history snapshots for the student.
    */
   public async deleteAllBackups(userId: string): Promise<boolean> {
+    if (isTourActive()) return false;
     if (!userId) return false;
     try {
       const colRef = collection(db, 'users', userId, 'backups_history');
@@ -569,6 +578,7 @@ class BackupRestoreService {
     studentName: string = 'Scholar',
     format: 'json' | 'encrypted' = 'json'
   ): void {
+    if (isTourActive()) return;
     try {
       const backup = this.generateCurrentBackup(userId, 'manual');
       let outputContent: string;
@@ -614,6 +624,7 @@ class BackupRestoreService {
     userId: string,
     mode: RestoreMode = 'merge'
   ): { success: boolean; backup?: StudentFullBackup; error?: string } {
+    if (isTourActive()) return { success: false, error: 'Tour active' };
     try {
       let jsonString = rawContent.trim();
 

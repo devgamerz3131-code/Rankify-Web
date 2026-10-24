@@ -12,6 +12,7 @@ export default defineConfig(() => {
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: [
+          'logo-mark.png',
           'favicon.ico',
           'favicon-32.png',
           'apple-touch-icon.png',
@@ -51,7 +52,7 @@ export default defineConfig(() => {
           ],
         },
         workbox: {
-          cacheId: 'rankify-pwa-v3',
+          cacheId: 'rankify-pwa-v4',
           importScripts: ['sw-notifications.js'],
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
           cleanupOutdatedCaches: true,

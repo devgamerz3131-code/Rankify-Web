@@ -21,6 +21,7 @@ import {
   getChapterById,
   getSubjectChapterCounts,
 } from '@/services/chapter-service';
+import { isTourActive } from '@/features/tour/tourReadOnlyGate';
 
 export const StudyReportsView: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
@@ -62,11 +63,12 @@ export const StudyReportsView: React.FC<{ onClose?: () => void }> = ({ onClose }
       : null;
 
   const handleExportReport = () => {
+    if (isTourActive()) return;
     toast.success(`Academic ${period} report exported!`);
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-8">
+    <div data-tour="profile-reports" className="space-y-6 max-w-5xl mx-auto pb-8">
       {/* Header Banner */}
       <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-purple-950 text-white border border-indigo-500/30 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">

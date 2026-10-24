@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, useEffect } from 'react';
 import { TopNav } from './TopNav';
 import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
@@ -10,8 +10,30 @@ import { AutoSyncNotifier } from '@/components/common/AutoSyncNotifier';
 import { ToastProviderComponent } from '@/components/ui/toast';
 import { AnnouncementBanner } from '@/components/common/AnnouncementBanner';
 import { AppUpdateModal } from '@/components/common/AppUpdateModal';
+import { useTour } from '@/features/tour/TourContext';
 import { useAuth } from '@/hooks/use-auth';
 import { useNavigation } from '@/contexts/NavigationContext';
+
+const LazyGuidedTourOverlay = React.lazy(() =>
+  import('@/features/tour/GuidedTourOverlay').then((m) => ({ default: m.GuidedTourOverlay }))
+);
+
+const LazyTourHost: React.FC = () => {
+  const { isOpen, setOverlayMounted } = useTour();
+
+  useEffect(() => {
+    setOverlayMounted(true);
+    return () => setOverlayMounted(false);
+  }, [setOverlayMounted]);
+
+  if (!isOpen) return null;
+
+  return (
+    <Suspense fallback={null}>
+      <LazyGuidedTourOverlay />
+    </Suspense>
+  );
+};
 
 export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { impersonatedUser, stopImpersonation } = useAuth();
@@ -88,6 +110,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
       <AutoSyncNotifier />
       <ToastProviderComponent />
       <AppUpdateModal />
+      <LazyTourHost />
     </div>
   );
 };

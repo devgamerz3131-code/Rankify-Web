@@ -7,6 +7,7 @@ import {
   Unsubscribe,
 } from 'firebase/firestore';
 import { db, auth } from '@/firebase/config';
+import { isTourActive } from '@/features/tour/tourReadOnlyGate';
 
 export type SyncStatus = 'synced' | 'syncing' | 'offline' | 'pending' | 'error';
 export const FORTY_FIVE_MINUTES_MS = 45 * 60 * 1000;
@@ -692,7 +693,7 @@ class SyncEngine {
   // =========================================================
 
   public saveSession(userId: string, partialSession: Partial<UserSessionState>): void {
-    if (!userId) return;
+    if (!userId || isTourActive()) return;
     const existing = this.getLocalCache<UserSessionState>('user_session', userId) || {};
     const updated: UserSessionState = {
       ...existing,
@@ -726,6 +727,138 @@ class SyncEngine {
     return cached;
   }
 
+  public getTutorialAndActivity(
+    userId: string,
+    fallbackProfile?: { tutorial?: unknown; lastActiveAt?: unknown } | null
+  ): {
+    tutorial: {
+      version: 1;
+      status: 'seen' | 'completed' | 'skipped';
+      lastShownAt: number;
+      completedAt?: number;
+      skippedAt?: number;
+    } | null;
+    lastActiveAt: number | null;
+  } {
+    if (!userId) return { tutorial: null, lastActiveAt: null };
+    try {
+      const profileCache = this.getLocalCache<Record<string, any>>('student_profile', userId) || {};
+      const queuedCache = this.getLocalCache<Record<string, any>>(`users_${userId}`, userId) || {};
+
+      const candidates = [queuedCache, profileCache, fallbackProfile || {}];
+      let bestTutorial: any = null;
+      let bestLastActiveAt: number | null = null;
+
+      for (const src of candidates) {
+        if (!src || typeof src !== 'object') continue;
+        const t = (src as any).tutorial;
+        if (
+          t &&
+          typeof t === 'object' &&
+          (t.status === 'seen' || t.status === 'completed' || t.status === 'skipped') &&
+          typeof t.lastShownAt === 'number' &&
+          Number.isFinite(t.lastShownAt)
+        ) {
+          if (!bestTutorial || t.lastShownAt > bestTutorial.lastShownAt) {
+            bestTutorial = {
+              version: 1 as const,
+              status: t.status,
+              lastShownAt: t.lastShownAt,
+              ...(typeof t.completedAt === 'number' && Number.isFinite(t.completedAt)
+                ? { completedAt: t.completedAt }
+                : {}),
+              ...(typeof t.skippedAt === 'number' && Number.isFinite(t.skippedAt)
+                ? { skippedAt: t.skippedAt }
+                : {}),
+            };
+          }
+        }
+        const la = (src as any).lastActiveAt;
+        if (typeof la === 'number' && Number.isFinite(la) && la > 0) {
+          if (bestLastActiveAt === null || la > bestLastActiveAt) {
+            bestLastActiveAt = la;
+          }
+        }
+      }
+
+      return { tutorial: bestTutorial, lastActiveAt: bestLastActiveAt };
+    } catch {
+      return { tutorial: null, lastActiveAt: null };
+    }
+  }
+
+  public saveTutorialState(
+    userId: string,
+    tutorial: {
+      version: 1;
+      status: 'seen' | 'completed' | 'skipped';
+      lastShownAt: number;
+      completedAt?: number;
+      skippedAt?: number;
+    },
+    lastActiveAt?: number
+  ): void {
+    if (!userId || userId === 'guest') return;
+    try {
+      const cleanTutorial: Record<string, number | string> = {
+        version: 1,
+        status: tutorial.status,
+        lastShownAt: tutorial.lastShownAt,
+      };
+      if (typeof tutorial.completedAt === 'number' && Number.isFinite(tutorial.completedAt)) {
+        cleanTutorial.completedAt = tutorial.completedAt;
+      }
+      if (typeof tutorial.skippedAt === 'number' && Number.isFinite(tutorial.skippedAt)) {
+        cleanTutorial.skippedAt = tutorial.skippedAt;
+      }
+
+      const payload: Record<string, unknown> = {
+        tutorial: cleanTutorial,
+      };
+      if (typeof lastActiveAt === 'number' && Number.isFinite(lastActiveAt)) {
+        payload.lastActiveAt = lastActiveAt;
+      }
+
+      const existingProfile = this.getLocalCache<Record<string, unknown>>('student_profile', userId) || {};
+      const existingQueued = this.getLocalCache<Record<string, unknown>>(`users_${userId}`, userId) || {};
+      this.setLocalCache('student_profile', { ...existingProfile, ...payload }, userId);
+      this.queueSync(userId, 'users', userId, { ...existingQueued, ...payload }, 'set');
+    } catch (e) {
+      logSyncWarn('Could not save tutorial state:', e);
+    }
+  }
+
+  public saveLastActiveAt(userId: string, timestamp: number): void {
+    if (!userId || userId === 'guest' || !Number.isFinite(timestamp)) return;
+    try {
+      const existingProfile = this.getLocalCache<Record<string, unknown>>('student_profile', userId) || {};
+      const existingQueued = this.getLocalCache<Record<string, unknown>>(`users_${userId}`, userId) || {};
+      this.setLocalCache('student_profile', { ...existingProfile, lastActiveAt: timestamp }, userId);
+      this.queueSync(userId, 'users', userId, { ...existingQueued, lastActiveAt: timestamp }, 'set');
+    } catch (e) {
+      logSyncWarn('Could not save lastActiveAt:', e);
+    }
+  }
+
+  public clearTutorialStateForDev(userId: string): void {
+    if (!userId) return;
+    try {
+      const existingProfile = this.getLocalCache<Record<string, any>>('student_profile', userId) || {};
+      const nextProfile = { ...existingProfile };
+      delete nextProfile.tutorial;
+      this.setLocalCache('student_profile', nextProfile, userId);
+
+      const existingQueued = this.getLocalCache<Record<string, any>>(`users_${userId}`, userId) || {};
+      const nextQueued = { ...existingQueued };
+      delete nextQueued.tutorial;
+      this.setLocalCache(`users_${userId}`, nextQueued, userId);
+
+      this.queueSync(userId, 'users', userId, { tutorial: null }, 'set');
+    } catch (e) {
+      logSyncWarn('Could not clear tutorial state:', e);
+    }
+  }
+
   public async restoreAllFromCloud(userId: string): Promise<boolean> {
     if (!userId) return false;
 
@@ -736,7 +869,18 @@ class SyncEngine {
       const userSnap = await getDoc(userRef);
       if (userSnap.exists()) {
         const userData = userSnap.data();
-        this.setLocalCache('student_profile', userData, userId);
+        const existingLocal = this.getLocalCache<Record<string, any>>('student_profile', userId) || {};
+        const mergedProfile: Record<string, any> = { ...existingLocal, ...userData };
+        if (
+          existingLocal.tutorial &&
+          typeof existingLocal.tutorial.lastShownAt === 'number' &&
+          (!userData.tutorial ||
+            typeof userData.tutorial.lastShownAt !== 'number' ||
+            existingLocal.tutorial.lastShownAt >= userData.tutorial.lastShownAt)
+        ) {
+          mergedProfile.tutorial = existingLocal.tutorial;
+        }
+        this.setLocalCache('student_profile', mergedProfile, userId);
         if (userData.displayName) {
           const details = this.getLocalCache<Record<string, unknown>>('student_details', userId) || {};
           this.setLocalCache('student_details', { ...details, name: userData.displayName }, userId);
@@ -779,6 +923,7 @@ class SyncEngine {
   }
 
   public async checkAndRunPeriodicSync(): Promise<void> {
+    if (isTourActive()) return;
     const uid = this.currentUserId || auth.currentUser?.uid || 'guest';
     if (!uid || typeof window === 'undefined' || !navigator.onLine) return;
 
@@ -818,6 +963,10 @@ class SyncEngine {
     if (this.syncInFlightPromise) {
       logSync('syncAllUnified already running in-flight. Awaiting current execution.');
       return this.syncInFlightPromise;
+    }
+
+    if (isTourActive()) {
+      return { success: false, itemCount: 0, timestamp: Date.now(), error: 'Tour active' };
     }
 
     this.syncInFlightPromise = this.executeSyncAllUnified(targetUid, options);

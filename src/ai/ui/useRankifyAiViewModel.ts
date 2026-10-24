@@ -20,6 +20,7 @@ import { copyTextToClipboard } from '@/utils/browser-compat';
 import { getSavedStudentContext } from '../utils/student-context';
 import { TimeFilterOption } from '../components/ChatSidebar';
 import { useNavigation } from '@/contexts/NavigationContext';
+import { isTourActive } from '@/features/tour/tourReadOnlyGate';
 
 export interface RankifyAiViewModelState {
   conversations: Conversation[];
@@ -90,6 +91,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
   });
 
   const setActiveMode = useCallback((mode: AiMode) => {
+    if (isTourActive()) return;
     setActiveModeState(mode);
     toast.success(`Switched AI Mode: ${mode} 🎯`, { duration: 2000 });
   }, []);
@@ -122,6 +124,9 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
 
   // Start new conversation
   const startNewConversation = useCallback((title?: string) => {
+    if (isTourActive()) {
+      return chatRepository.createConversation(title);
+    }
     const newConv = chatRepository.createConversation(title);
     refreshConversations();
     setCurrentConversationId(newConv.id);
@@ -131,6 +136,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
 
   // Select conversation
   const selectConversation = useCallback((id: string) => {
+    if (isTourActive()) return;
     setCurrentConversationId(id);
     const conv = chatRepository.getConversationById(id);
     if (conv && conv.messages.length > 0) {
@@ -144,6 +150,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
   // Delete conversation
   const deleteConversation = useCallback(
     (id: string) => {
+      if (isTourActive()) return;
       chatRepository.deleteConversation(id);
       const remaining = refreshConversations();
       if (currentConversationId === id) {
@@ -161,6 +168,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
   // Rename conversation
   const renameConversation = useCallback(
     (id: string, newTitle: string) => {
+      if (isTourActive()) return;
       chatRepository.renameConversation(id, newTitle);
       refreshConversations();
       toast.success('Chat renamed ✏️', { duration: 2000 });
@@ -171,6 +179,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
   // Toggle pin conversation
   const togglePin = useCallback(
     (id: string) => {
+      if (isTourActive()) return;
       const isPinned = chatRepository.togglePin(id);
       refreshConversations();
       toast.success(isPinned ? 'Chat pinned to top 📌' : 'Chat unpinned', {
@@ -182,6 +191,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
 
   // Clear all conversations
   const clearAllConversations = useCallback(() => {
+    if (isTourActive()) return;
     chatRepository.clearAll();
     setConversations([]);
     setCurrentConversationId(null);
@@ -190,12 +200,14 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
 
   // Update prompt options (Level, Depth, Language)
   const updatePromptOptions = useCallback((opts: Partial<SmartPromptOptions>) => {
+    if (isTourActive()) return;
     setPromptOptions((prev) => ({ ...prev, ...opts }));
   }, []);
 
   // Submit query: instantaneous synthesis, 0ms delay, no API calls, personalized
   const submitQuery = useCallback(
     async (query: string, boosterOverride?: PromptBooster) => {
+      if (isTourActive()) return;
       const clean = query.trim();
       if (!clean) return;
 
@@ -276,6 +288,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
   // Toggle booster: updates booster and immediately re-boosts current message if available
   const toggleBooster = useCallback(
     (booster: PromptBooster) => {
+      if (isTourActive()) return;
       const nextBooster = activeBooster === booster ? null : booster;
       setActiveBooster(nextBooster);
 
@@ -315,7 +328,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
   // Regenerate prompt for a specific message (instantaneous)
   const regeneratePrompt = useCallback(
     async (messageId: string) => {
-      if (!currentConversation) return;
+      if (isTourActive() || !currentConversation) return;
       const targetMsg = currentConversation.messages.find((m) => m.id === messageId);
       if (!targetMsg) return;
 
@@ -358,6 +371,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
 
   // Copy prompt to clipboard manually with haptics
   const copyPrompt = useCallback(async (text: string, messageId?: string): Promise<boolean> => {
+    if (isTourActive()) return false;
     triggerHapticFeedback();
     const ok = await copyTextToClipboard(text);
     if (ok) {
@@ -381,7 +395,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
   // Toggle favorite on prompt or conversation
   const toggleFavorite = useCallback(
     (messageId?: string) => {
-      if (!currentConversationId) return;
+      if (isTourActive() || !currentConversationId) return;
       const newState = chatRepository.toggleFavorite(currentConversationId, messageId);
       refreshConversations();
       toast.success(newState ? 'Added to favorites ⭐' : 'Removed from favorites', {
@@ -394,6 +408,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
   // Open ChatGPT handler
   const handleOpenChatGPT = useCallback(
     async (promptText: string, messageId?: string) => {
+      if (isTourActive()) return;
       if (currentConversationId && messageId) {
         chatRepository.updateLastUsed(currentConversationId, messageId);
       }
@@ -405,6 +420,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
   // Open Gemini handler
   const handleOpenGemini = useCallback(
     async (promptText: string, messageId?: string) => {
+      if (isTourActive()) return;
       if (currentConversationId && messageId) {
         chatRepository.updateLastUsed(currentConversationId, messageId);
       }
@@ -416,6 +432,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
   // Share handler
   const handleShare = useCallback(
     async (promptText: string, subject: string, chapter: string) => {
+      if (isTourActive()) return;
       await sharePrompt(promptText, subject, chapter);
     },
     []
@@ -424,6 +441,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
   // Home Screen / External Task Prefill integration:
   // If user presses Ask AI from Home, automatically fill without asking again!
   useEffect(() => {
+    if (isTourActive()) return;
     if (aiPrefill) {
       const { query, chapter, subject } = aiPrefill;
       const queryToSubmit =
@@ -448,6 +466,7 @@ export function useRankifyAiViewModel(): RankifyAiViewModel {
 
   // Initialize with a blank conversation if completely empty on first launch
   useEffect(() => {
+    if (isTourActive()) return;
     if (conversations.length === 0 && !currentConversationId && !aiPrefill) {
       const student = getSavedStudentContext();
       const initialChapter = student.todaysFocusChapter || 'Electrochemistry';

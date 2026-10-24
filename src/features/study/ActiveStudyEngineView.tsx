@@ -17,6 +17,7 @@ import {
   getSubjectChapterCounts,
   formatAccuracyDisplay,
 } from '@/services/chapter-service';
+import { useIsTourActive } from '@/features/tour/tourReadOnlyGate';
 
 const PROGRESS_PILLS: { value: ProgressPercentage; label: string }[] = [
   { value: 0, label: '0%' },
@@ -34,6 +35,7 @@ export const ActiveStudyEngineView: React.FC = () => {
     setScreen,
   } = useOnboarding();
 
+  const isTourActive = useIsTourActive();
   const chapters = Object.values(chapterProgressMap);
   const chapterCounts = getSubjectChapterCounts();
   const [selectedSubject, setSelectedSubject] = useState<'All' | 'Physics' | 'Chemistry' | 'Mathematics'>('All');
@@ -80,10 +82,15 @@ export const ActiveStudyEngineView: React.FC = () => {
       ? Math.round(chapters.reduce((sum, c) => sum + (c.progressPercentage || 0), 0) / chapters.length)
       : 0;
 
+  const firstNeedsFocusIndex = filteredChapters.findIndex((c) => Boolean(c.needsFocus));
+
   return (
     <div className="space-y-8 max-w-6xl mx-auto pb-12">
       {/* Active AI Study Plan Hero Banner */}
-      <div className="rounded-2xl bg-slate-900 p-6 sm:p-10 text-white shadow-xl border border-slate-800">
+      <div
+        data-tour="study-intro"
+        className="rounded-2xl bg-slate-900 p-6 sm:p-10 text-white shadow-xl border border-slate-800"
+      >
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="inline-flex items-center gap-2 rounded-full bg-purple-900 px-3.5 py-1 text-xs font-semibold text-purple-200 border border-purple-800">
@@ -94,7 +101,10 @@ export const ActiveStudyEngineView: React.FC = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setScreen(2)}
+              onClick={() => {
+                if (isTourActive) return;
+                setScreen(2);
+              }}
               className="text-white border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-semibold cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
@@ -170,6 +180,7 @@ export const ActiveStudyEngineView: React.FC = () => {
           {/* Subject Filter Pills */}
           <div
             ref={subjectTabsRef}
+            data-tour="study-filters"
             onScroll={updateSubjectFade}
             className="flex items-center gap-1.5 overflow-x-auto flex-nowrap snap-x snap-mandatory pb-1 scrollbar-none scroll-edge-fade min-w-0"
           >
@@ -197,14 +208,18 @@ export const ActiveStudyEngineView: React.FC = () => {
 
         {/* Chapters Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-          {filteredChapters.map((ch) => {
+          {filteredChapters.map((ch, idx) => {
             const currentProgress = ch.progressPercentage ?? 0;
             const attempted = (ch as any).attempted ?? (ch as any).questionsAttempted ?? ch.practiceQuestions ?? ch.questionSolved ?? 0;
             const correct = (ch as any).correct ?? (ch as any).questionsCorrect;
             const accResult = formatAccuracyDisplay(attempted, correct, ch.accuracy);
 
             return (
-              <Card key={ch.id} className="p-4 sm:p-5 flex flex-col justify-between space-y-4 bg-card border-border shadow-xs">
+              <Card
+                key={ch.id}
+                data-tour={idx === 0 ? 'study-card' : undefined}
+                className="p-4 sm:p-5 flex flex-col justify-between space-y-4 bg-card border-border shadow-xs"
+              >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-purple-500/10 text-purple-600 dark:text-purple-300">
@@ -212,7 +227,10 @@ export const ActiveStudyEngineView: React.FC = () => {
                     </span>
                     <div className="flex items-center gap-2">
                       {ch.needsFocus && (
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">
+                        <span
+                          data-tour={idx === firstNeedsFocusIndex ? 'study-focus' : undefined}
+                          className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30"
+                        >
                           Needs Focus
                         </span>
                       )}
@@ -226,9 +244,9 @@ export const ActiveStudyEngineView: React.FC = () => {
 
                   {ch.topics && ch.topics.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 pt-0.5">
-                      {ch.topics.slice(0, 3).map((t, idx) => (
+                      {ch.topics.slice(0, 3).map((t, tIdx) => (
                         <span
-                          key={idx}
+                          key={tIdx}
                           className="text-[10px] px-2.5 py-0.5 rounded-md bg-muted text-foreground/90 border border-border font-semibold"
                         >
                           {t}
@@ -237,7 +255,10 @@ export const ActiveStudyEngineView: React.FC = () => {
                     </div>
                   )}
 
-                  <div className="flex items-center gap-4 text-[10px] text-muted-foreground font-mono pt-1">
+                  <div
+                    data-tour={idx === 0 ? 'study-stats' : undefined}
+                    className="flex items-center gap-4 text-[10px] text-muted-foreground font-mono pt-1"
+                  >
                     <span>Questions: {ch.practiceQuestions || 0}</span>
                     <span>•</span>
                     <span>Revisions: {ch.revisionCount || 0}</span>
@@ -256,14 +277,20 @@ export const ActiveStudyEngineView: React.FC = () => {
 
                 <div className="pt-3 border-t border-border flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-between gap-2">
                   {/* Progress Selector: 0%, 25%, 50%, 75%, Done */}
-                  <div className="grid grid-cols-5 sm:flex items-center gap-1 bg-muted p-1 rounded-xl border border-border">
+                  <div
+                    data-tour={idx === 0 ? 'study-progress' : undefined}
+                    className="grid grid-cols-5 sm:flex items-center gap-1 bg-muted p-1 rounded-xl border border-border"
+                  >
                     {PROGRESS_PILLS.map((p) => {
                       const isCurrent = currentProgress === p.value;
                       return (
                         <button
                           key={p.value}
                           type="button"
-                          onClick={() => updateChapterProgress(ch.id, { progressPercentage: p.value })}
+                          onClick={() => {
+                            if (isTourActive) return;
+                            updateChapterProgress(ch.id, { progressPercentage: p.value });
+                          }}
                           className={`min-h-[44px] min-w-[44px] lg:min-h-0 lg:min-w-0 px-2 py-1.5 lg:py-0.5 flex items-center justify-center rounded-lg lg:rounded-md text-xs lg:text-[10px] font-bold transition cursor-pointer border whitespace-nowrap ${
                             isCurrent
                               ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
@@ -277,12 +304,18 @@ export const ActiveStudyEngineView: React.FC = () => {
                   </div>
 
                   {/* Confidence Stars */}
-                  <div className="flex items-center justify-end gap-0.5">
+                  <div
+                    data-tour={idx === 0 ? 'study-stars' : undefined}
+                    className="flex items-center justify-end gap-0.5"
+                  >
                     {([1, 2, 3, 4, 5] as ConfidenceLevel[]).map((star) => (
                       <button
                         key={star}
                         type="button"
-                        onClick={() => updateChapterProgress(ch.id, { confidence: star })}
+                        onClick={() => {
+                          if (isTourActive) return;
+                          updateChapterProgress(ch.id, { confidence: star });
+                        }}
                         className="min-w-[44px] min-h-[44px] lg:min-w-0 lg:min-h-0 p-2 lg:p-0.5 flex items-center justify-center rounded-lg hover:scale-110 transition cursor-pointer"
                       >
                         <Star

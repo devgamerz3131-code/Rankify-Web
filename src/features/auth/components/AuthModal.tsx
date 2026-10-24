@@ -35,7 +35,13 @@ export const AuthModal: React.FC = () => {
   return (
     <Dialog open={modalState.isOpen} onOpenChange={(open) => !open && closeAuthModal()}>
       <div className="flex flex-col items-center text-center mb-5">
-        <RankifyLogo size={44} className="mb-3" />
+        <img
+          src="/logo-mark.png"
+          alt="Rankify"
+          width="44"
+          height="44"
+          className="w-11 h-11 object-contain mb-3"
+        />
         <DialogHeader className="mb-0 text-center">
           <DialogTitle className="text-xl sm:text-2xl font-bold">{title}</DialogTitle>
           <DialogDescription className="text-xs max-w-xs mx-auto mt-1">{desc}</DialogDescription>

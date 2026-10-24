@@ -15,9 +15,14 @@ export const AuthGateway: React.FC = () => {
       {/* Header */}
       <header className="w-full px-6 sm:px-12 pb-6 pt-[max(1.5rem,env(safe-area-inset-top))] flex items-center justify-between border-b border-border bg-card">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-blue-500 flex items-center justify-center text-white font-extrabold text-base shadow-sm">
-            R
-          </div>
+          <img
+            src="/logo-mark.png"
+            alt="Rankify"
+            width={36}
+            height={36}
+            loading="eager"
+            className="w-9 h-9 object-contain shrink-0"
+          />
           <div>
             <span className="font-extrabold text-lg tracking-tight bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
               Rankify

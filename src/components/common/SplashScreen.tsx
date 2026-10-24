@@ -111,22 +111,16 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
                   repeat: Infinity,
                   ease: 'easeInOut',
                 }}
-                className="relative w-18 h-18 sm:w-20 sm:h-20 rounded-3xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-blue-500 p-[1.5px] shadow-2xl shadow-purple-600/35 border border-white/25 flex items-center justify-center text-white"
+                className="relative flex items-center justify-center"
               >
-                <div className="w-full h-full rounded-[22px] bg-gradient-to-tr from-purple-600 via-indigo-600 to-blue-500 flex items-center justify-center">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="w-9 h-9 sm:w-10 sm:h-10 text-white drop-shadow-md"
-                  >
-                    <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
-                    <path d="M6 12v5c3 3 9 3 12 0v-5" />
-                  </svg>
-                </div>
+                <img
+                  src="/icon-512.png"
+                  alt="Rankify"
+                  width={96}
+                  height={96}
+                  loading="eager"
+                  className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-contain shadow-2xl"
+                />
               </motion.div>
             </motion.div>
 

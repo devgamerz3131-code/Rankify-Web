@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/use-auth';
 import { mistakeService } from '@/services/mistake-service';
+import { isTourActive, registerTourViewController } from '@/features/tour/tourReadOnlyGate';
 import {
   MistakeItem,
   MistakeType,
@@ -93,7 +94,21 @@ export const MistakeNotebookView: React.FC = () => {
 
   // Active view tab: 'notebook' | 'analytics'
   const [activeTab, setActiveTab] = useState<'notebook' | 'analytics'>('notebook');
+  const activeTabRef = useRef<'notebook' | 'analytics'>(activeTab);
+  activeTabRef.current = activeTab;
   const tabsRef = useRef<HTMLDivElement>(null);
+
+  // Register tour-controlled view state for 'mistakes' screen
+  useEffect(() => {
+    return registerTourViewController('mistakes', {
+      getTab: () => activeTabRef.current,
+      setTab: (nextTab: string) => {
+        if (nextTab === 'notebook' || nextTab === 'analytics') {
+          setActiveTab(nextTab);
+        }
+      },
+    });
+  }, []);
 
   const updateTabsFade = useCallback(() => {
     const el = tabsRef.current;
@@ -291,6 +306,7 @@ export const MistakeNotebookView: React.FC = () => {
 
   // Start Quick Revision Flow
   const startRevisionSession = () => {
+    if (isTourActive()) return;
     if (dueTodayMistakes.length === 0) {
       toast.success('No mistakes due today! You are all caught up.', { icon: '🎉' });
       return;
@@ -330,7 +346,10 @@ export const MistakeNotebookView: React.FC = () => {
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-16 select-none animate-fadeIn">
       {/* 1. HERO HEADER BANNER */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-rose-950 via-slate-950 to-indigo-950 p-6 sm:p-8 text-white shadow-2xl border border-rose-500/25">
+      <div
+        data-tour="mistakes-header"
+        className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-rose-950 via-slate-950 to-indigo-950 p-6 sm:p-8 text-white shadow-2xl border border-rose-500/25"
+      >
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-5">
           <div className="space-y-1.5">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-rose-200 border border-white/15">
@@ -371,7 +390,7 @@ export const MistakeNotebookView: React.FC = () => {
       </div>
 
       {/* 2. STATS OVERVIEW CARDS */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+      <div data-tour="mistakes-stats" className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
         <div className="p-4 rounded-2xl bg-card border border-slate-200/80 dark:border-white/10 shadow-xs space-y-1">
           <div className="flex items-center justify-between text-xs text-muted-foreground font-semibold">
             <span>Total Errors</span>
@@ -416,6 +435,7 @@ export const MistakeNotebookView: React.FC = () => {
       {/* 3. NAVIGATION VIEW TOGGLE (Notebook vs Analytics) */}
       <div
         ref={tabsRef}
+        data-tour="mistakes-tabs"
         onScroll={updateTabsFade}
         className="flex items-center justify-between gap-2 border-b border-slate-200 dark:border-white/10 pb-2 overflow-x-auto flex-nowrap snap-x snap-mandatory scrollbar-none scroll-edge-fade min-w-0"
       >
@@ -478,7 +498,10 @@ export const MistakeNotebookView: React.FC = () => {
       {activeTab === 'notebook' ? (
         <div className="space-y-5">
           {/* SEARCH & FILTER CONTROLS */}
-          <div className="p-4 rounded-2xl bg-card border border-slate-200/80 dark:border-white/10 shadow-xs space-y-3">
+          <div
+            data-tour="mistakes-filters"
+            className="p-4 rounded-2xl bg-card border border-slate-200/80 dark:border-white/10 shadow-xs space-y-3"
+          >
             {/* Search Input */}
             <div className="relative">
               <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -616,7 +639,7 @@ export const MistakeNotebookView: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredMistakes.map((item) => {
+              {filteredMistakes.map((item, idx) => {
                 const isExpanded = expandedId === item.id;
                 const typeStyle = MISTAKE_TYPE_COLORS[item.mistakeType] || MISTAKE_TYPE_COLORS['Concept Error'];
                 const statusBadge = STATUS_BADGES[item.status] || STATUS_BADGES.New;
@@ -625,6 +648,7 @@ export const MistakeNotebookView: React.FC = () => {
                 return (
                   <motion.div
                     key={item.id}
+                    data-tour={idx === 0 ? 'mistakes-card' : undefined}
                     layout
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -670,7 +694,10 @@ export const MistakeNotebookView: React.FC = () => {
                       </div>
 
                       {/* Right Pin & Bookmark & Delete buttons */}
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div
+                        data-tour={idx === 0 ? 'mistakes-card-actions' : undefined}
+                        className="flex items-center gap-1 shrink-0"
+                      >
                         <button
                           onClick={() => mistakeService.togglePin(item.id)}
                           className={`min-w-[44px] min-h-[44px] lg:min-w-[36px] lg:min-h-[36px] p-2.5 lg:p-1.5 flex items-center justify-center rounded-xl transition-colors cursor-pointer ${
@@ -811,7 +838,9 @@ export const MistakeNotebookView: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <Button
                           size="sm"
+                          data-tour={idx === 0 ? 'mistakes-retest' : undefined}
                           onClick={() => {
+                            if (isTourActive()) return;
                             setRetestItem(item);
                             setRetestAnswerRevealed(false);
                             setRetestSelectedOption(null);
@@ -831,7 +860,7 @@ export const MistakeNotebookView: React.FC = () => {
         </div>
       ) : (
         /* ANALYTICS & CHARTS TAB */
-        <div className="space-y-6">
+        <div data-tour="mistakes-analytics" className="space-y-6">
           {/* Charts Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* 1. Mistakes By Subject */}

@@ -34,6 +34,11 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { TOTAL_OFFICIAL_CHAPTERS } from '@/services/chapter-service';
+import {
+  isTourActive,
+  consumePendingProfileReturnTab,
+  registerTourViewController,
+} from '@/features/tour/tourReadOnlyGate';
 
 export const ProfileView: React.FC = () => {
   const { user, signOutUser } = useAuth();
@@ -48,10 +53,31 @@ export const ProfileView: React.FC = () => {
     lastSyncedAt,
     nextAutoSyncMinutes,
   } = useSync();
-  const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'settings' | 'appearance' | 'admin'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'settings' | 'appearance' | 'admin'>(
+    () => consumePendingProfileReturnTab() || 'overview'
+  );
   const [showAchievementsModal, setShowAchievementsModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const tabsRef = useRef<HTMLDivElement>(null);
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+
+  useEffect(() => {
+    return registerTourViewController('profile', {
+      getTab: () => activeTabRef.current,
+      setTab: (nextTab: string) => {
+        if (
+          nextTab === 'overview' ||
+          nextTab === 'reports' ||
+          nextTab === 'settings' ||
+          nextTab === 'appearance' ||
+          nextTab === 'admin'
+        ) {
+          setActiveTab(nextTab);
+        }
+      },
+    });
+  }, []);
 
   const isAdmin = user?.role === 'admin' || user?.email === 'devgamerz3131@gmail.com';
 
@@ -79,6 +105,7 @@ export const ProfileView: React.FC = () => {
   }, [activeTab, updateTabsFade]);
 
   const handleSyncAllData = async () => {
+    if (isTourActive()) return;
     try {
       const res = await syncAllUnified({ isManual: true });
       if (res.success) {
@@ -92,6 +119,7 @@ export const ProfileView: React.FC = () => {
   };
 
   const handleSignOut = async () => {
+    if (isTourActive()) return;
     try {
       await signOutUser();
       toast.success('Signed out successfully');
@@ -109,7 +137,10 @@ export const ProfileView: React.FC = () => {
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-12 select-none">
       {/* Profile Header */}
-      <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-purple-950 via-indigo-950 to-slate-950 text-white border border-purple-500/25 shadow-2xl relative overflow-hidden">
+      <div
+        data-tour="profile-intro"
+        className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-purple-950 via-indigo-950 to-slate-950 text-white border border-purple-500/25 shadow-2xl relative overflow-hidden"
+      >
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center gap-4 min-w-0">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white font-black text-2xl border border-white/20 shadow-xl shrink-0">
@@ -133,11 +164,17 @@ export const ProfileView: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto">
+          <div
+            data-tour="profile-actions"
+            className="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto"
+          >
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setShowShareModal(true)}
+              onClick={() => {
+                if (isTourActive()) return;
+                setShowShareModal(true);
+              }}
               className="text-xs font-bold border-white/20 text-white hover:bg-white/10 cursor-pointer whitespace-nowrap shrink-0 min-h-[44px] lg:min-h-0 w-full sm:w-auto"
             >
               <Share2 className="w-3.5 h-3.5 mr-1.5 shrink-0" />
@@ -147,7 +184,10 @@ export const ProfileView: React.FC = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setShowAchievementsModal(true)}
+              onClick={() => {
+                if (isTourActive()) return;
+                setShowAchievementsModal(true);
+              }}
               className="text-xs font-bold border-white/20 text-white hover:bg-white/10 cursor-pointer whitespace-nowrap shrink-0 min-h-[44px] lg:min-h-0 w-full sm:w-auto"
             >
               <Award className="w-3.5 h-3.5 mr-1.5 shrink-0" />
@@ -170,6 +210,7 @@ export const ProfileView: React.FC = () => {
       {/* Tabs Navigation */}
       <div
         ref={tabsRef}
+        data-tour="profile-tabs"
         onScroll={updateTabsFade}
         className="flex items-center gap-2 p-1.5 bg-muted rounded-2xl border border-border overflow-x-auto flex-nowrap snap-x snap-mandatory scrollbar-none scroll-edge-fade min-w-0"
       >
@@ -243,7 +284,7 @@ export const ProfileView: React.FC = () => {
       {activeTab === 'overview' && (
         <div className="space-y-6">
           {/* Summary Metrics */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div data-tour="profile-stats" className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="p-4 rounded-2xl bg-card border border-border shadow-xs space-y-1">
               <span className="text-xs text-muted-foreground font-semibold flex items-center gap-1.5">
                 <Award className="w-4 h-4 text-purple-600" />
@@ -278,6 +319,7 @@ export const ProfileView: React.FC = () => {
             </div>
 
             <div
+              data-tour="profile-cloud"
               onClick={handleSyncAllData}
               className="p-4 rounded-2xl bg-card border border-border shadow-xs space-y-1 cursor-pointer hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all group select-none"
               title="Click to sync all data right now to Cloud Firestore"
@@ -337,7 +379,7 @@ export const ProfileView: React.FC = () => {
           </div>
 
           {/* Academic Details Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div data-tour="profile-academic" className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <Card className="p-5 sm:p-6 bg-card border-border shadow-xs space-y-4">
               <CardTitle className="text-base font-bold flex items-center gap-2">
                 <Award className="w-4 h-4 text-purple-600" />

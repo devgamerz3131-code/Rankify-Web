@@ -12,6 +12,7 @@ import { safeLocalStorage } from '@/utils/storage';
 import { APP_CONFIG } from '@/constants/config';
 import { db, auth } from '@/firebase/config';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { isTourActive } from '@/features/tour/tourReadOnlyGate';
 
 export const ThemeContext = createContext<ThemeContextValue | null>(null);
 
@@ -218,11 +219,13 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [resolvedTheme, appearance]);
 
   const setTheme = (newTheme: Theme) => {
+    if (isTourActive()) return;
     setThemeState(newTheme);
     safeLocalStorage.setItem(APP_CONFIG.storageKeys.theme, newTheme);
   };
 
   const toggleTheme = () => {
+    if (isTourActive()) return;
     if (theme === 'light') {
       setTheme('dark');
     } else if (theme === 'dark') {
@@ -234,6 +237,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updateAppearance = useCallback(
     (partial: Partial<AppearanceSettings>) => {
+      if (isTourActive()) return;
       setAppearanceState((prev) => {
         const next = { ...prev, ...partial };
         safeLocalStorage.setItem(STORAGE_KEY_APPEARANCE, JSON.stringify(next));
@@ -253,6 +257,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const applyPreset = useCallback(
     (preset: UiPreset) => {
+      if (isTourActive()) return;
       let nextPresetSettings: Partial<AppearanceSettings> = { uiPreset: preset };
 
       switch (preset) {
@@ -324,6 +329,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
 
   const resetAppearance = useCallback(() => {
+    if (isTourActive()) return;
     setAppearanceState(DEFAULT_APPEARANCE_SETTINGS);
     safeLocalStorage.setItem(STORAGE_KEY_APPEARANCE, JSON.stringify(DEFAULT_APPEARANCE_SETTINGS));
 
@@ -335,6 +341,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const saveAsAdminDefault = useCallback(async () => {
+    if (isTourActive()) return;
     try {
       const configRef = doc(db, 'app_config', 'default_appearance');
       await setDoc(configRef, appearance, { merge: true });

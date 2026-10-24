@@ -264,7 +264,7 @@ export const ChatBubbleComponent: React.FC<ChatBubbleProps> = ({
         {/* ========================================================= */}
         {/* PROMPT CARD (Material 3 Surface + Notion + Arc rounded card) */}
         {/* ========================================================= */}
-        <div className="rounded-3xl bg-card border border-border shadow-lg overflow-hidden transition-all hover:border-primary/40">
+        <div data-tour="ai-response-card" className="rounded-3xl bg-card border border-border shadow-lg overflow-hidden transition-all hover:border-primary/40">
           {/* Card Top Banner: Metadata Badges (Subject, Chapter, Question Type, Intent) */}
           <div className="p-4 sm:p-5 border-b border-border bg-muted/40 flex flex-wrap items-center justify-between gap-2.5">
             {/* Left Chips */}
@@ -377,7 +377,7 @@ export const ChatBubbleComponent: React.FC<ChatBubbleProps> = ({
           {/* ========================================================= */}
           <div className="p-3 sm:p-4 bg-slate-50/70 dark:bg-slate-900/40 border-t border-slate-100 dark:border-white/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             {/* Primary Action Buttons (Large ChatGPT / Gemini / Copy) */}
-            <div className="flex flex-wrap items-center gap-2">
+            <div data-tour="ai-continue-buttons" className="flex flex-wrap items-center gap-2">
               {/* Copy Prompt Button with smooth animation & feedback */}
               <motion.button
                 whileTap={{ scale: 0.95 }}
@@ -436,7 +436,7 @@ export const ChatBubbleComponent: React.FC<ChatBubbleProps> = ({
             </div>
 
             {/* Secondary Actions: Export, Share, Regenerate, Favorite */}
-            <div className="flex items-center gap-1.5 ml-auto relative">
+            <div data-tour="ai-response-actions" className="flex items-center gap-1.5 ml-auto relative">
               {/* Export Menu (TXT & PDF) */}
               <div className="relative">
                 <button

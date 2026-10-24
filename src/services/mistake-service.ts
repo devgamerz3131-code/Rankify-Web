@@ -17,6 +17,7 @@ import {
   QuestionType,
 } from '@/types/mistake';
 import toast from 'react-hot-toast';
+import { isTourActive } from '@/features/tour/tourReadOnlyGate';
 
 const STORAGE_PREFIX = 'rankify_mistake_notebook_';
 
@@ -148,20 +149,22 @@ export class MistakeService {
 
         if (remoteItems.length > 0) {
           this.mistakes = remoteItems;
-          safeLocalStorage.setItem(storageKey, remoteItems);
+          if (!isTourActive()) {
+            safeLocalStorage.setItem(storageKey, remoteItems);
+          }
           this.notify();
-        } else if (cached.length === 0) {
+        } else if (cached.length === 0 && !isTourActive()) {
           // If completely empty, seed standard CBSE Class 12 high-yield mistakes
           await this.seedInitialMistakes(userId);
         }
       } catch (err) {
         console.warn('[MistakeService] Cloud load fallback to local store:', err);
-        if (this.mistakes.length === 0) {
+        if (this.mistakes.length === 0 && !isTourActive()) {
           await this.seedInitialMistakes(userId);
         }
       }
     } else {
-      if (this.mistakes.length === 0) {
+      if (this.mistakes.length === 0 && !isTourActive()) {
         await this.seedInitialMistakes('guest');
       }
     }
@@ -174,6 +177,7 @@ export class MistakeService {
    * Seed high-yield initial CBSE Class 12 PCM mistakes for instant exploration
    */
   public async seedInitialMistakes(userId: string): Promise<void> {
+    if (isTourActive()) return;
     const now = new Date();
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
     const todayDue = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString(); // Due today!
@@ -388,6 +392,10 @@ export class MistakeService {
       isPinned: false,
     };
 
+    if (isTourActive()) {
+      return newMistake;
+    }
+
     // Prepend to active memory
     this.mistakes = [newMistake, ...this.mistakes];
     this.saveToStorage();
@@ -423,6 +431,7 @@ export class MistakeService {
     wasCorrect: boolean,
     notes?: string
   ): Promise<MistakeItem | null> {
+    if (isTourActive()) return null;
     const idx = this.mistakes.findIndex((m) => m.id === mistakeId);
     if (idx === -1) return null;
 
@@ -514,6 +523,7 @@ export class MistakeService {
    * Bookmark toggle
    */
   public async toggleBookmark(mistakeId: string): Promise<boolean> {
+    if (isTourActive()) return false;
     const idx = this.mistakes.findIndex((m) => m.id === mistakeId);
     if (idx === -1) return false;
 
@@ -535,6 +545,7 @@ export class MistakeService {
    * Pin toggle (pins difficult mistakes to the top)
    */
   public async togglePin(mistakeId: string): Promise<boolean> {
+    if (isTourActive()) return false;
     const idx = this.mistakes.findIndex((m) => m.id === mistakeId);
     if (idx === -1) return false;
 
@@ -556,6 +567,7 @@ export class MistakeService {
    * Update mistake fields (e.g. classification, notes, importance)
    */
   public async updateMistake(mistakeId: string, updates: Partial<MistakeItem>): Promise<MistakeItem | null> {
+    if (isTourActive()) return null;
     const idx = this.mistakes.findIndex((m) => m.id === mistakeId);
     if (idx === -1) return null;
 
@@ -577,6 +589,7 @@ export class MistakeService {
    * Delete mistake item
    */
   public async deleteMistake(mistakeId: string): Promise<boolean> {
+    if (isTourActive()) return false;
     const idx = this.mistakes.findIndex((m) => m.id === mistakeId);
     if (idx === -1) return false;
 
@@ -772,6 +785,7 @@ export class MistakeService {
   }
 
   private saveToStorage(): void {
+    if (isTourActive()) return;
     const storageKey = `${STORAGE_PREFIX}${this.currentUserId}`;
     safeLocalStorage.setItem(storageKey, this.mistakes);
   }

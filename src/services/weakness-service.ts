@@ -24,6 +24,7 @@ import {
   getChapterById,
   getAllCanonicalChapters,
 } from './chapter-service';
+import { isTourActive } from '@/features/tour/tourReadOnlyGate';
 
 const STORAGE_KEY = 'rankify_weakness_analyzer_cache_';
 const SNAPSHOTS_KEY_PREFIX = 'rankify_weakness_snapshots_';
@@ -347,7 +348,7 @@ export function saveWeaknessWeeklySnapshot(
   attemptedCount: number,
   weakCount: number
 ): WeaknessWeeklySnapshot[] {
-  if (attemptedCount === 0) {
+  if (attemptedCount === 0 || isTourActive()) {
     return getStoredWeaknessSnapshots(userId);
   }
 
@@ -527,7 +528,9 @@ export class WeaknessService {
         if (snap.exists()) {
           const remoteData = snap.data() as WeaknessOverallData;
           this.cachedData = remoteData;
-          safeLocalStorage.setItem(`${STORAGE_KEY}${this.currentUserId}`, remoteData);
+          if (!isTourActive()) {
+            safeLocalStorage.setItem(`${STORAGE_KEY}${this.currentUserId}`, remoteData);
+          }
           this.notify();
         }
       } catch (err) {
@@ -1230,15 +1233,17 @@ export class WeaknessService {
     };
 
     this.cachedData = overallData;
-    try {
-      safeLocalStorage.setItem(`${STORAGE_KEY}${this.currentUserId}`, overallData);
-    } catch (err) {
-      console.warn('[WeaknessService] Storage cache write failed:', err);
+    if (!isTourActive()) {
+      try {
+        safeLocalStorage.setItem(`${STORAGE_KEY}${this.currentUserId}`, overallData);
+      } catch (err) {
+        console.warn('[WeaknessService] Storage cache write failed:', err);
+      }
     }
     this.notify();
 
     // Firebase background sync
-    if (this.currentUserId && this.currentUserId !== 'guest') {
+    if (!isTourActive() && this.currentUserId && this.currentUserId !== 'guest') {
       try {
         const docRef = doc(db, 'users', this.currentUserId, 'weakness_analysis', 'current');
         setDoc(docRef, overallData, { merge: true }).catch((err) => {
@@ -1253,7 +1258,7 @@ export class WeaknessService {
   }
 
   public completeChapterActionStep(chapterId: string, stepIndex: number): WeaknessOverallData | null {
-    if (!this.cachedData) return null;
+    if (!this.cachedData || isTourActive()) return this.cachedData;
 
     const updatedChapters = this.cachedData.allChapters.map((ch) => {
       if (ch.chapterId === chapterId) {

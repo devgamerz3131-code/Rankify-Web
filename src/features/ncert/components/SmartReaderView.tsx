@@ -43,6 +43,7 @@ import {
 import toast from 'react-hot-toast';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { useTheme } from '@/hooks/use-theme';
+import { useIsTourActive } from '@/features/tour/tourReadOnlyGate';
 
 type HighlightColor = 'yellow' | 'green' | 'pink' | 'blue' | 'purple';
 
@@ -57,6 +58,7 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
   onBack,
   onOpenRevisionModal,
 }) => {
+  const isTourActive = useIsTourActive();
   const { setActiveTab } = useNavigation();
   const [selectedTopicIndex, setSelectedTopicIndex] = useState(0);
   const [selectedParagraphId, setSelectedParagraphId] = useState<string>(
@@ -170,7 +172,7 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
 
   // Audio Voice Controls
   const handleToggleVoice = () => {
-    if (!speechSupported) return;
+    if (!speechSupported || isTourActive) return;
     if (isSpeaking && !isVoicePaused) {
       ncertService.pauseVoice();
       setIsVoicePaused(true);
@@ -199,6 +201,7 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
   };
 
   const handleAddHighlight = async (colorToUse: HighlightColor = highlightColor, paragraph = currentParagraph) => {
+    if (isTourActive) return;
     await ncertService.addHighlight(
       chapter.id,
       paragraph.id,
@@ -209,6 +212,7 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
   };
 
   const handleToggleBookmark = async () => {
+    if (isTourActive) return;
     const isNow = await ncertService.toggleBookmark(
       chapter.id,
       currentParagraph.id,
@@ -223,7 +227,7 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
   };
 
   const handleSaveNote = async () => {
-    if (!newNoteText.trim()) return;
+    if (isTourActive || !newNoteText.trim()) return;
     await ncertService.savePersonalNote(chapter.id, currentParagraph.id, newNoteText.trim());
     toast.success('Personal annotation saved to NCERT reader!');
     setShowNoteEditor(false);
@@ -277,7 +281,7 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
       {/* 1. TOP READER NAVIGATION & PROGRESS BAR */}
       <div className={`sticky top-0 z-30 ${currentThemeStyle.cardBg} border-b ${currentThemeStyle.border} px-4 py-3 shadow-xs`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+          <div data-tour="ncert-header" className="flex items-center gap-3">
             <button
               onClick={onBack}
               className="p-2 rounded-xl hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
@@ -327,6 +331,7 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
             {/* Reader Appearance Settings Toggle */}
             <div className="relative">
               <button
+                data-tour="ncert-reader-options"
                 onClick={() => setShowSettingsMenu(!showSettingsMenu)}
                 className="p-2 rounded-xl border border-slate-300 dark:border-white/10 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 title="Reader Appearance Settings"
@@ -419,7 +424,10 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
         </div>
 
         {/* Reading Progress Line */}
-        <div className="max-w-7xl mx-auto mt-2 flex items-center justify-between text-[11px] font-mono text-muted-foreground">
+        <div
+          data-tour="ncert-progress"
+          className="max-w-7xl mx-auto mt-2 flex items-center justify-between text-[11px] font-mono text-muted-foreground"
+        >
           <div className="flex items-center gap-2">
             <span>Reading Progress: <strong>{chapterProgress.completionPercent}%</strong></span>
             <span>•</span>
@@ -449,6 +457,7 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
           {/* Topic Selector Tabs */}
           <div
             ref={topicTabsRef}
+            data-tour="ncert-sections"
             onScroll={() => syncScrollFade(topicTabsRef.current)}
             className="flex items-center gap-2 overflow-x-auto flex-nowrap snap-x snap-mandatory pb-1 scrollbar-none scroll-edge-fade text-xs min-w-0"
           >
@@ -483,6 +492,7 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
               return (
                 <div
                   key={p.id}
+                  data-tour={isSelected ? 'ncert-text' : undefined}
                   onClick={() => setSelectedParagraphId(p.id)}
                   className={`p-5 sm:p-6 w-full rounded-3xl border transition-all duration-300 cursor-pointer relative ${
                     isSelected
@@ -520,8 +530,10 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
 
                     <div className="flex items-center gap-1.5 shrink-0">
                       <button
+                        data-tour={isSelected ? 'ncert-bookmark' : undefined}
                         onClick={(e) => {
                           e.stopPropagation();
+                          if (isTourActive) return;
                           setSelectedParagraphId(p.id);
                           handleToggleBookmark();
                         }}
@@ -560,13 +572,14 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
                   {isSelected && (
                     <div className="mt-4 pt-3 border-t border-border flex flex-wrap items-center justify-between gap-2 text-xs">
                       {/* Color Palette for Highlight */}
-                      <div className="flex items-center gap-1.5">
+                      <div data-tour="ncert-highlight" className="flex items-center gap-1.5">
                         <span className="text-[10px] text-muted-foreground font-mono">Highlight:</span>
                         {(['yellow', 'green', 'pink', 'blue', 'purple'] as const).map((c) => (
                           <button
                             key={c}
                             onClick={(e) => {
                               e.stopPropagation();
+                              if (isTourActive) return;
                               setHighlightColor(c);
                               handleAddHighlight(c, p);
                             }}
@@ -587,8 +600,10 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
 
                       <div className="flex items-center gap-2">
                         <button
+                          data-tour="ncert-note"
                           onClick={(e) => {
                             e.stopPropagation();
+                            if (isTourActive) return;
                             setShowNoteEditor(!showNoteEditor);
                           }}
                           className="px-2.5 py-1 rounded-lg bg-muted text-foreground hover:bg-muted/80 border border-border/60 font-semibold flex items-center gap-1 text-[11px] cursor-pointer"
@@ -599,8 +614,10 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
 
                         {speechSupported && (
                           <button
+                            data-tour="ncert-listen"
                             onClick={(e) => {
                               e.stopPropagation();
+                              if (isTourActive) return;
                               handleToggleVoice();
                             }}
                             className="px-2.5 py-1 rounded-lg bg-muted text-foreground hover:bg-muted/80 border border-border/60 font-semibold flex items-center gap-1 text-[11px] cursor-pointer"
@@ -660,6 +677,7 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
             {/* Inspector Navigation Sub-tabs */}
             <div
               ref={inspectorTabsRef}
+              data-tour="ncert-ai-tabs"
               onScroll={() => syncScrollFade(inspectorTabsRef.current)}
               className="p-1.5 rounded-2xl bg-card border border-slate-200/80 dark:border-white/10 flex items-center gap-1.5 flex-nowrap overflow-x-auto snap-x snap-mandatory scrollbar-none scroll-edge-fade text-xs font-bold shadow-xs w-full min-w-0"
             >
@@ -694,7 +712,7 @@ export const SmartReaderView: React.FC<SmartReaderViewProps> = ({
             <div className="p-5 sm:p-6 w-full rounded-3xl bg-card border border-slate-200/80 dark:border-white/10 shadow-xl space-y-4 lg:max-h-[75vh] lg:overflow-y-auto text-xs">
               {/* TAB 1: AI EXPLAIN */}
               {activeInspectorTab === 'explain' && (
-                <div className="space-y-4">
+                <div data-tour="ncert-ai-explain" className="space-y-4">
                   <div>
                     <span className="text-[10px] font-black uppercase tracking-wider text-purple-600 dark:text-purple-400 font-mono">
                       Paragraph AI Breakdown

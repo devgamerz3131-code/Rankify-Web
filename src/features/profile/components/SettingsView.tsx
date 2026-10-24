@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/hooks/use-auth';
 import { useOnboarding } from '@/contexts/OnboardingContext';
@@ -9,6 +9,13 @@ import { CURRENT_APP_VERSION } from '@/services/remote-config';
 import { TOTAL_OFFICIAL_CHAPTERS } from '@/services/chapter-service';
 import { AppearanceLabView } from './AppearanceLabView';
 import { BackupRestoreCenter } from './BackupRestoreCenter';
+import { useTour } from '@/features/tour/TourContext';
+import { TOUR_UI_TEXT } from '@/features/tour/tourSteps';
+import {
+  isTourActive,
+  consumePendingSettingsReturnSubTab,
+  registerTourViewController,
+} from '@/features/tour/tourReadOnlyGate';
 import {
   Sun,
   Moon,
@@ -36,8 +43,11 @@ export const SettingsView: React.FC = () => {
   const { user } = useAuth();
   const { setScreen } = useOnboarding();
   const { setActiveTab } = useNavigation();
+  const { replayTour } = useTour();
 
-  const [settingsTab, setSettingsTab] = useState<'general' | 'appearance' | 'backup'>('general');
+  const [settingsTab, setSettingsTab] = useState<'general' | 'appearance' | 'backup'>(
+    () => consumePendingSettingsReturnSubTab() || 'general'
+  );
   const [selectedLanguage, setSelectedLanguage] = useState<'English' | 'Hindi'>('English');
   const [showResetModal, setShowResetModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -45,8 +55,22 @@ export const SettingsView: React.FC = () => {
   const [isCloudSyncing, setIsCloudSyncing] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const settingsTabRef = useRef(settingsTab);
+  settingsTabRef.current = settingsTab;
+
+  useEffect(() => {
+    return registerTourViewController('profileSettings', {
+      getTab: () => settingsTabRef.current,
+      setTab: (nextTab: string) => {
+        if (nextTab === 'general' || nextTab === 'appearance' || nextTab === 'backup') {
+          setSettingsTab(nextTab);
+        }
+      },
+    });
+  }, []);
 
   const handleClearCache = () => {
+    if (isTourActive()) return;
     try {
       localStorage.removeItem('rankify_ai_session_memory');
       toast.success('Local application & response caches cleared safely!');
@@ -56,6 +80,7 @@ export const SettingsView: React.FC = () => {
   };
 
   const handleCloudBackupNow = async () => {
+    if (isTourActive()) return;
     if (!user?.uid) {
       toast.error('Sign in required for cloud backup');
       return;
@@ -71,6 +96,7 @@ export const SettingsView: React.FC = () => {
   };
 
   const handleCloudRestoreNow = async () => {
+    if (isTourActive()) return;
     if (!user?.uid) {
       toast.error('Sign in required for cloud restore');
       return;
@@ -87,6 +113,7 @@ export const SettingsView: React.FC = () => {
   };
 
   const handleExportJSON = () => {
+    if (isTourActive()) return;
     if (!user?.uid) {
       toast.error('Please sign in first');
       return;
@@ -95,10 +122,12 @@ export const SettingsView: React.FC = () => {
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isTourActive()) return;
     const file = e.target.files?.[0];
     if (!file || !user?.uid) return;
     const reader = new FileReader();
     reader.onload = (event) => {
+      if (isTourActive()) return;
       const content = event.target?.result as string;
       if (content) {
         backupRestoreService.importBackupFile(content, user.uid);
@@ -108,6 +137,7 @@ export const SettingsView: React.FC = () => {
   };
 
   const handleResetOnboarding = async () => {
+    if (isTourActive()) return;
     try {
       if (user?.uid) {
         // Pre-destructive safety backup
@@ -126,6 +156,7 @@ export const SettingsView: React.FC = () => {
 
   const handleSubmitFeedback = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isTourActive()) return;
     if (!feedbackText.trim()) return;
     toast.success('Thank you for helping us polish Rankify for CBSE Class 12!');
     setFeedbackText('');
@@ -135,7 +166,10 @@ export const SettingsView: React.FC = () => {
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Settings Sub-Navigation */}
-      <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl border border-slate-200/60 dark:border-white/5 w-fit">
+      <div
+        data-tour="settings-tabs"
+        className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl border border-slate-200/60 dark:border-white/5 w-fit"
+      >
         <button
           onClick={() => setSettingsTab('general')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
@@ -147,6 +181,7 @@ export const SettingsView: React.FC = () => {
           General Settings
         </button>
         <button
+          data-tour="settings-lab-entry"
           onClick={() => setSettingsTab('appearance')}
           className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             settingsTab === 'appearance'
@@ -177,7 +212,10 @@ export const SettingsView: React.FC = () => {
       ) : (
         <>
           {/* 1. Theme Configuration & Appearance Lab Callout */}
-          <div className="p-6 rounded-2xl bg-card border border-border shadow-xs space-y-4">
+          <div
+            data-tour="settings-theme"
+            className="p-6 rounded-2xl bg-card border border-border shadow-xs space-y-4"
+          >
             <div>
               <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
                 <Sun className="w-4 h-4 text-purple-600" />
@@ -190,7 +228,10 @@ export const SettingsView: React.FC = () => {
 
             <div className="grid grid-cols-3 gap-3">
               <button
-                onClick={() => setTheme('light')}
+                onClick={() => {
+                  if (isTourActive()) return;
+                  setTheme('light');
+                }}
                 className={`p-3.5 rounded-2xl border text-xs font-bold flex flex-col items-center gap-2 transition-all cursor-pointer ${
                   theme === 'light'
                     ? 'border-purple-600 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 shadow-xs'
@@ -202,7 +243,10 @@ export const SettingsView: React.FC = () => {
               </button>
 
               <button
-                onClick={() => setTheme('dark')}
+                onClick={() => {
+                  if (isTourActive()) return;
+                  setTheme('dark');
+                }}
                 className={`p-3.5 rounded-2xl border text-xs font-bold flex flex-col items-center gap-2 transition-all cursor-pointer ${
                   theme === 'dark'
                     ? 'border-purple-600 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 shadow-xs'
@@ -214,7 +258,10 @@ export const SettingsView: React.FC = () => {
               </button>
 
               <button
-                onClick={() => setTheme('system')}
+                onClick={() => {
+                  if (isTourActive()) return;
+                  setTheme('system');
+                }}
                 className={`p-3.5 rounded-2xl border text-xs font-bold flex flex-col items-center gap-2 transition-all cursor-pointer ${
                   theme === 'system'
                     ? 'border-purple-600 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 shadow-xs'
@@ -228,7 +275,10 @@ export const SettingsView: React.FC = () => {
           </div>
 
       {/* 2. Notification Center */}
-      <div className="p-6 rounded-2xl bg-card border border-border shadow-xs space-y-4">
+      <div
+        data-tour="settings-notifications"
+        className="p-6 rounded-2xl bg-card border border-border shadow-xs space-y-4"
+      >
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
@@ -241,7 +291,10 @@ export const SettingsView: React.FC = () => {
           </div>
 
           <button
-            onClick={() => setActiveTab('settings')}
+            onClick={() => {
+              if (isTourActive()) return;
+              setActiveTab('settings');
+            }}
             className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold shrink-0 transition-colors cursor-pointer shadow-sm"
           >
             Manage Notifications
@@ -250,7 +303,10 @@ export const SettingsView: React.FC = () => {
       </div>
 
       {/* 3. Cloud Backup & Data Recovery */}
-      <div className="p-6 rounded-2xl bg-card border border-border shadow-xs space-y-4">
+      <div
+        data-tour="settings-backup"
+        className="p-6 rounded-2xl bg-card border border-border shadow-xs space-y-4"
+      >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
@@ -263,6 +319,7 @@ export const SettingsView: React.FC = () => {
           </div>
 
           <button
+            data-tour="settings-backup-hub"
             onClick={() => setSettingsTab('backup')}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-xs font-bold border border-purple-200 dark:border-purple-800/40 hover:bg-purple-100 transition-colors cursor-pointer shrink-0"
           >
@@ -307,7 +364,10 @@ export const SettingsView: React.FC = () => {
         </div>
 
         {/* Offline File Export / Import */}
-        <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+        <div
+          data-tour="settings-file-backup"
+          className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 dark:border-slate-800"
+        >
           <button
             onClick={handleExportJSON}
             className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-foreground text-xs font-bold border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 cursor-pointer"
@@ -325,7 +385,10 @@ export const SettingsView: React.FC = () => {
           />
 
           <button
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => {
+              if (isTourActive()) return;
+              fileInputRef.current?.click();
+            }}
             className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-foreground text-xs font-bold border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 cursor-pointer"
           >
             <Upload className="w-3.5 h-3.5 text-indigo-500" />
@@ -349,6 +412,7 @@ export const SettingsView: React.FC = () => {
         <div className="grid grid-cols-2 gap-3 max-w-sm">
           <button
             onClick={() => {
+              if (isTourActive()) return;
               setSelectedLanguage('English');
               toast.success('Curriculum language set to English');
             }}
@@ -363,6 +427,7 @@ export const SettingsView: React.FC = () => {
 
           <button
             onClick={() => {
+              if (isTourActive()) return;
               setSelectedLanguage('Hindi');
               toast.success('Curriculum language set to Hindi / Hinglish');
             }}
@@ -399,11 +464,40 @@ export const SettingsView: React.FC = () => {
           </button>
 
           <button
-            onClick={() => setShowResetModal(true)}
+            onClick={() => {
+              if (isTourActive()) return;
+              setShowResetModal(true);
+            }}
             className="px-4 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 text-rose-700 dark:text-rose-300 text-xs font-bold border border-rose-200 dark:border-rose-900/40 flex items-center gap-1.5 cursor-pointer"
           >
             <AlertTriangle className="w-3.5 h-3.5" />
             <span>Reset Onboarding Assessment</span>
+          </button>
+        </div>
+      </div>
+
+      {/* App Tutorial Replay Row */}
+      <div
+        data-tour="settings-tutorial"
+        className="p-6 rounded-2xl bg-card border border-border shadow-xs"
+      >
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-purple-600" />
+              <span>{TOUR_UI_TEXT.settingsSectionLabel}</span>
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {TOUR_UI_TEXT.settingsSectionDescription}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={replayTour}
+            className="min-h-[44px] px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold shrink-0 transition-colors cursor-pointer shadow-sm"
+          >
+            {TOUR_UI_TEXT.settingsReplayButton}
           </button>
         </div>
       </div>

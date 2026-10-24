@@ -470,6 +470,7 @@ export const HomeScreenRevamped: React.FC = () => {
           1. TOP APP BAR
           ======================================================== */}
       <motion.div
+        data-tour="home-streak"
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex items-center justify-between pt-1 pb-2 border-b border-border"
@@ -503,6 +504,7 @@ export const HomeScreenRevamped: React.FC = () => {
 
           {/* Notification Button */}
           <button
+            data-tour="home-notifications"
             onClick={handleNotificationClick}
             className="p-2 rounded-full bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition cursor-pointer"
             aria-label="Notifications"
@@ -520,7 +522,10 @@ export const HomeScreenRevamped: React.FC = () => {
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.05 }}
       >
-        <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-r from-slate-900 via-purple-950 to-indigo-950 text-white shadow-xl border border-purple-500/30 space-y-5">
+        <div
+          data-tour="home-hero"
+          className="p-6 sm:p-8 rounded-2xl bg-gradient-to-r from-slate-900 via-purple-950 to-indigo-950 text-white shadow-xl border border-purple-500/30 space-y-5"
+        >
           <div className="flex items-center justify-between gap-2">
             <span
               className={`px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border flex items-center gap-1.5 ${
@@ -567,7 +572,7 @@ export const HomeScreenRevamped: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+          <div data-tour="home-start" className="flex flex-col sm:flex-row items-center gap-3 pt-2">
             <Button
               variant="primary"
               size="md"
@@ -600,6 +605,7 @@ export const HomeScreenRevamped: React.FC = () => {
         transition={{ delay: 0.08 }}
       >
         <Card 
+          data-tour="home-halfyearly"
           onClick={() => setActiveTab('halfyearly')}
           className="p-5 sm:p-6 bg-gradient-to-r from-purple-900/30 via-indigo-900/20 to-slate-900 border border-purple-500/30 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:border-purple-500/60 shadow-lg shadow-purple-500/[0.03] transition-all group"
         >
@@ -640,7 +646,10 @@ export const HomeScreenRevamped: React.FC = () => {
         transition={{ delay: 0.1 }}
       >
         {isMissionCompleted ? (
-          <Card className="p-5 sm:p-6 bg-gradient-to-r from-emerald-950/20 via-card to-purple-950/20 border border-emerald-500/40 rounded-2xl shadow-md shadow-emerald-500/5 space-y-4">
+          <Card
+            data-tour="home-tasks"
+            className="p-5 sm:p-6 bg-gradient-to-r from-emerald-950/20 via-card to-purple-950/20 border border-emerald-500/40 rounded-2xl shadow-md shadow-emerald-500/5 space-y-4"
+          >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
               <div className="flex items-center gap-3.5">
                 <div className="w-11 h-11 rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30 shadow-xs">
@@ -704,6 +713,7 @@ export const HomeScreenRevamped: React.FC = () => {
 
               <div className="pt-2 lg:pt-0 border-t lg:border-t-0 lg:border-l border-border lg:pl-3 flex justify-end shrink-0">
                 <Button
+                  data-tour="home-reset"
                   variant="outline"
                   size="sm"
                   onClick={handleResetTodayTasks}
@@ -779,7 +789,10 @@ export const HomeScreenRevamped: React.FC = () => {
             )}
           </Card>
         ) : (
-          <Card className="p-5 sm:p-6 bg-card border border-border rounded-2xl shadow-xs space-y-4">
+          <Card
+            data-tour="home-tasks"
+            className="p-5 sm:p-6 bg-card border border-border rounded-2xl shadow-xs space-y-4"
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-purple-600" />
@@ -791,6 +804,7 @@ export const HomeScreenRevamped: React.FC = () => {
 
               <div className="flex items-center gap-2">
                 <Button
+                  data-tour="home-reset"
                   variant="outline"
                   size="sm"
                   onClick={handleResetTodayTasks}
@@ -822,7 +836,7 @@ export const HomeScreenRevamped: React.FC = () => {
                   </Button>
                 </div>
               ) : (
-                tasks.map((rawTask) => {
+                tasks.map((rawTask, idx) => {
                   const task = sanitizeTask(rawTask);
                   return (
                     <div
@@ -865,7 +879,10 @@ export const HomeScreenRevamped: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="shrink-0 flex items-center gap-2">
+                      <div
+                        data-tour={idx === 0 ? 'home-task-details' : undefined}
+                        className="shrink-0 flex items-center gap-2"
+                      >
                         <span
                           className={`hidden sm:inline-block text-[9px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap ${
                             task.priority === 'High'
@@ -944,7 +961,10 @@ export const HomeScreenRevamped: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
-        <Card className="p-5 sm:p-6 bg-card border border-border rounded-2xl shadow-xs space-y-4">
+        <Card
+          data-tour="home-progress"
+          className="p-5 sm:p-6 bg-card border border-border rounded-2xl shadow-xs space-y-4"
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-emerald-600" />
@@ -1005,7 +1025,10 @@ export const HomeScreenRevamped: React.FC = () => {
                 </span>
               </div>
 
-              <div className="p-3 rounded-xl bg-muted border border-border space-y-0.5">
+              <div
+                data-tour="home-readiness"
+                className="p-3 rounded-xl bg-muted border border-border space-y-0.5"
+              >
                 <span className="text-[10px] text-muted-foreground block font-medium">Current Readiness</span>
                 <span className="text-base font-black text-emerald-600 dark:text-emerald-400 font-mono">
                   {overallReadiness}%
@@ -1024,7 +1047,10 @@ export const HomeScreenRevamped: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.25 }}
       >
-        <Card className="p-4 sm:p-5 bg-card border border-border rounded-2xl flex items-center gap-3.5 shadow-xs">
+        <Card
+          data-tour="home-insight"
+          className="p-4 sm:p-5 bg-card border border-border rounded-2xl flex items-center gap-3.5 shadow-xs"
+        >
           <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 border border-purple-500/20">
             <Brain className="w-5 h-5" />
           </div>
@@ -1055,7 +1081,7 @@ export const HomeScreenRevamped: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
       >
-        <div className="space-y-3">
+        <div data-tour="home-quick-actions" className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-purple-600" />
@@ -1120,7 +1146,10 @@ export const HomeScreenRevamped: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.35 }}
       >
-        <Card className="p-5 sm:p-6 bg-card border border-border rounded-2xl shadow-xs space-y-4">
+        <Card
+          data-tour="home-exam-status"
+          className="p-5 sm:p-6 bg-card border border-border rounded-2xl shadow-xs space-y-4"
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Compass className="w-4 h-4 text-purple-600" />
@@ -1166,6 +1195,7 @@ export const HomeScreenRevamped: React.FC = () => {
 
           <div className="pt-2 border-t border-border flex justify-end">
             <Button
+              data-tour="home-command-center"
               variant="primary"
               size="sm"
               onClick={() => setActiveTab('command')}

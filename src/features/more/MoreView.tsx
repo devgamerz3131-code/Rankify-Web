@@ -114,7 +114,7 @@ export const MoreView: React.FC = () => {
   return (
     <div className="space-y-8 max-w-5xl mx-auto pb-16 select-none animate-fadeIn">
       {/* Header */}
-      <div className="border-b border-border pb-5 space-y-1.5">
+      <div data-tour="more-intro" className="border-b border-border pb-5 space-y-1.5">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 text-xs font-bold border border-purple-500/20">
           <Sparkles className="w-3.5 h-3.5" />
           <span>Study Resources & Tools</span>
@@ -145,6 +145,7 @@ export const MoreView: React.FC = () => {
             return (
               <motion.div
                 key={tool.id}
+                data-tour={`more-${tool.id}`}
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.08 }}
@@ -207,7 +208,7 @@ export const MoreView: React.FC = () => {
           <span>Utilities & Performance Hub</span>
         </h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+        <div data-tour="more-shortcuts" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {secondaryTools.map((sec) => {
             const SecIcon = sec.icon;
             return (

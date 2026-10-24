@@ -10,6 +10,8 @@ export interface SyncContextValue {
   lastError: string | null;
   isSyncingAll: boolean;
   nextAutoSyncMinutes: number;
+  isInitialRestoreDone: boolean;
+  initialRestoreFailed: boolean;
   syncAllUnified: (options?: { isManual?: boolean }) => Promise<{ success: boolean; itemCount?: number; error?: string }>;
   triggerManualSync: () => Promise<{ success: boolean; itemCount?: number; error?: string }>;
   saveSessionState: (partial: Partial<UserSessionState>) => void;
@@ -26,19 +28,31 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
   const [lastError, setLastError] = useState<string | null>(() => syncEngine.getLastError());
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(() => {
-    const raw = typeof window !== 'undefined' && user?.uid ? localStorage.getItem(`rankify_last_sync_time_${user.uid}`) : null;
-    return raw ? new Date(raw) : null;
+    try {
+      const raw = typeof window !== 'undefined' && user?.uid ? localStorage.getItem(`rankify_last_sync_time_${user.uid}`) : null;
+      return raw ? new Date(raw) : null;
+    } catch {
+      return null;
+    }
   });
   const [sessionState, setSessionState] = useState<UserSessionState | null>(null);
   const [isSyncingAll, setIsSyncingAll] = useState<boolean>(false);
   const [nextAutoSyncMinutes, setNextAutoSyncMinutes] = useState<number>(45);
+  const [isInitialRestoreDone, setIsInitialRestoreDone] = useState<boolean>(false);
+  const [initialRestoreFailed, setInitialRestoreFailed] = useState<boolean>(false);
 
   // Sync user change to SyncEngine
   useEffect(() => {
     syncEngine.setCurrentUser(user?.uid || null);
     if (user?.uid) {
-      const raw = localStorage.getItem(`rankify_last_sync_time_${user.uid}`);
-      if (raw) setLastSyncedAt(new Date(raw));
+      setIsInitialRestoreDone(false);
+      setInitialRestoreFailed(false);
+      try {
+        const raw = localStorage.getItem(`rankify_last_sync_time_${user.uid}`);
+        if (raw) setLastSyncedAt(new Date(raw));
+      } catch {
+        // Ignore storage error
+      }
 
       setPendingCount(syncEngine.getPendingCount(user.uid));
 
@@ -49,15 +63,28 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // Restore full state from cloud
-      syncEngine.restoreAllFromCloud(user.uid).then(() => {
-        const refreshed = syncEngine.getLocalCache<UserSessionState>('user_session', user.uid);
-        if (refreshed) {
-          setSessionState(refreshed);
-        }
-      });
+      const currentUid = user.uid;
+      syncEngine
+        .restoreAllFromCloud(currentUid)
+        .then((ok) => {
+          const refreshed = syncEngine.getLocalCache<UserSessionState>('user_session', currentUid);
+          if (refreshed) {
+            setSessionState(refreshed);
+          }
+          const hasLocalProfile = Boolean(syncEngine.getLocalCache('student_profile', currentUid));
+          const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+          setInitialRestoreFailed(!ok && !(isOffline && hasLocalProfile));
+          setIsInitialRestoreDone(true);
+        })
+        .catch(() => {
+          setInitialRestoreFailed(true);
+          setIsInitialRestoreDone(true);
+        });
     } else {
       setSessionState(null);
       setPendingCount(0);
+      setIsInitialRestoreDone(false);
+      setInitialRestoreFailed(false);
     }
   }, [user?.uid]);
 
@@ -164,6 +191,8 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
       lastError,
       isSyncingAll,
       nextAutoSyncMinutes,
+      isInitialRestoreDone,
+      initialRestoreFailed,
       syncAllUnified,
       triggerManualSync,
       saveSessionState,
@@ -176,6 +205,8 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
       lastError,
       isSyncingAll,
       nextAutoSyncMinutes,
+      isInitialRestoreDone,
+      initialRestoreFailed,
       syncAllUnified,
       triggerManualSync,
       saveSessionState,

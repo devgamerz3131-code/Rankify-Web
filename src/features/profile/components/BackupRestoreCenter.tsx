@@ -7,6 +7,7 @@ import {
   BackupHealth,
   RestoreMode,
 } from '@/services/backup-restore';
+import { isTourActive } from '@/features/tour/tourReadOnlyGate';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -76,6 +77,7 @@ export const BackupRestoreCenter: React.FC = () => {
   }, [userId]);
 
   const handleManualBackup = async () => {
+    if (isTourActive()) return;
     if (!userId) {
       toast.error('Sign in required for cloud backups');
       return;
@@ -98,11 +100,13 @@ export const BackupRestoreCenter: React.FC = () => {
   };
 
   const handleOpenRestoreConfirm = (meta: BackupMetadata) => {
+    if (isTourActive()) return;
     setSelectedBackupToRestore(meta);
     setShowRestoreModal(true);
   };
 
   const handleExecuteRestore = async () => {
+    if (isTourActive()) return;
     if (!userId || !selectedBackupToRestore) return;
     const toastId = toast.loading(`Restoring backup (${restoreMode} mode)...`);
     setShowRestoreModal(false);
@@ -135,6 +139,7 @@ export const BackupRestoreCenter: React.FC = () => {
   };
 
   const handlePreview = async (backupId: string) => {
+    if (isTourActive()) return;
     if (!userId) return;
     const fullBackup = await backupRestoreService.getBackupById(userId, backupId);
     if (fullBackup) {
@@ -145,6 +150,7 @@ export const BackupRestoreCenter: React.FC = () => {
   };
 
   const handleDeleteSingle = async (backupId: string) => {
+    if (isTourActive()) return;
     if (!userId) return;
     const success = await backupRestoreService.deleteBackup(userId, backupId);
     setBackupToDelete(null);
@@ -157,6 +163,7 @@ export const BackupRestoreCenter: React.FC = () => {
   };
 
   const handleDeleteAll = async () => {
+    if (isTourActive()) return;
     if (!userId) return;
     const success = await backupRestoreService.deleteAllBackups(userId);
     setShowDeleteAllModal(false);
@@ -169,10 +176,12 @@ export const BackupRestoreCenter: React.FC = () => {
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isTourActive()) return;
     const file = e.target.files?.[0];
     if (!file || !userId) return;
     const reader = new FileReader();
     reader.onload = (event) => {
+      if (isTourActive()) return;
       const content = event.target?.result as string;
       if (content) {
         const result = backupRestoreService.importBackupFile(content, userId, 'merge');
@@ -198,7 +207,7 @@ export const BackupRestoreCenter: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 select-none max-w-4xl mx-auto">
+    <div data-tour="settings-cloud-backups" className="space-y-6 select-none max-w-4xl mx-auto">
       {/* 1. Health & Overview Banner */}
       <div className="p-6 sm:p-7 rounded-3xl bg-gradient-to-br from-purple-950 via-indigo-950 to-slate-950 text-white border border-purple-500/25 shadow-2xl relative overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">

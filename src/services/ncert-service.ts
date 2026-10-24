@@ -13,6 +13,7 @@ import {
   NcertIntelligenceState,
 } from '@/types/ncert';
 import { NCERT_CLASS_12_CHAPTERS } from './ncert-content-data';
+import { isTourActive } from '@/features/tour/tourReadOnlyGate';
 
 const NCERT_STORAGE_KEY = 'rankify_ncert_intelligence_v1';
 
@@ -166,10 +167,12 @@ class NcertService {
 
     if (!this.memoryCache) {
       this.memoryCache = this.getDefaultState();
-      this.saveLocalCache(this.memoryCache);
+      if (!isTourActive()) {
+        this.saveLocalCache(this.memoryCache);
+      }
     }
 
-    if (this.currentUserId && this.currentUserId !== 'guest') {
+    if (this.currentUserId && this.currentUserId !== 'guest' && !isTourActive()) {
       try {
         const docRef = doc(db, 'users', this.currentUserId, 'ncert_intelligence', 'current');
         const snap = await getDoc(docRef);
@@ -208,6 +211,7 @@ class NcertService {
     minutesSpent: number,
     completionPercentage: number
   ): Promise<void> {
+    if (isTourActive()) return;
     const state = this.getCachedState();
     const currentProgress = state.progressMap[chapterId] || {
       chapterId,
@@ -269,6 +273,16 @@ class NcertService {
     textSnippet: string,
     isUnderline: boolean = false
   ): Promise<NcertHighlight> {
+    if (isTourActive()) {
+      return {
+        id: 'tour_noop',
+        paragraphId,
+        color,
+        isUnderline,
+        textSnippet,
+        createdAt: Date.now(),
+      };
+    }
     const state = this.getCachedState();
     const chapterHls = state.highlights[chapterId] || [];
 
@@ -302,6 +316,7 @@ class NcertService {
   }
 
   public async removeHighlight(chapterId: string, highlightId: string): Promise<void> {
+    if (isTourActive()) return;
     const state = this.getCachedState();
     const chapterHls = state.highlights[chapterId] || [];
     const updated = chapterHls.filter((h) => h.id !== highlightId);
@@ -329,6 +344,7 @@ class NcertService {
     topicTitle: string,
     title: string
   ): Promise<boolean> {
+    if (isTourActive()) return false;
     const state = this.getCachedState();
     const existingIndex = state.bookmarks.findIndex((b) => b.paragraphId === paragraphId);
 
@@ -371,6 +387,7 @@ class NcertService {
     paragraphId: string,
     noteText: string
   ): Promise<void> {
+    if (isTourActive()) return;
     const state = this.getCachedState();
     const chapterNotes = state.personalNotes[chapterId] || [];
     const existingIndex = chapterNotes.findIndex((n) => n.paragraphId === paragraphId);
@@ -414,6 +431,7 @@ class NcertService {
 
   // Reader Settings
   public async updateReaderSettings(settings: Partial<ReaderSettings>): Promise<void> {
+    if (isTourActive()) return;
     const state = this.getCachedState();
     const updatedSettings = { ...state.readerSettings, ...settings };
 
@@ -428,6 +446,10 @@ class NcertService {
 
   // Voice Mode (Web Speech API)
   public speakParagraph(paragraphId: string, text: string, rate: number = 1.0, onEnd?: () => void): void {
+    if (isTourActive()) {
+      if (onEnd) onEnd();
+      return;
+    }
     if (
       typeof window === 'undefined' ||
       !('speechSynthesis' in window) ||

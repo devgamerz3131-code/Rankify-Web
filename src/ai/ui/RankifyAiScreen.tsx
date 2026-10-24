@@ -33,6 +33,10 @@ import { ChatInput } from '../components/ChatInput';
 import { EmptyState } from '../components/EmptyState';
 import { AiToolsPanel } from '../components/AiToolsPanel';
 import { CustomizePanelModal } from '../components/CustomizePanelModal';
+import {
+  isTourActive,
+  registerTourViewController,
+} from '@/features/tour/tourReadOnlyGate';
 
 export const RankifyAiScreen: React.FC = () => {
   const {
@@ -70,13 +74,35 @@ export const RankifyAiScreen: React.FC = () => {
 
   // Navigation tab state inside AI screen: 'chat' | 'tools' | 'history'
   const [activeScreenTab, setActiveScreenTab] = useState<'chat' | 'tools' | 'history'>('chat');
+  const activeScreenTabRef = useRef<'chat' | 'tools' | 'history'>(activeScreenTab);
+  activeScreenTabRef.current = activeScreenTab;
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
   const [isInputFocused, setIsInputFocused] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Register UI-only view-state controller for guided tour
+  useEffect(() => {
+    return registerTourViewController('aiChat', {
+      getTab: () => activeScreenTabRef.current,
+      setTab: (nextTab: string) => {
+        if (nextTab === 'chat' || nextTab === 'tools' || nextTab === 'history') {
+          setActiveScreenTab(nextTab);
+        }
+      },
+      isDesktopAlwaysVisible: (tab: string) => {
+        if (typeof window === 'undefined' || window.innerWidth < 1024) return false;
+        if (tab === 'history') {
+          return true;
+        }
+        return false;
+      },
+    });
+  }, []);
+
   // Auto-scroll helper: scroll to latest message
   const scrollToBottom = (delay = 0) => {
+    if (isTourActive()) return;
     if (delay > 0) {
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -88,7 +114,7 @@ export const RankifyAiScreen: React.FC = () => {
 
   // Auto-scroll to bottom of chat on new messages or loading
   useEffect(() => {
-    if (activeScreenTab === 'chat') {
+    if (activeScreenTab === 'chat' && !isTourActive()) {
       scrollToBottom();
     }
   }, [messages, isLoading, activeScreenTab]);
@@ -99,6 +125,7 @@ export const RankifyAiScreen: React.FC = () => {
     if (!isMobileOrTablet) return;
 
     const handleViewportUpdate = () => {
+      if (isTourActive()) return;
       if (window.visualViewport) {
         const height = window.visualViewport.height;
         document.documentElement.style.setProperty('--app-vh', `${height}px`);
@@ -134,6 +161,7 @@ export const RankifyAiScreen: React.FC = () => {
   }, [isInputFocused]);
 
   const handleInputFocus = () => {
+    if (isTourActive()) return;
     setIsInputFocused(true);
     document.documentElement.style.setProperty('--bottom-nav-display', 'none');
     document.documentElement.setAttribute('data-keyboard', 'open');
@@ -155,6 +183,7 @@ export const RankifyAiScreen: React.FC = () => {
   };
 
   const handleToolLaunch = (promptTemplate: string) => {
+    if (isTourActive()) return;
     submitQuery(promptTemplate);
     setActiveScreenTab('chat');
   };
@@ -182,7 +211,7 @@ export const RankifyAiScreen: React.FC = () => {
       className="flex flex-col lg:flex-row w-full lg:h-[calc(100vh-6rem)] rounded-none lg:rounded-3xl overflow-hidden bg-card border-0 lg:border border-border shadow-2xl relative [overscroll-behavior:none]"
     >
       {/* 1. DESKTOP ONLY: Persistent Left History Sidebar (Hidden below 1024px) */}
-      <div className="hidden lg:block w-64 xl:w-72 shrink-0 h-full border-r border-border">
+      <div data-tour="ai-history-sidebar" className="hidden lg:block w-64 xl:w-72 shrink-0 h-full border-r border-border">
         <ChatSidebar
           conversations={filteredConversations}
           activeId={currentConversation?.id || null}
@@ -203,7 +232,7 @@ export const RankifyAiScreen: React.FC = () => {
       <div className="flex-1 flex flex-col h-full min-w-0 bg-background/50 relative overflow-hidden">
         
         {/* Simplified Header: Fixed height, shrink-0 */}
-        <div className="h-14 px-3 sm:px-5 border-b border-border flex items-center justify-between shrink-0 bg-card/90 backdrop-blur-md z-30">
+        <div data-tour="ai-header" className="h-14 px-3 sm:px-5 border-b border-border flex items-center justify-between shrink-0 bg-card/90 backdrop-blur-md z-30">
           <div className="flex items-center gap-2 min-w-0">
             <div className="w-8.5 h-8.5 rounded-xl bg-purple-600/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 border border-purple-500/20">
               <Bot className="w-4.5 h-4.5" />
@@ -233,7 +262,11 @@ export const RankifyAiScreen: React.FC = () => {
 
             {/* Customize Sliders Icon */}
             <button
-              onClick={() => setIsCustomizeOpen(true)}
+              data-tour="ai-customize"
+              onClick={() => {
+                if (isTourActive()) return;
+                setIsCustomizeOpen(true);
+              }}
               className="p-1.5 rounded-xl bg-muted/80 hover:bg-muted text-foreground hover:text-purple-600 border border-border transition cursor-pointer flex items-center gap-1"
               title="Tune Output Style"
             >
@@ -243,7 +276,9 @@ export const RankifyAiScreen: React.FC = () => {
 
             {/* Header New Chat Button */}
             <button
+              data-tour="ai-new-chat"
               onClick={() => {
+                if (isTourActive()) return;
                 startNewConversation();
                 setActiveScreenTab('chat');
               }}
@@ -257,7 +292,7 @@ export const RankifyAiScreen: React.FC = () => {
         </div>
 
         {/* 3. AI NAVIGATION BAR (Primary inside AI Screen) */}
-        <div className="px-4 py-2 border-b border-border bg-card/60 flex items-center gap-1.5 shrink-0">
+        <div data-tour="ai-tabs" className="px-4 py-2 border-b border-border bg-card/60 flex items-center gap-1.5 shrink-0">
           {(['chat', 'tools', 'history'] as const).map((tab) => {
             const isTabActive = activeScreenTab === tab;
             return (
@@ -372,7 +407,7 @@ export const RankifyAiScreen: React.FC = () => {
 
           {/* TAB B: Tools screen view */}
           {activeScreenTab === 'tools' && (
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-background/25">
+            <div data-tour="ai-tools-view" className="flex-1 overflow-y-auto p-4 sm:p-6 bg-background/25">
               <div className="max-w-4xl mx-auto space-y-6">
                 
                 {/* Section Title */}
@@ -603,7 +638,7 @@ export const RankifyAiScreen: React.FC = () => {
 
           {/* TAB C: History List Screen */}
           {activeScreenTab === 'history' && (
-            <div className="flex-1 flex flex-col min-h-0 relative bg-background/25">
+            <div data-tour="ai-history-view" className="flex-1 flex flex-col min-h-0 relative bg-background/25">
               <ChatSidebar
                 conversations={filteredConversations}
                 activeId={currentConversation?.id || null}
@@ -634,6 +669,7 @@ export const RankifyAiScreen: React.FC = () => {
       <AnimatePresence>
         {isToolsPanelOpen && (
           <motion.div
+            data-tour="ai-tools-panel"
             initial={{ width: 0, opacity: 0 }}
             animate={{ width: 300, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}

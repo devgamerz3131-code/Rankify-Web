@@ -26,6 +26,7 @@ import { backupRestoreService } from '@/services/backup-restore';
 import { doc, setDoc, updateDoc, getDoc, collection, getDocs, DocumentData } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import toast from 'react-hot-toast';
+import { isTourActive } from '@/features/tour/tourReadOnlyGate';
 
 interface OnboardingContextType extends OnboardingState {
   setScreen: (screen: number) => void;
@@ -268,7 +269,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   // Persist state to local cache & queue sync
   const saveCurrentStateToCache = useCallback(() => {
-    if (!user?.uid) return;
+    if (!user?.uid || isTourActive()) return;
     setIsSaving(true);
     const now = new Date().toISOString();
     setLastSavedAt(now);
@@ -413,6 +414,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         progressPercentage?: ProgressPercentage;
       }
     ) => {
+      if (isTourActive()) return;
       setChapterProgressMap((prev) => {
         const existing = prev[chapterId];
         if (!existing) return prev;

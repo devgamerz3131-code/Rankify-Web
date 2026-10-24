@@ -5,6 +5,7 @@ import { safeLocalStorage } from '@/utils/storage';
 import { APP_CONFIG } from '@/constants/config';
 import { syncEngine, UserSessionState } from '@/services/sync-engine';
 import { useAuth } from '@/hooks/use-auth';
+import { isTourActive } from '@/features/tour/tourReadOnlyGate';
 
 export interface AiPromptPrefill {
   subject?: string;
@@ -77,6 +78,7 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   // Restore user session tab on login
   useEffect(() => {
+    if (isTourActive()) return;
     if (user?.uid) {
       const cached = syncEngine.getLocalCache<UserSessionState>('user_session', user.uid);
       if (cached?.lastActiveTab && window.location.pathname === '/') {
@@ -88,6 +90,7 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // Listen to remote session updates from another device
   useEffect(() => {
     const unsub = syncEngine.subscribeRemoteUpdates((path, data) => {
+      if (isTourActive()) return;
       if (path === 'session' && data.lastActiveTab) {
         setActiveTabState(data.lastActiveTab as NavRoute);
       }
@@ -96,32 +99,43 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, []);
 
   // Sync URL hash or pathname with activeTab and auto-save session
-  const setActiveTab = (tab: NavRoute) => {
-    setActiveTabState(tab);
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('rankify_last_active_tab', tab);
-      } catch {}
-      const newPath = tab === 'home' ? '/' : `/${tab}`;
-      window.history.pushState(null, '', newPath);
-    }
-    if (user?.uid) {
-      syncEngine.saveSession(user.uid, {
-        lastActiveTab: tab,
-        lastOpenedFeature: tab,
-      });
-    }
-  };
+  const setActiveTab = useCallback(
+    (tab: NavRoute) => {
+      setActiveTabState(tab);
+      // Step 1(a) (Phase 3): While the tour is open, do NOT write lastOpened/lastActiveTab or push history
+      if (isTourActive()) {
+        return;
+      }
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('rankify_last_active_tab', tab);
+        } catch {}
+        const newPath = tab === 'home' ? '/' : `/${tab}`;
+        window.history.pushState(null, '', newPath);
+      }
+      if (user?.uid) {
+        syncEngine.saveSession(user.uid, {
+          lastActiveTab: tab,
+          lastOpenedFeature: tab,
+        });
+      }
+    },
+    [user?.uid]
+  );
 
-  const navigateToAi = (prefill?: AiPromptPrefill) => {
-    if (prefill) {
-      setAiPrefill(prefill);
-    }
-    setActiveTab('ai');
-  };
+  const navigateToAi = useCallback(
+    (prefill?: AiPromptPrefill) => {
+      if (prefill) {
+        setAiPrefill(prefill);
+      }
+      setActiveTab('ai');
+    },
+    [setActiveTab]
+  );
 
   useEffect(() => {
     const handlePopState = () => {
+      if (isTourActive()) return;
       const path = window.location.pathname.replace('/', '') as NavRoute;
       const validTabs: NavRoute[] = ['home', 'study', 'ai', 'progress', 'profile', 'tools', 'command', 'briefing', 'formula', 'ncert', 'revision', 'brain', 'replay', 'practice', 'settings', 'admin', 'mistakes', 'readiness', 'weakness', 'halfyearly', 'more'];
       setActiveTabState(validTabs.includes(path) ? path : 'home');
@@ -130,12 +144,12 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const setSelectedClass = (cls: CBSEClassNumber) => {
+  const setSelectedClass = useCallback((cls: CBSEClassNumber) => {
     setSelectedClassState(cls);
     safeLocalStorage.setItem(APP_CONFIG.storageKeys.selectedClass, cls);
-  };
+  }, []);
 
-  const toggleSearch = () => setIsSearchOpen((prev) => !prev);
+  const toggleSearch = useCallback(() => setIsSearchOpen((prev) => !prev), []);
 
   const value = useMemo(
     () => ({
@@ -150,7 +164,7 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setAiPrefill,
       navigateToAi,
     }),
-    [activeTab, selectedClass, isSearchOpen, aiPrefill]
+    [activeTab, setActiveTab, selectedClass, setSelectedClass, isSearchOpen, toggleSearch, aiPrefill, navigateToAi]
   );
 
   return <NavigationContext.Provider value={value}>{children}</NavigationContext.Provider>;
